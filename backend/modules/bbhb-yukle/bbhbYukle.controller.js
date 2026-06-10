@@ -1,49 +1,42 @@
 const path = require('path');
-const { execSync } = require('child_process');
 const fs = require('fs');
-const csv = require('csv-parse/sync');
+const XLSX = require('xlsx');
 const BBHBYukle = require('./bbhbYukle.model');
 const { siniflandir, yasHesapla, hesaplamaGunuStr } = require('./bbhb.siniflandirici');
 
-// XLS → CSV dönüşümü (LibreOffice)
-const xlsToCsv = (xlsPath) => {
-  const outDir = '/tmp/mis_yukle';
-  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-  execSync(
-    `python3 /usr/lib/libreoffice/program/../../../bin/python3 -c "
-import subprocess
-subprocess.run([
-  'soffice', '--headless', '--convert-to', 'csv',
-  '--outdir', '${outDir}', '${xlsPath}'
-], check=True)
-" 2>/dev/null || soffice --headless --convert-to csv --outdir ${outDir} "${xlsPath}"`,
-    { timeout: 30000 }
-  );
-  const base = path.basename(xlsPath, path.extname(xlsPath));
-  const csvPath = path.join(outDir, `${base}.csv`);
-  if (!fs.existsSync(csvPath)) throw new Error(`CSV dönüşümü başarısız: ${base}`);
-  return csvPath;
+// XLS/XLSX → JSON satırları (xlsx paketi ile, LibreOffice gerekmez)
+const xlsToRows = (filePath) => {
+  const wb = XLSX.readFile(filePath, { type: 'file', raw: false });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  return rows;
 };
 
-// CSV satırını parse et
+// CSV → JSON satırları
+const csvToRows = (filePath) => {
+  const icerik = fs.readFileSync(filePath, 'utf8');
+  return icerik.split('\n').map(l => l.split(',').map(c => c.trim().replace(/^"|"$/g, '')));
+};
+
+// Satırı parse et
 const parseSatir = (satir, kolonlar, dosyaAdi) => {
   const get = (isimler) => {
     for (const isim of isimler) {
-      const idx = kolonlar.findIndex(k => k && k.trim().toLowerCase() === isim.toLowerCase());
+      const idx = kolonlar.findIndex(k => k && k.toString().trim().toLowerCase().includes(isim.toLowerCase()));
       if (idx >= 0 && satir[idx] !== undefined) return (satir[idx] || '').toString().trim();
     }
     return '';
   };
 
-  const kupe_no      = get(['Küpe Numarası', 'kupe numarasi']);
-  const tur          = get(['Tür', 'tur']);
-  const irk          = get(['Irk', 'irk']);
-  const cinsiyet     = get(['Cinsiyet', 'cinsiyet']);
-  const dogum_tarihi = get(['Doğum Tarihi', 'dogum tarihi']);
-  const durum        = get(['Durumu', 'durum']);
-  const sahip        = get(['İşletme Sahibi Kişi/Firma', 'isletme sahibi']);
-  const isletme      = get(['Bulunduğu İşletme', 'bulundugu isletme']);
-  const suru_no      = get(['Sürü No', 'suru no']);
+  const kupe_no      = get(['küpe numarası', 'kupe']);
+  const tur          = get(['tür', 'tur']);
+  const irk          = get(['ırk', 'irk']);
+  const cinsiyet     = get(['cinsiyet']);
+  const dogum_tarihi = get(['doğum tarihi', 'dogum']);
+  const durum        = get(['durumu', 'durum']);
+  const sahip        = get(['işletme sahibi', 'sahibi']);
+  const isletme      = get(['bulunduğu işletme', 'isletme']);
+  const suru_no      = get(['sürü no', 'suru']);
 
   if (!kupe_no || !tur) return null;
   if (durum && durum.toUpperCase() !== 'CANLI') return null;
@@ -60,7 +53,6 @@ const parseSatir = (satir, kolonlar, dosyaAdi) => {
   };
 };
 
-// Dosyaları işle
 const dosyalariisle = async (req, res, next) => {
   try {
     if (!req.files || req.files.length === 0) {
@@ -74,39 +66,39 @@ const dosyalariisle = async (req, res, next) => {
 
     for (const file of req.files) {
       const ext = path.extname(file.originalname).toLowerCase();
-      let csvPath;
+      let rows;
 
-      if (ext === '.xls' || ext === '.xlsx') {
-        csvPath = xlsToCsv(file.path);
-      } else if (ext === '.csv') {
-        csvPath = file.path;
-      } else {
+      try {
+        if (ext === '.xls' || ext === '.xlsx') {
+          rows = xlsToRows(file.path);
+        } else if (ext === '.csv') {
+          rows = csvToRows(file.path);
+        } else {
+          continue;
+        }
+      } catch (e) {
+        console.error(`Dosya okunamadı: ${file.originalname}`, e.message);
         continue;
       }
 
-      const icerik = fs.readFileSync(csvPath, 'utf8');
-      const satirlar = csv.parse(icerik, { relax_quotes: true, skip_empty_lines: true });
-
-      // Başlık satırını bul (Küpe Numarası içeren)
+      // Başlık satırını bul
       let headerIdx = -1;
-      for (let i = 0; i < Math.min(satirlar.length, 5); i++) {
-        if (satirlar[i].some(c => c && c.toString().includes('Küpe'))) {
-          headerIdx = i;
-          break;
+      for (let i = 0; i < Math.min(rows.length, 10); i++) {
+        const row = rows[i];
+        if (row.some(c => c && c.toString().toLowerCase().includes('küpe'))) {
+          headerIdx = i; break;
         }
       }
-      if (headerIdx === -1) continue;
+      if (headerIdx === -1) { console.warn(`Başlık bulunamadı: ${file.originalname}`); continue; }
 
-      const kolonlar = satirlar[headerIdx];
-      const dosyaAdi = file.originalname;
-      dosyaAdlari.push(dosyaAdi);
+      const kolonlar = rows[headerIdx];
+      dosyaAdlari.push(file.originalname);
 
-      for (let i = headerIdx + 1; i < satirlar.length; i++) {
-        const h = parseSatir(satirlar[i], kolonlar, dosyaAdi);
+      for (let i = headerIdx + 1; i < rows.length; i++) {
+        const h = parseSatir(rows[i], kolonlar, file.originalname);
         if (h) tumHayvanlar.push(h);
       }
 
-      // Temp dosyaları temizle
       try { fs.unlinkSync(file.path); } catch {}
     }
 
@@ -114,7 +106,6 @@ const dosyalariisle = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Dosyalardan geçerli veri okunamadı.' });
     }
 
-    // Özet hesapla
     const kategoriler = {};
     let toplamBbhb = 0;
     tumHayvanlar.forEach(h => {

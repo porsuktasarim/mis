@@ -77,6 +77,11 @@ Türkvet'ten indirilen Büyükbaş/Küçükbaş XLS dosyalarını otomatik işle
 
 ## Değişiklik Geçmişi
 
+### v1.2.1
+- XLS dönüşümü LibreOffice yerine `xlsx` npm paketi ile yapılıyor (Alpine uyumlu)
+- `csv-parse` bağımlılığı kaldırıldı
+- Sidebar tüm sayfalarda güncellendi
+
 ### v1.2.0
 - BBHB Dosya Yükleme modülü eklendi (`/modules/bbhb-yukle/`)
 - Türkvet XLS formatı desteği (LibreOffice dönüşümü)
