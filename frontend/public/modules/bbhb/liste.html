@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BBHB Kayıtları - MİS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+
+<div class="d-flex" id="wrapper">
+
+  <nav id="sidebar" class="mis-sidebar d-flex flex-column">
+    <div class="mis-sidebar-brand">
+      <i class="bi bi-tree-fill"></i>
+      <span>MİS</span>
+    </div>
+    <hr class="mis-sidebar-divider" />
+    <ul class="nav flex-column mis-nav px-2">
+      <li class="mis-nav-section">Hesaplama</li>
+      <li class="nav-item">
+        <a class="nav-link mis-nav-link" href="/modules/bbhb/">
+          <i class="bi bi-calculator"></i> <span>BBHB Hesaplayıcı</span>
+        </a>
+      </li>
+      <li class="mis-nav-section mt-3">Raporlar</li>
+      <li class="nav-item">
+        <a class="nav-link mis-nav-link active" href="/modules/bbhb/liste.html">
+          <i class="bi bi-table"></i> <span>BBHB Kayıtları</span>
+        </a>
+      </li>
+    </ul>
+    <div class="mt-auto p-3 mis-sidebar-footer">
+      <small class="text-muted">MİS v1.0.0</small>
+    </div>
+  </nav>
+
+  <div id="page-content" class="flex-grow-1">
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle">
+        <i class="bi bi-list fs-5"></i>
+      </button>
+      <span class="mis-topbar-title">BBHB Kayıtları</span>
+      <div class="ms-auto">
+        <a href="/modules/bbhb/" class="btn btn-sm btn-mis">
+          <i class="bi bi-plus-lg me-1"></i>Yeni Hesaplama
+        </a>
+      </div>
+    </nav>
+
+    <main class="mis-main p-4">
+      <div class="mis-card">
+        <div class="mis-card-header">
+          <i class="bi bi-clock-history"></i>
+          <span class="title">Kayıtlı Hesaplamalar</span>
+          <span class="badge bg-secondary ms-2" id="toplam-badge">0</span>
+        </div>
+        <div id="tablo-alani">
+          <div class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+            <span class="ms-2">Kayıtlar yükleniyor...</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Detay Modal -->
+<div class="modal fade" id="detayModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-calculator me-2 text-success"></i>BBHB Detay</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modal-icerik">Yükleniyor...</div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+  <div id="mis-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body fw-semibold" id="toast-msg"></div>
+      <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '/api/bbhb';
+
+const showToast = (msg, type = 'success') => {
+  const el = document.getElementById('mis-toast');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+};
+
+const loadListe = async () => {
+  try {
+    const r = await fetch(API);
+    const json = await r.json();
+    const kayitlar = json.data || [];
+    document.getElementById('toplam-badge').textContent = kayitlar.length;
+
+    if (kayitlar.length === 0) {
+      document.getElementById('tablo-alani').innerHTML = `
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+          Henüz kayıt yok. <a href="/modules/bbhb/">Yeni hesaplama ekle</a>
+        </div>`;
+      return;
+    }
+
+    document.getElementById('tablo-alani').innerHTML = `
+      <div class="table-responsive">
+        <table class="table mis-table mb-0">
+          <thead>
+            <tr>
+              <th>Başlık</th>
+              <th class="text-end">Hayvan</th>
+              <th class="text-end">Tür</th>
+              <th class="text-end">BBHB</th>
+              <th>Tarih</th>
+              <th>İşlemler</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${kayitlar.map(k => `
+              <tr>
+                <td><strong>${k.baslik}</strong>${k.aciklama ? `<br><small class="text-muted">${k.aciklama}</small>` : ''}</td>
+                <td class="text-end">${k.toplam_adet}</td>
+                <td class="text-end">${k.tur_sayisi}</td>
+                <td class="text-end fw-bold text-success">${k.toplam_bbhb.toFixed(2)}</td>
+                <td class="small text-muted">${new Date(k.createdAt).toLocaleDateString('tr-TR')}</td>
+                <td>
+                  <div class="d-flex gap-1">
+                    <button class="btn btn-xs btn-outline-secondary" onclick="detayGoster('${k._id}')" title="Detay">
+                      <i class="bi bi-eye"></i>
+                    </button>
+                    <a class="btn btn-xs btn-outline-success" href="${API}/${k._id}/rapor/excel" title="Excel">
+                      <i class="bi bi-file-earmark-spreadsheet"></i>
+                    </a>
+                    <a class="btn btn-xs btn-outline-danger" href="${API}/${k._id}/rapor/pdf" title="PDF">
+                      <i class="bi bi-file-earmark-pdf"></i>
+                    </a>
+                    <a class="btn btn-xs btn-outline-primary" href="${API}/${k._id}/rapor/word" title="Word">
+                      <i class="bi bi-file-earmark-word"></i>
+                    </a>
+                    <button class="btn btn-xs btn-outline-danger" onclick="sil('${k._id}')" title="Sil">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch {
+    document.getElementById('tablo-alani').innerHTML = '<div class="alert alert-danger">API bağlantısı kurulamadı.</div>';
+  }
+};
+
+const detayGoster = async (id) => {
+  const modal = new bootstrap.Modal(document.getElementById('detayModal'));
+  document.getElementById('modal-icerik').innerHTML = '<div class="text-center py-3"><div class="spinner-border text-success"></div></div>';
+  document.getElementById('modal-footer').innerHTML = '';
+  modal.show();
+  try {
+    const r = await fetch(`${API}/${id}`);
+    const json = await r.json();
+    const k = json.data;
+    const aktif = k.hayvanlar.filter(h => h.adet > 0);
+    document.getElementById('modal-icerik').innerHTML = `
+      <div class="row g-3 mb-3">
+        <div class="col-4"><div class="mis-stat"><div class="label">Hayvan</div><div class="value">${k.toplam_adet}</div></div></div>
+        <div class="col-4"><div class="mis-stat"><div class="label">BBHB</div><div class="value">${k.toplam_bbhb.toFixed(2)}</div></div></div>
+        <div class="col-4"><div class="mis-stat"><div class="label">Tür</div><div class="value">${k.tur_sayisi}</div></div></div>
+      </div>
+      <table class="table table-sm mis-table">
+        <thead><tr><th>Hayvan Türü</th><th class="text-end">Katsayı</th><th class="text-end">Adet</th><th class="text-end">BBHB</th></tr></thead>
+        <tbody>${aktif.map(h => `<tr><td>${h.tur_adi}</td><td class="text-end">${h.katsayi}</td><td class="text-end">${h.adet}</td><td class="text-end fw-semibold text-success">${h.bbhb.toFixed(2)}</td></tr>`).join('')}</tbody>
+        <tfoot><tr class="fw-bold"><td colspan="2">Toplam</td><td class="text-end">${k.toplam_adet}</td><td class="text-end text-success">${k.toplam_bbhb.toFixed(2)}</td></tr></tfoot>
+      </table>`;
+    document.getElementById('modal-footer').innerHTML = `
+      <a class="btn btn-sm btn-outline-success" href="${API}/${id}/rapor/excel"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Excel</a>
+      <a class="btn btn-sm btn-outline-danger" href="${API}/${id}/rapor/pdf"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+      <a class="btn btn-sm btn-outline-primary" href="${API}/${id}/rapor/word"><i class="bi bi-file-earmark-word me-1"></i>Word</a>
+      <button class="btn btn-sm btn-secondary ms-auto" data-bs-dismiss="modal">Kapat</button>`;
+  } catch { document.getElementById('modal-icerik').innerHTML = '<div class="alert alert-danger">Veri yüklenemedi.</div>'; }
+};
+
+const sil = async (id) => {
+  if (!confirm('Bu kayıt silinecek. Emin misiniz?')) return;
+  try {
+    const r = await fetch(`${API}/${id}`, { method: 'DELETE' });
+    const json = await r.json();
+    if (json.success) { showToast('Kayıt silindi.', 'success'); loadListe(); }
+    else showToast(json.message || 'Hata.', 'danger');
+  } catch { showToast('Sunucuya ulaşılamadı.', 'danger'); }
+};
+
+document.getElementById('sidebarToggle').addEventListener('click', () => {
+  document.getElementById('wrapper').classList.toggle('sidebar-collapsed');
+});
+
+loadListe();
+</script>
+
+<style>
+.btn-xs { padding: 2px 6px; font-size: 12px; }
+</style>
+</body>
+</html>

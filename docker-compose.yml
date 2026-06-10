@@ -1,0 +1,52 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: mis_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - mis_net
+
+  backend:
+    build: ./backend
+    container_name: mis_backend
+    restart: unless-stopped
+    environment:
+      MONGO_URI: mongodb://${MONGO_USER}:${MONGO_PASS}@mongo:27017/${MONGO_DB}?authSource=admin
+      MONGO_USER: ${MONGO_USER}
+      MONGO_PASS: ${MONGO_PASS}
+      MONGO_DB: ${MONGO_DB}
+      BACKEND_PORT: "5000"
+      JWT_SECRET: ${JWT_SECRET:-mis_secret_change_in_prod}
+      NODE_ENV: ${NODE_ENV:-production}
+    expose:
+      - "5000"
+    depends_on:
+      - mongo
+    networks:
+      - mis_net
+
+  frontend:
+    build: ./frontend
+    container_name: mis_frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    networks:
+      - mis_net
+
+volumes:
+  mongo_data:
+
+networks:
+  mis_net:
+    driver: bridge

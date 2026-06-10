@@ -1,0 +1,183 @@
+:root {
+  --mis-green: #1D9E75;
+  --mis-green-dark: #0F6E56;
+  --mis-green-light: #E1F5EE;
+  --mis-sidebar-width: 240px;
+}
+
+body { background-color: #f5f7f5; font-family: 'Segoe UI', sans-serif; }
+
+/* Sidebar */
+.mis-sidebar {
+  width: var(--mis-sidebar-width);
+  min-height: 100vh;
+  background: #fff;
+  border-right: 1px solid #e2e8e4;
+  transition: width 0.2s ease;
+  flex-shrink: 0;
+}
+.mis-sidebar-brand {
+  padding: 1.2rem 1.5rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--mis-green-dark);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mis-sidebar-brand i { font-size: 1.4rem; color: var(--mis-green); }
+.mis-sidebar-divider { margin: 0; border-color: #e2e8e4; }
+.mis-nav-section {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9aafa5;
+  padding: 0.5rem 0.75rem 0.25rem;
+}
+.mis-nav-link {
+  color: #4a6358;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s, color 0.15s;
+}
+.mis-nav-link:hover { background: var(--mis-green-light); color: var(--mis-green-dark); }
+.mis-nav-link.active { background: var(--mis-green-light); color: var(--mis-green-dark); font-weight: 600; }
+.mis-sidebar-footer { border-top: 1px solid #e2e8e4; }
+
+/* Sidebar collapsed */
+.sidebar-collapsed .mis-sidebar { width: 60px; }
+.sidebar-collapsed .mis-sidebar span,
+.sidebar-collapsed .mis-nav-section,
+.sidebar-collapsed .mis-nav-link span,
+.sidebar-collapsed .mis-sidebar-footer small { display: none; }
+.sidebar-collapsed .mis-sidebar-brand { justify-content: center; padding: 1.2rem 0; }
+.sidebar-collapsed .mis-nav-link { justify-content: center; padding: 0.5rem; }
+
+/* Topbar */
+.mis-topbar {
+  background: #fff;
+  border-bottom: 1px solid #e2e8e4;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.mis-topbar-title { font-weight: 600; font-size: 0.95rem; color: #2c3e35; }
+.mis-sidebar-toggle { border: none; background: none; color: #4a6358; padding: 6px 8px; }
+.mis-sidebar-toggle:hover { background: var(--mis-green-light); border-radius: 6px; }
+
+/* Main */
+.mis-main { min-height: calc(100vh - 56px); }
+
+/* Cards */
+.mis-card {
+  background: #fff;
+  border: 1px solid #e2e8e4;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+.mis-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8e4;
+}
+.mis-card-header .title { font-weight: 600; font-size: 1rem; color: #2c3e35; }
+.mis-card-header i { color: var(--mis-green); font-size: 1.1rem; }
+
+/* Stat cards */
+.mis-stat {
+  background: var(--mis-green-light);
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+}
+.mis-stat .label { font-size: 11px; color: #4a6358; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.mis-stat .value { font-size: 1.75rem; font-weight: 700; color: var(--mis-green-dark); line-height: 1; }
+
+/* Buttons */
+.btn-mis { background: var(--mis-green); border-color: var(--mis-green); color: #fff; }
+.btn-mis:hover { background: var(--mis-green-dark); border-color: var(--mis-green-dark); color: #fff; }
+.btn-mis-outline { border-color: var(--mis-green); color: var(--mis-green); }
+.btn-mis-outline:hover { background: var(--mis-green-light); color: var(--mis-green-dark); }
+
+/* Table */
+.mis-table th { background: var(--mis-green-light); color: var(--mis-green-dark); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; border-color: #c8e8d8; }
+.mis-table td { font-size: 0.875rem; vertical-align: middle; border-color: #edf4f0; }
+.mis-table tbody tr:hover { background: #f7fbf8; }
+
+/* Toplam BBHB vurgu kutusu */
+.bbhb-toplam-kutu {
+  background: linear-gradient(135deg, #0F6E56 0%, #1D9E75 100%);
+  border-radius: 14px;
+  padding: 1.5rem 1.25rem 1.25rem;
+  color: #fff;
+  text-align: center;
+}
+.bbhb-toplam-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+  margin-bottom: 0.5rem;
+}
+.bbhb-toplam-deger {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+.bbhb-toplam-alt {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+/* Group badge */
+.grup-badge { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 600; background: #e2e8e4; color: #4a6358; }
+
+/* BBHB giriş tablosu */
+.bbhb-giris-tablo td, .bbhb-giris-tablo th { vertical-align: middle; padding: 6px 10px; }
+.bbhb-grup-satir td { background: #f5faf7 !important; padding: 5px 10px; border-bottom: none; }
+
+/* Toplam BBHB vurgu kutusu */
+.bbhb-toplam-kutu {
+  background: #0F6E56;
+  border-radius: 14px;
+  padding: 1.5rem 1.25rem 1.25rem;
+  color: #fff;
+  text-align: center;
+}
+.bbhb-toplam-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+  margin-bottom: 0.5rem;
+}
+.bbhb-toplam-deger {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+.bbhb-toplam-alt {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  font-size: 13px;
+  opacity: 0.85;
+}

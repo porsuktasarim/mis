@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BBHB Hesaplayıcı - MİS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+
+<div class="d-flex" id="wrapper">
+
+  <!-- Sidebar -->
+  <nav id="sidebar" class="mis-sidebar d-flex flex-column">
+    <div class="mis-sidebar-brand">
+      <i class="bi bi-tree-fill"></i>
+      <span>MİS</span>
+    </div>
+    <hr class="mis-sidebar-divider" />
+    <ul class="nav flex-column mis-nav px-2">
+      <li class="mis-nav-section">Hesaplama</li>
+      <li class="nav-item">
+        <a class="nav-link mis-nav-link active" href="/modules/bbhb/">
+          <i class="bi bi-calculator"></i> <span>BBHB Hesaplayıcı</span>
+        </a>
+      </li>
+      <li class="mis-nav-section mt-3">Raporlar</li>
+      <li class="nav-item">
+        <a class="nav-link mis-nav-link" href="/modules/bbhb/liste.html">
+          <i class="bi bi-table"></i> <span>BBHB Kayıtları</span>
+        </a>
+      </li>
+    </ul>
+    <div class="mt-auto p-3 mis-sidebar-footer">
+      <small class="text-muted">MİS v1.0.0</small>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <div id="page-content" class="flex-grow-1">
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle">
+        <i class="bi bi-list fs-5"></i>
+      </button>
+      <span class="mis-topbar-title">BBHB Hesaplayıcı</span>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <a href="/modules/bbhb/liste.html" class="btn btn-sm btn-mis-outline">
+          <i class="bi bi-clock-history me-1"></i>Geçmiş Hesaplamalar
+        </a>
+      </div>
+    </nav>
+
+    <main class="mis-main p-4">
+
+      <div class="row g-4 align-items-start">
+
+        <!-- Sol: Tablo formatında giriş -->
+        <div class="col-lg-8">
+          <div class="mis-card">
+            <div class="mis-card-header">
+              <i class="bi bi-input-cursor-text"></i>
+              <span class="title">Hayvan Adetleri</span>
+              <button class="btn btn-sm btn-outline-secondary ms-auto" id="btnSifirla">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Sıfırla
+              </button>
+            </div>
+            <div id="hayvan-form">
+              <div class="text-center py-4 text-muted">
+                <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                <span class="ms-2">Türler yükleniyor...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sağ: Toplam BBHB kutusu + Kaydet -->
+        <div class="col-lg-4">
+
+          <!-- Toplam BBHB vurgu kutusu -->
+          <div class="bbhb-toplam-kutu mb-3">
+            <div class="bbhb-toplam-label">
+              <i class="bi bi-calculator-fill me-2"></i>Toplam BBHB
+            </div>
+            <div class="bbhb-toplam-deger" id="stat-bbhb-sag">0.00</div>
+            <div class="bbhb-toplam-alt">
+              <span><strong id="stat-adet-sag">0</strong> hayvan</span>
+              <span><strong id="stat-tur-sag">0</strong> tür</span>
+            </div>
+          </div>
+
+          <!-- Kaydet -->
+          <div class="mis-card">
+            <div class="mis-card-header">
+              <i class="bi bi-save"></i>
+              <span class="title">Kaydet</span>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Başlık <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="inp-baslik" placeholder="Örn: Ahır No.3 - Haziran 2025" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Açıklama</label>
+              <textarea class="form-control form-control-sm" id="inp-aciklama" rows="2" placeholder="İsteğe bağlı..."></textarea>
+            </div>
+            <button class="btn btn-mis w-100" id="btnKaydet">
+              <i class="bi bi-cloud-upload me-2"></i>Kaydet
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+  <div id="mis-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body fw-semibold" id="toast-msg">İşlem başarılı.</div>
+      <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '/api/bbhb';
+let turler = [];
+const adetler = {};
+
+const showToast = (msg, type = 'success') => {
+  const el = document.getElementById('mis-toast');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+};
+
+const formatNum = (n, d = 2) => parseFloat(n.toFixed(d));
+
+const recalc = () => {
+  let totalAdet = 0, totalBbhb = 0, aktifSayi = 0;
+  turler.forEach(t => {
+    const n = adetler[t.tur_id] || 0;
+    const bbhb = formatNum(n * t.katsayi);
+    if (n > 0) { totalAdet += n; totalBbhb += bbhb; aktifSayi++; }
+    const sonucEl = document.getElementById('sonuc-' + t.tur_id);
+    if (sonucEl) sonucEl.textContent = n > 0 ? bbhb.toFixed(2) : '—';
+  });
+  totalBbhb = formatNum(totalBbhb);
+  document.getElementById('stat-bbhb-sag').textContent = totalBbhb.toFixed(2);
+  document.getElementById('stat-adet-sag').textContent = totalAdet;
+  document.getElementById('stat-tur-sag').textContent = aktifSayi;
+};
+
+const renderForm = () => {
+  const gruplar = [...new Set(turler.map(t => t.grup))];
+  let html = '<table class="table table-sm mis-table mb-0 bbhb-giris-tablo"><thead><tr><th>Hayvan Türü</th><th class="text-center" style="width:110px">Adet</th><th class="text-end" style="width:90px">BBHB</th></tr></thead><tbody>';
+  gruplar.forEach(grup => {
+    const liste = turler.filter(t => t.grup === grup);
+    html += `<tr class="bbhb-grup-satir"><td colspan="3"><span class="grup-badge">${grup}</span></td></tr>`;
+    liste.forEach(t => {
+      html += `
+        <tr>
+          <td>
+            <span class="fw-medium">${t.tur_adi}</span>
+            <span class="ms-2 text-muted" style="font-size:11px">(${t.katsayi} BBHB)</span>
+          </td>
+          <td class="text-center">
+            <input type="number" min="0" value="0"
+              class="form-control form-control-sm hayvan-input text-center"
+              data-id="${t.tur_id}" id="inp-${t.tur_id}"
+              style="width:80px; margin:0 auto;" />
+          </td>
+          <td class="text-end fw-semibold" id="sonuc-${t.tur_id}" style="color:#0F6E56">—</td>
+        </tr>`;
+    });
+  });
+  html += '</tbody></table>';
+  document.getElementById('hayvan-form').innerHTML = html;
+  document.querySelectorAll('.hayvan-input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      adetler[e.target.dataset.id] = Math.max(0, parseInt(e.target.value) || 0);
+      recalc();
+    });
+  });
+};
+
+const loadTurler = async () => {
+  try {
+    const r = await fetch(`${API}/turler`);
+    const json = await r.json();
+    turler = json.data;
+    turler.forEach(t => adetler[t.tur_id] = 0);
+    renderForm();
+  } catch {
+    document.getElementById('hayvan-form').innerHTML = '<div class="alert alert-danger">API bağlantısı kurulamadı.</div>';
+  }
+};
+
+document.getElementById('btnSifirla').addEventListener('click', () => {
+  turler.forEach(t => { adetler[t.tur_id] = 0; });
+  document.querySelectorAll('.hayvan-input').forEach(inp => inp.value = 0);
+  recalc();
+});
+
+document.getElementById('btnKaydet').addEventListener('click', async () => {
+  const baslik = document.getElementById('inp-baslik').value.trim();
+  if (!baslik) { showToast('Başlık giriniz.', 'warning'); return; }
+  const hayvanlar = turler.map(t => ({ tur_id: t.tur_id, adet: adetler[t.tur_id] || 0 })).filter(h => h.adet > 0);
+  if (hayvanlar.length === 0) { showToast('En az bir hayvan türü giriniz.', 'warning'); return; }
+  try {
+    const r = await fetch(`${API}/kaydet`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baslik, aciklama: document.getElementById('inp-aciklama').value, hayvanlar }),
+    });
+    const json = await r.json();
+    if (json.success) {
+      showToast('Hesaplama kaydedildi!', 'success');
+      setTimeout(() => window.location.href = '/modules/bbhb/liste.html', 1500);
+    } else {
+      showToast(json.message || 'Hata oluştu.', 'danger');
+    }
+  } catch { showToast('Sunucuya ulaşılamadı.', 'danger'); }
+});
+
+document.getElementById('sidebarToggle').addEventListener('click', () => {
+  document.getElementById('wrapper').classList.toggle('sidebar-collapsed');
+});
+
+loadTurler();
+</script>
+</body>
+</html>
