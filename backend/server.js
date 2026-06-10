@@ -8,8 +8,15 @@ const connectDB = require('./config/db');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const bbhbRoutes = require('./modules/bbhb/bbhb.routes');
+const bbhbYukleRoutes = require('./modules/bbhb-yukle/bbhbYukle.routes');
+const fs = require('fs');
 
 const app = express();
+
+// Upload tmp klasörü
+['/tmp/mis_uploads', '/tmp/mis_yukle'].forEach(d => {
+  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+});
 
 connectDB();
 
@@ -22,6 +29,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/bbhb', bbhbRoutes);
+app.use('/api/bbhb-yukle', bbhbYukleRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
