@@ -115,7 +115,32 @@ const dosyalariisle = async (req, res, next) => {
       kategoriler[h.kategori].bbhb = parseFloat((kategoriler[h.kategori].bbhb + h.bbhb).toFixed(4));
     });
 
-    const kayit = await BBHBYukle.create({
+    const BBHBHesaplama = require('../bbhb/bbhb.model');
+    const { HAYVAN_TURLERI } = require('../bbhb/bbhb.controller');
+
+    // Özet kategorilerden manuel hesaplama formatına çevir
+    const katMap = {
+      'Kültür ırkı süt ineği':'kult_sut','Kültür melezi':'kult_mez','Yerli inek':'yerli_inek',
+      'Dana-düve (kültür ırkı)':'dana_kult','Dana-düve (kültür melezi)':'dana_mez','Dana-düve (yerli)':'dana_yerli',
+      'Boğa':'boga','Öküz':'okuz','Manda (erkek)':'manda_e','Manda (dişi)':'manda_d',
+      'Koyun':'koyun','Keçi':'keci','Kuzu-Oğlak':'kuzu','At':'at','Katır':'katir','Eşek':'esek'
+    };
+    const hesaplamaHayvanlari = Object.entries(kategoriler).map(([kategoriAdi, v]) => {
+      const tur_id = katMap[kategoriAdi];
+      const tur = HAYVAN_TURLERI.find(t => t.tur_id === tur_id);
+      if (!tur || !v.adet) return null;
+      return { tur_id: tur.tur_id, tur_adi: tur.tur_adi, katsayi: tur.katsayi, adet: v.adet, bbhb: v.bbhb };
+    }).filter(Boolean);
+
+    await BBHBHesaplama.create({
+      baslik,
+      aciklama: `Dosya yüklemesinden otomatik oluşturuldu: ${dosyaAdlari.join(', ')}`,
+      hayvanlar: hesaplamaHayvanlari,
+      toplam_adet: tumHayvanlar.length,
+      toplam_bbhb: parseFloat(toplamBbhb.toFixed(4)),
+      tur_sayisi: Object.keys(kategoriler).length,
+      durum: 'tamamlandi',
+    });
       baslik,
       hesaplama_tarihi: hesaplamaTarihiStr,
       dosyalar: dosyaAdlari,

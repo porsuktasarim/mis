@@ -235,4 +235,4 @@ const wordRapor = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getTurler, hesapla, kaydet, listele, getById, sil, excelRapor, pdfRapor, wordRapor };
+module.exports = { getTurler, hesapla, kaydet, listele, getById, sil, excelRapor, pdfRapor, wordRapor, HAYVAN_TURLERI };

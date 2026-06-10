@@ -77,6 +77,15 @@ Türkvet'ten indirilen Büyükbaş/Küçükbaş XLS dosyalarını otomatik işle
 
 ## Değişiklik Geçmişi
 
+### v1.3.0
+- BBHB tek sayfa mimarisi: /bbhb/ altında sekmeli yapı (Hesapla, Yükle, Geçmiş, Raporlar)
+- URL yapısı /modules/ kaldırıldı → /bbhb/ direkt erişim
+- Dosya yükleme → otomatik kayıtlı hesaplamalara da eklenir
+- Yüklemeden sahip çoklu seçimi ile Hesapla sekmesine aktar
+- CA, yeşil/kuru kaba yem dönemlik hesaplama (180 gün)
+- Logo/MİS tıklaması ana sayfaya gider
+- Sidebar: Modüller > BBHB Hesaplayıcı
+
 ### v1.2.1
 - XLS dönüşümü LibreOffice yerine `xlsx` npm paketi ile yapılıyor (Alpine uyumlu)
 - `csv-parse` bağımlılığı kaldırıldı

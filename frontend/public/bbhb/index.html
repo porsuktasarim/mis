@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BBHB - Mera İzleme Sistemi</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <style>
+    .tab-btn { border:none; background:none; padding:10px 18px; font-size:14px; color:var(--color-text-secondary); border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; }
+    .tab-btn.active { color:#0F6E56; border-bottom-color:#0F6E56; font-weight:500; }
+    .tab-btn:hover:not(.active) { color:#1D9E75; }
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+    .bbhb-topbar { background:#fff; border-bottom:1px solid #e2e8e4; display:flex; align-items:center; gap:0; overflow-x:auto; padding:0 1rem; }
+    .sahip-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; background:#e1f5ee; color:#0F6E56; font-size:12px; font-weight:500; cursor:pointer; border:1px solid transparent; user-select:none; }
+    .sahip-chip.secili { background:#0F6E56; color:#fff; }
+    .kaba-yem-kutu { background:#f0f9f5; border:1px solid #9FE1CB; border-radius:10px; padding:1rem; }
+    .kaba-yem-kutu .ky-label { font-size:11px; color:#4a6358; text-transform:uppercase; letter-spacing:.05em; }
+    .kaba-yem-kutu .ky-val { font-size:1.3rem; font-weight:600; color:#0F6E56; }
+  </style>
+</head>
+<body>
+<div class="d-flex" id="wrapper">
+
+  <nav id="sidebar" class="mis-sidebar d-flex flex-column">
+    <a href="/" class="mis-sidebar-brand text-decoration-none">
+      <i class="bi bi-tree-fill"></i><span>MİS</span>
+    </a>
+    <hr class="mis-sidebar-divider" />
+    <ul class="nav flex-column mis-nav px-2">
+      <li class="mis-nav-section">Modüller</li>
+      <li class="nav-item">
+        <a class="nav-link mis-nav-link active" href="/bbhb/">
+          <i class="bi bi-calculator"></i> <span>BBHB Hesaplayıcı</span>
+        </a>
+      </li>
+    </ul>
+    <div class="mt-auto p-3 mis-sidebar-footer"><small class="text-muted">MİS v1.3.0</small></div>
+  </nav>
+
+  <div id="page-content" class="flex-grow-1 d-flex flex-column" style="min-height:100vh;">
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
+      <span class="mis-topbar-title">BBHB Hesaplayıcı</span>
+    </nav>
+
+    <!-- Sekme menüsü -->
+    <div class="bbhb-topbar">
+      <button class="tab-btn active" data-tab="hesapla"><i class="bi bi-calculator me-1"></i>Hesapla</button>
+      <button class="tab-btn" data-tab="yukle"><i class="bi bi-upload me-1"></i>Dosya Yükle</button>
+      <button class="tab-btn" data-tab="gecmis"><i class="bi bi-clock-history me-1"></i>Geçmiş</button>
+      <button class="tab-btn" data-tab="raporlar"><i class="bi bi-file-earmark-text me-1"></i>Raporlar</button>
+    </div>
+
+    <main class="mis-main p-4 flex-grow-1">
+
+      <!-- ===== HESAPLA ===== -->
+      <div class="tab-pane active" id="tab-hesapla">
+        <div class="row g-4 align-items-start">
+          <div class="col-lg-8">
+            <div class="mis-card">
+              <div class="mis-card-header">
+                <i class="bi bi-input-cursor-text"></i>
+                <span class="title">Hayvan Adetleri</span>
+                <div class="ms-auto d-flex gap-2">
+                  <button class="btn btn-sm btn-outline-secondary" id="btnYukledenAktar" style="display:none!important">
+                    <i class="bi bi-box-arrow-in-down me-1"></i>Yüklemeden Aktar
+                  </button>
+                  <button class="btn btn-sm btn-mis-outline" onclick="sekmeyiAc('yukle')">
+                    <i class="bi bi-upload me-1"></i>Dosya Yükle
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" id="btnSifirla">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Sıfırla
+                  </button>
+                </div>
+              </div>
+
+              <!-- Yüklemeden aktar paneli -->
+              <div id="aktar-panel" class="d-none mb-3 p-3" style="background:#f0f9f5;border-radius:8px;border:1px solid #9FE1CB;">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  <span class="small fw-semibold">Yükleme Seç:</span>
+                  <select class="form-select form-select-sm" id="sel-yukleme" style="max-width:300px"></select>
+                  <button class="btn btn-sm btn-mis" id="btnYuklemeGetir"><i class="bi bi-download me-1"></i>Getir</button>
+                </div>
+                <div id="sahip-secim" class="d-none">
+                  <div class="small fw-semibold mb-1">Sahip Seç <span class="text-muted fw-normal">(seçilmeyenler dahil edilmez)</span>:</div>
+                  <div id="sahip-chipler" class="d-flex flex-wrap gap-2 mb-2"></div>
+                  <button class="btn btn-sm btn-mis" id="btnAktarUygula"><i class="bi bi-check2 me-1"></i>Seçilenleri Aktar</button>
+                </div>
+              </div>
+
+              <div id="hayvan-form">
+                <div class="text-center py-4 text-muted">
+                  <div class="spinner-border spinner-border-sm text-success"></div>
+                  <span class="ms-2">Yükleniyor...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="bbhb-toplam-kutu mb-3">
+              <div class="bbhb-toplam-label"><i class="bi bi-calculator-fill me-2"></i>Toplam BBHB</div>
+              <div class="bbhb-toplam-deger" id="stat-bbhb">0.00</div>
+              <div class="bbhb-toplam-alt">
+                <span><strong id="stat-adet">0</strong> hayvan</span>
+                <span><strong id="stat-tur">0</strong> tür</span>
+              </div>
+            </div>
+
+            <!-- Kaba yem ve CA -->
+            <div class="kaba-yem-kutu mb-3">
+              <div class="small fw-semibold mb-2" style="color:#0F6E56"><i class="bi bi-grass me-1"></i>Dönemlik Değerler (180 gün)</div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="ky-label">Canlı Ağırlık</div>
+                  <div class="ky-val"><span id="stat-ca">0</span> <small style="font-size:11px">kg</small></div>
+                </div>
+                <div class="col-6">
+                  <div class="ky-label">Yeşil Kaba Yem</div>
+                  <div class="ky-val"><span id="stat-yky">0</span> <small style="font-size:11px">kg</small></div>
+                </div>
+                <div class="col-6 mt-1">
+                  <div class="ky-label">Kuru Kaba Yem</div>
+                  <div class="ky-val"><span id="stat-kky">0</span> <small style="font-size:11px">kg</small></div>
+                </div>
+                <div class="col-6 mt-1">
+                  <div class="ky-label">Dönem (gün)</div>
+                  <div class="ky-val">180</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-save"></i><span class="title">Kaydet</span></div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Başlık <span class="text-danger">*</span></label>
+                <input type="text" class="form-control form-control-sm" id="inp-baslik" placeholder="Örn: Ahır No.3 - Haziran 2026" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Açıklama</label>
+                <textarea class="form-control form-control-sm" id="inp-aciklama" rows="2" placeholder="İsteğe bağlı..."></textarea>
+              </div>
+              <button class="btn btn-mis w-100" id="btnKaydet">
+                <i class="bi bi-cloud-upload me-2"></i>Kaydet
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== DOSYA YÜKLE ===== -->
+      <div class="tab-pane" id="tab-yukle">
+        <div class="row g-4">
+          <div class="col-lg-7">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-cloud-upload"></i><span class="title">Dosya Yükle</span></div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Başlık <span class="text-danger">*</span></label>
+                <input type="text" class="form-control form-control-sm" id="yukle-baslik" placeholder="Örn: Mithatpaşa - Haziran 2026" />
+              </div>
+              <div id="dropzone" class="bbhb-dropzone mb-3">
+                <i class="bi bi-file-earmark-spreadsheet fs-1 text-success opacity-50"></i>
+                <p class="mt-2 mb-1 fw-semibold">Dosyaları buraya sürükleyin</p>
+                <p class="text-muted small mb-2">veya</p>
+                <label class="btn btn-sm btn-mis-outline" for="dosya-input"><i class="bi bi-folder2-open me-1"></i>Dosya Seç</label>
+                <input type="file" id="dosya-input" multiple accept=".xls,.xlsx,.csv" class="d-none" />
+                <p class="text-muted small mt-2">XLS, XLSX, CSV — max 10 dosya</p>
+              </div>
+              <div id="dosya-listesi" class="mb-3"></div>
+              <button class="btn btn-mis w-100" id="btnYukle" disabled>
+                <i class="bi bi-cloud-upload me-2"></i>Yükle ve Hesapla
+              </button>
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="mis-card mb-3">
+              <div class="mis-card-header"><i class="bi bi-info-circle"></i><span class="title">Nasıl Çalışır?</span></div>
+              <ul class="small text-muted mb-0 ps-3" style="line-height:2">
+                <li>Türkvet'ten indirilen XLS dosyalarını yükleyin.</li>
+                <li>Birden fazla dosya aynı anda yüklenebilir.</li>
+                <li>Sistem yaş, cins ve ırka göre otomatik sınıflandırır.</li>
+                <li>Hesaplama tarihi: ayın 1. günü esas alınır.</li>
+                <li>Yükleme sonrası "Hesapla" sekmesinde aktarabilirsiniz.</li>
+              </ul>
+            </div>
+            <div id="yukle-sonuc" class="d-none">
+              <div class="bbhb-toplam-kutu mb-3">
+                <div class="bbhb-toplam-label"><i class="bi bi-calculator-fill me-2"></i>Toplam BBHB</div>
+                <div class="bbhb-toplam-deger" id="ys-bbhb">0.00</div>
+                <div class="bbhb-toplam-alt">
+                  <span><strong id="ys-hayvan">0</strong> hayvan</span>
+                  <span id="ys-tarih"></span>
+                </div>
+              </div>
+              <div class="mis-card">
+                <div class="mis-card-header"><i class="bi bi-bar-chart"></i><span class="title">Kategori Özeti</span></div>
+                <div id="ys-kategoriler"></div>
+                <div class="mt-3 d-flex gap-2">
+                  <button class="btn btn-sm btn-mis w-100" id="btn-hesapla-aktar">
+                    <i class="bi bi-arrow-left me-1"></i>Hesapla'ya Aktar
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div id="yukle-loading" class="d-none text-center py-5">
+              <div class="spinner-border text-success mb-3"></div>
+              <p class="text-muted small">İşleniyor...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== GEÇMİŞ ===== -->
+      <div class="tab-pane" id="tab-gecmis">
+        <div class="row g-4">
+          <div class="col-12">
+            <div class="mis-card mb-3">
+              <div class="mis-card-header">
+                <i class="bi bi-upload"></i><span class="title">Dosya Yüklemeleri</span>
+                <span class="badge bg-secondary ms-2" id="yukle-badge">0</span>
+              </div>
+              <div id="yukle-tablo"></div>
+            </div>
+            <div class="mis-card">
+              <div class="mis-card-header">
+                <i class="bi bi-calculator"></i><span class="title">Manuel Hesaplamalar</span>
+                <span class="badge bg-secondary ms-2" id="hesap-badge">0</span>
+                <a href="#" class="btn btn-sm btn-mis ms-auto" onclick="sekmeyiAc('hesapla');return false">
+                  <i class="bi bi-plus-lg me-1"></i>Yeni
+                </a>
+              </div>
+              <div id="hesap-tablo"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== RAPORLAR ===== -->
+      <div class="tab-pane" id="tab-raporlar">
+        <div class="mis-card">
+          <div class="mis-card-header"><i class="bi bi-file-earmark-text"></i><span class="title">Raporlar</span></div>
+          <p class="text-muted small mb-3">Kayıtlı hesaplamalar için PDF, Excel veya Word raporu indirin.</p>
+          <div id="rapor-tablo">
+            <div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-success"></div><span class="ms-2">Yükleniyor...</span></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Yükleme Detay Modal -->
+<div class="modal fade" id="detayModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-list-ul me-2 text-success"></i>Yükleme Detayı</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="detay-icerik">Yükleniyor...</div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+  <div id="mis-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body fw-semibold" id="toast-msg"></div>
+      <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_BBHB = '/api/bbhb';
+const API_YUKLE = '/api/bbhb-yukle';
+const DONEM = 180;
+
+let turler = [], adetler = {}, sonYuklemeId = null, sonYuklemeData = null;
+
+// ── Yardımcılar ──────────────────────────────────────────
+const showToast = (msg, type='success') => {
+  const el = document.getElementById('mis-toast');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+};
+const fmt = (n,d=2) => parseFloat(n.toFixed(d));
+const numFmt = n => n.toLocaleString('tr-TR');
+
+const sekmeyiAc = (id) => {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===id));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id==='tab-'+id));
+  if (id==='gecmis') loadGecmis();
+  if (id==='raporlar') loadRaporlar();
+};
+document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => sekmeyiAc(b.dataset.tab)));
+
+document.getElementById('sidebarToggle').addEventListener('click', () =>
+  document.getElementById('wrapper').classList.toggle('sidebar-collapsed'));
+
+// ── Hesapla sekmesi ──────────────────────────────────────
+const recalc = () => {
+  let totalAdet=0, totalBbhb=0, aktifSayi=0;
+  turler.forEach(t => {
+    const n = adetler[t.tur_id]||0;
+    const bbhb = fmt(n*t.katsayi);
+    if(n>0){totalAdet+=n; totalBbhb+=bbhb; aktifSayi++;}
+    const el = document.getElementById('sonuc-'+t.tur_id);
+    if(el) el.textContent = n>0 ? bbhb.toFixed(2) : '—';
+  });
+  totalBbhb = fmt(totalBbhb);
+  document.getElementById('stat-bbhb').textContent = totalBbhb.toFixed(2);
+  document.getElementById('stat-adet').textContent = totalAdet;
+  document.getElementById('stat-tur').textContent = aktifSayi;
+  // CA ve kaba yem
+  const ca = fmt(totalBbhb * 500, 0);
+  const yky = fmt(totalBbhb * 50 * DONEM, 0);
+  const kky = fmt(totalBbhb * 12.5 * DONEM, 0);
+  document.getElementById('stat-ca').textContent = numFmt(ca);
+  document.getElementById('stat-yky').textContent = numFmt(yky);
+  document.getElementById('stat-kky').textContent = numFmt(kky);
+};
+
+const renderForm = () => {
+  const gruplar = [...new Set(turler.map(t=>t.grup))];
+  let html = '<table class="table table-sm mis-table mb-0 bbhb-giris-tablo"><thead><tr><th>Hayvan Türü</th><th class="text-center" style="width:110px">Adet</th><th class="text-end" style="width:90px">BBHB</th></tr></thead><tbody>';
+  gruplar.forEach(grup => {
+    html += `<tr class="bbhb-grup-satir"><td colspan="3"><span class="grup-badge">${grup}</span></td></tr>`;
+    turler.filter(t=>t.grup===grup).forEach(t => {
+      html += `<tr>
+        <td><span class="fw-medium">${t.tur_adi}</span> <span class="ms-1 text-muted" style="font-size:11px">(${t.katsayi} BBHB)</span></td>
+        <td class="text-center"><input type="number" min="0" value="0" class="form-control form-control-sm hayvan-input text-center" data-id="${t.tur_id}" id="inp-${t.tur_id}" style="width:80px;margin:0 auto;" /></td>
+        <td class="text-end fw-semibold" id="sonuc-${t.tur_id}" style="color:#0F6E56">—</td>
+      </tr>`;
+    });
+  });
+  html += '</tbody></table>';
+  document.getElementById('hayvan-form').innerHTML = html;
+  document.querySelectorAll('.hayvan-input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      adetler[e.target.dataset.id] = Math.max(0, parseInt(e.target.value)||0);
+      recalc();
+    });
+  });
+};
+
+const loadTurler = async () => {
+  try {
+    const r = await fetch(`${API_BBHB}/turler`);
+    const j = await r.json();
+    turler = j.data;
+    turler.forEach(t => adetler[t.tur_id]=0);
+    renderForm();
+    loadYuklemelerSelect();
+  } catch { document.getElementById('hayvan-form').innerHTML = '<div class="alert alert-danger">API bağlantısı kurulamadı.</div>'; }
+};
+
+document.getElementById('btnSifirla').addEventListener('click', () => {
+  turler.forEach(t => { adetler[t.tur_id]=0; });
+  document.querySelectorAll('.hayvan-input').forEach(i => i.value=0);
+  recalc();
+});
+
+document.getElementById('btnKaydet').addEventListener('click', async () => {
+  const baslik = document.getElementById('inp-baslik').value.trim();
+  if(!baslik){ showToast('Başlık giriniz.','warning'); return; }
+  const hayvanlar = turler.map(t=>({tur_id:t.tur_id,adet:adetler[t.tur_id]||0})).filter(h=>h.adet>0);
+  if(!hayvanlar.length){ showToast('En az bir hayvan giriniz.','warning'); return; }
+  try {
+    const r = await fetch(`${API_BBHB}/kaydet`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({baslik,aciklama:document.getElementById('inp-aciklama').value,hayvanlar})});
+    const j = await r.json();
+    if(j.success){ showToast('Kaydedildi!','success'); document.getElementById('inp-baslik').value=''; }
+    else showToast(j.message||'Hata.','danger');
+  } catch { showToast('Sunucuya ulaşılamadı.','danger'); }
+});
+
+// ── Yüklemeden aktar ─────────────────────────────────────
+const loadYuklemelerSelect = async () => {
+  try {
+    const r = await fetch(API_YUKLE);
+    const j = await r.json();
+    const sel = document.getElementById('sel-yukleme');
+    sel.innerHTML = '<option value="">-- Seçin --</option>' +
+      (j.data||[]).map(k=>`<option value="${k._id}">${k.baslik} (${k.hesaplama_tarihi||''})</option>`).join('');
+    if((j.data||[]).length>0){
+      document.getElementById('btnYukledenAktar').style.removeProperty('display');
+      document.getElementById('btnYukledenAktar').addEventListener('click', () => {
+        document.getElementById('aktar-panel').classList.toggle('d-none');
+      });
+    }
+  } catch {}
+};
+
+document.getElementById('btnYuklemeGetir').addEventListener('click', async () => {
+  const id = document.getElementById('sel-yukleme').value;
+  if(!id){ showToast('Yükleme seçin.','warning'); return; }
+  try {
+    const r = await fetch(`${API_YUKLE}/${id}`);
+    const j = await r.json();
+    sonYuklemeData = j.data;
+    const sahipler = [...new Set((j.data.hayvanlar||[]).map(h=>h.sahip).filter(Boolean))].sort();
+    const el = document.getElementById('sahip-chipler');
+    el.innerHTML = sahipler.map(s=>`<span class="sahip-chip secili" data-sahip="${s}">${s}</span>`).join('');
+    el.querySelectorAll('.sahip-chip').forEach(c => c.addEventListener('click', () => c.classList.toggle('secili')));
+    document.getElementById('sahip-secim').classList.remove('d-none');
+  } catch { showToast('Veri alınamadı.','danger'); }
+});
+
+document.getElementById('btnAktarUygula').addEventListener('click', () => {
+  if(!sonYuklemeData) return;
+  const seciliSahipler = [...document.querySelectorAll('.sahip-chip.secili')].map(c=>c.dataset.sahip);
+  const hayvanlar = (sonYuklemeData.hayvanlar||[]).filter(h=>seciliSahipler.includes(h.sahip));
+
+  // Adetleri sıfırla
+  turler.forEach(t => { adetler[t.tur_id]=0; });
+  document.querySelectorAll('.hayvan-input').forEach(i => i.value=0);
+
+  // BBHB kategori → tur_id eşleşmesi
+  const katMap = {
+    'Kültür ırkı süt ineği':'kult_sut','Kültür melezi':'kult_mez','Yerli inek':'yerli_inek',
+    'Dana-düve (kültür ırkı)':'dana_kult','Dana-düve (kültür melezi)':'dana_mez','Dana-düve (yerli)':'dana_yerli',
+    'Boğa':'boga','Öküz':'okuz','Manda (erkek)':'manda_e','Manda (dişi)':'manda_d',
+    'Koyun':'koyun','Keçi':'keci','Kuzu-Oğlak':'kuzu','At':'at','Katır':'katir','Eşek':'esek'
+  };
+  hayvanlar.forEach(h => {
+    const tid = katMap[h.kategori];
+    if(tid){ adetler[tid]=(adetler[tid]||0)+1; }
+  });
+  turler.forEach(t => {
+    const inp = document.getElementById('inp-'+t.tur_id);
+    if(inp && adetler[t.tur_id]) inp.value = adetler[t.tur_id];
+  });
+  recalc();
+  document.getElementById('aktar-panel').classList.add('d-none');
+  document.getElementById('inp-baslik').value = sonYuklemeData.baslik||'';
+  sekmeyiAc('hesapla');
+  showToast(`${hayvanlar.length} hayvan aktarıldı.`,'success');
+});
+
+// ── Dosya Yükle sekmesi ──────────────────────────────────
+let seciliDosyalar = [];
+const dosyaEkle = (files) => {
+  for(const f of files){
+    const ext = f.name.split('.').pop().toLowerCase();
+    if(!['xls','xlsx','csv'].includes(ext)){ showToast(`${f.name} desteklenmiyor.`,'warning'); continue; }
+    if(seciliDosyalar.length>=10){ showToast('Max 10 dosya.','warning'); break; }
+    if(!seciliDosyalar.find(d=>d.name===f.name)) seciliDosyalar.push(f);
+  }
+  renderDosyaListesi();
+};
+const renderDosyaListesi = () => {
+  const el = document.getElementById('dosya-listesi');
+  document.getElementById('btnYukle').disabled = seciliDosyalar.length===0;
+  if(!seciliDosyalar.length){ el.innerHTML=''; return; }
+  el.innerHTML = seciliDosyalar.map((f,i)=>`
+    <div class="d-flex align-items-center gap-2 p-2 mb-1 rounded" style="background:var(--color-background-secondary);font-size:13px;">
+      <i class="bi bi-file-earmark-spreadsheet text-success"></i>
+      <span class="flex-grow-1 text-truncate">${f.name}</span>
+      <span class="text-muted">${(f.size/1024).toFixed(0)} KB</span>
+      <button class="btn btn-xs btn-outline-danger" onclick="dosyaSil(${i})"><i class="bi bi-x"></i></button>
+    </div>`).join('');
+};
+window.dosyaSil = (i) => { seciliDosyalar.splice(i,1); renderDosyaListesi(); };
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');dosyaEkle(e.dataTransfer.files);});
+document.getElementById('dosya-input').addEventListener('change',e=>dosyaEkle(e.target.files));
+
+document.getElementById('btnYukle').addEventListener('click', async () => {
+  const baslik = document.getElementById('yukle-baslik').value.trim();
+  if(!baslik){ showToast('Başlık giriniz.','warning'); return; }
+  if(!seciliDosyalar.length){ showToast('Dosya seçiniz.','warning'); return; }
+  document.getElementById('yukle-loading').classList.remove('d-none');
+  document.getElementById('yukle-sonuc').classList.add('d-none');
+  document.getElementById('btnYukle').disabled=true;
+  const form = new FormData();
+  form.append('baslik',baslik);
+  seciliDosyalar.forEach(f=>form.append('dosyalar',f));
+  try {
+    const r = await fetch(`${API_YUKLE}/yukle`,{method:'POST',body:form});
+    const j = await r.json();
+    document.getElementById('yukle-loading').classList.add('d-none');
+    if(j.success){
+      const d=j.data;
+      sonYuklemeId=d._id; sonYuklemeData=null;
+      document.getElementById('ys-bbhb').textContent=d.ozet.toplam_bbhb.toFixed(2);
+      document.getElementById('ys-hayvan').textContent=d.ozet.toplam_hayvan;
+      document.getElementById('ys-tarih').textContent=d.hesaplama_tarihi;
+      const kat=d.ozet.kategoriler;
+      document.getElementById('ys-kategoriler').innerHTML=`<table class="table table-sm mis-table mb-0">
+        <thead><tr><th>Kategori</th><th class="text-end">Adet</th><th class="text-end">BBHB</th></tr></thead>
+        <tbody>${Object.entries(kat).sort((a,b)=>b[1].bbhb-a[1].bbhb).map(([k,v])=>
+          `<tr><td class="small">${k}</td><td class="text-end">${v.adet}</td><td class="text-end fw-semibold text-success">${v.bbhb.toFixed(2)}</td></tr>`
+        ).join('')}</tbody></table>`;
+      document.getElementById('yukle-sonuc').classList.remove('d-none');
+      showToast('Dosyalar işlendi!','success');
+      seciliDosyalar=[]; renderDosyaListesi();
+      document.getElementById('yukle-baslik').value='';
+      loadYuklemelerSelect();
+    } else { showToast(j.message||'Hata.','danger'); document.getElementById('btnYukle').disabled=false; }
+  } catch { document.getElementById('yukle-loading').classList.add('d-none'); showToast('Sunucuya ulaşılamadı.','danger'); document.getElementById('btnYukle').disabled=false; }
+});
+
+document.getElementById('btn-hesapla-aktar').addEventListener('click', async () => {
+  if(!sonYuklemeId) return;
+  const r = await fetch(`${API_YUKLE}/${sonYuklemeId}`);
+  const j = await r.json();
+  sonYuklemeData = j.data;
+  const sel = document.getElementById('sel-yukleme');
+  if(sel) sel.value = sonYuklemeId;
+  const sahipler = [...new Set((j.data.hayvanlar||[]).map(h=>h.sahip).filter(Boolean))].sort();
+  document.getElementById('sahip-chipler').innerHTML = sahipler.map(s=>`<span class="sahip-chip secili" data-sahip="${s}">${s}</span>`).join('');
+  document.querySelectorAll('.sahip-chip').forEach(c=>c.addEventListener('click',()=>c.classList.toggle('secili')));
+  document.getElementById('sahip-secim').classList.remove('d-none');
+  document.getElementById('aktar-panel').classList.remove('d-none');
+  sekmeyiAc('hesapla');
+});
+
+// ── Geçmiş sekmesi ───────────────────────────────────────
+const loadGecmis = async () => {
+  try {
+    const [ry,rh] = await Promise.all([fetch(API_YUKLE),fetch(API_BBHB)]);
+    const [jy,jh] = await Promise.all([ry.json(),rh.json()]);
+    const yuklemeler = jy.data||[], hesaplamalar = jh.data||[];
+    document.getElementById('yukle-badge').textContent=yuklemeler.length;
+    document.getElementById('hesap-badge').textContent=hesaplamalar.length;
+
+    document.getElementById('yukle-tablo').innerHTML = yuklemeler.length===0
+      ? '<p class="text-muted text-center py-3 small">Henüz yükleme yok.</p>'
+      : `<div class="table-responsive"><table class="table table-sm mis-table mb-0"><thead><tr>
+          <th>Başlık</th><th class="text-end">Hayvan</th><th class="text-end">BBHB</th><th>Tarih</th><th>İşlemler</th>
+        </tr></thead><tbody>${yuklemeler.map(k=>`<tr>
+          <td><strong>${k.baslik}</strong></td>
+          <td class="text-end">${k.ozet.toplam_hayvan}</td>
+          <td class="text-end fw-bold text-success">${k.ozet.toplam_bbhb.toFixed(2)}</td>
+          <td class="small text-muted">${k.hesaplama_tarihi||'-'}</td>
+          <td><div class="d-flex gap-1">
+            <button class="btn btn-xs btn-outline-secondary" onclick="detayGoster('${k._id}')"><i class="bi bi-eye"></i></button>
+            <button class="btn btn-xs btn-outline-danger" onclick="yuklemeSil('${k._id}')"><i class="bi bi-trash"></i></button>
+          </div></td>
+        </tr>`).join('')}</tbody></table></div>`;
+
+    document.getElementById('hesap-tablo').innerHTML = hesaplamalar.length===0
+      ? '<p class="text-muted text-center py-3 small">Henüz hesaplama yok.</p>'
+      : `<div class="table-responsive"><table class="table table-sm mis-table mb-0"><thead><tr>
+          <th>Başlık</th><th class="text-end">Hayvan</th><th class="text-end">BBHB</th><th>Tarih</th><th>İşlemler</th>
+        </tr></thead><tbody>${hesaplamalar.map(k=>`<tr>
+          <td><strong>${k.baslik}</strong>${k.aciklama?`<br><small class="text-muted">${k.aciklama}</small>`:''}</td>
+          <td class="text-end">${k.toplam_adet}</td>
+          <td class="text-end fw-bold text-success">${k.toplam_bbhb.toFixed(2)}</td>
+          <td class="small text-muted">${new Date(k.createdAt).toLocaleDateString('tr-TR')}</td>
+          <td><div class="d-flex gap-1">
+            <a class="btn btn-xs btn-outline-success" href="${API_BBHB}/${k._id}/rapor/excel"><i class="bi bi-file-earmark-spreadsheet"></i></a>
+            <a class="btn btn-xs btn-outline-danger" href="${API_BBHB}/${k._id}/rapor/pdf"><i class="bi bi-file-earmark-pdf"></i></a>
+            <a class="btn btn-xs btn-outline-primary" href="${API_BBHB}/${k._id}/rapor/word"><i class="bi bi-file-earmark-word"></i></a>
+            <button class="btn btn-xs btn-outline-danger" onclick="hesapSil('${k._id}')"><i class="bi bi-trash"></i></button>
+          </div></td>
+        </tr>`).join('')}</tbody></table></div>`;
+  } catch { showToast('Veriler alınamadı.','danger'); }
+};
+
+window.detayGoster = async (id) => {
+  const modal = new bootstrap.Modal(document.getElementById('detayModal'));
+  document.getElementById('detay-icerik').innerHTML='<div class="text-center py-3"><div class="spinner-border text-success"></div></div>';
+  modal.show();
+  try {
+    const r = await fetch(`${API_YUKLE}/${id}`);
+    const j = await r.json();
+    const k=j.data, aktif=(k.hayvanlar||[]).filter(h=>h.adet>0||true);
+    const kat=k.ozet?.kategoriler||{};
+    document.getElementById('detay-icerik').innerHTML=`
+      <div class="row g-3 mb-3">
+        <div class="col-4"><div class="mis-stat"><div class="label">Hayvan</div><div class="value">${k.ozet.toplam_hayvan}</div></div></div>
+        <div class="col-4"><div class="mis-stat"><div class="label">BBHB</div><div class="value">${k.ozet.toplam_bbhb.toFixed(2)}</div></div></div>
+        <div class="col-4"><div class="mis-stat"><div class="label">Tarih</div><div class="value" style="font-size:1rem">${k.hesaplama_tarihi||'-'}</div></div></div>
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-lg-5">
+          <table class="table table-sm mis-table mb-0">
+            <thead><tr><th>Kategori</th><th class="text-end">Adet</th><th class="text-end">BBHB</th></tr></thead>
+            <tbody>${Object.entries(kat).sort((a,b)=>b[1].bbhb-a[1].bbhb).map(([kk,v])=>
+              `<tr><td class="small">${kk}</td><td class="text-end">${v.adet}</td><td class="text-end fw-semibold text-success">${v.bbhb.toFixed(2)}</td></tr>`
+            ).join('')}</tbody>
+          </table>
+        </div>
+        <div class="col-lg-7">
+          <div class="table-responsive" style="max-height:300px;overflow-y:auto;">
+            <table class="table table-sm mis-table mb-0">
+              <thead style="position:sticky;top:0;"><tr><th>Küpe No</th><th>Tür</th><th>Cinsiyet</th><th class="text-end">Yaş(ay)</th><th>Kategori</th><th class="text-end">BBHB</th><th>Sahip</th></tr></thead>
+              <tbody>${(k.hayvanlar||[]).slice(0,200).map(h=>`<tr>
+                <td class="small">${h.kupe_no}</td><td class="small">${h.tur}</td><td class="small">${h.cinsiyet}</td>
+                <td class="text-end small">${h.yas_ay>=0?h.yas_ay:'-'}</td>
+                <td><span class="grup-badge">${h.kategori}</span></td>
+                <td class="text-end small fw-semibold text-success">${h.bbhb.toFixed(2)}</td>
+                <td class="small">${h.sahip}</td>
+              </tr>`).join('')}</tbody>
+            </table>
+          </div>
+          ${(k.hayvanlar||[]).length>200?`<p class="text-muted small mt-1">İlk 200 hayvan gösteriliyor, toplam: ${k.hayvanlar.length}</p>`:''}
+        </div>
+      </div>`;
+  } catch { document.getElementById('detay-icerik').innerHTML='<div class="alert alert-danger">Veri yüklenemedi.</div>'; }
+};
+
+window.yuklemeSil = async (id) => {
+  if(!confirm('Bu yükleme silinecek?')) return;
+  const r = await fetch(`${API_YUKLE}/${id}`,{method:'DELETE'});
+  const j = await r.json();
+  if(j.success){ showToast('Silindi.','success'); loadGecmis(); }
+  else showToast(j.message||'Hata.','danger');
+};
+window.hesapSil = async (id) => {
+  if(!confirm('Bu hesaplama silinecek?')) return;
+  const r = await fetch(`${API_BBHB}/${id}`,{method:'DELETE'});
+  const j = await r.json();
+  if(j.success){ showToast('Silindi.','success'); loadGecmis(); }
+  else showToast(j.message||'Hata.','danger');
+};
+
+// ── Raporlar sekmesi ─────────────────────────────────────
+const loadRaporlar = async () => {
+  try {
+    const r = await fetch(API_BBHB);
+    const j = await r.json();
+    const kayitlar = j.data||[];
+    document.getElementById('rapor-tablo').innerHTML = kayitlar.length===0
+      ? '<p class="text-muted text-center py-3">Henüz kayıtlı hesaplama yok.</p>'
+      : `<div class="table-responsive"><table class="table table-sm mis-table mb-0"><thead><tr>
+          <th>Başlık</th><th class="text-end">BBHB</th><th>Tarih</th><th>Rapor İndir</th>
+        </tr></thead><tbody>${kayitlar.map(k=>`<tr>
+          <td><strong>${k.baslik}</strong></td>
+          <td class="text-end fw-bold text-success">${k.toplam_bbhb.toFixed(2)}</td>
+          <td class="small text-muted">${new Date(k.createdAt).toLocaleDateString('tr-TR')}</td>
+          <td><div class="d-flex gap-2">
+            <a class="btn btn-sm btn-outline-success" href="${API_BBHB}/${k._id}/rapor/excel"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Excel</a>
+            <a class="btn btn-sm btn-outline-danger" href="${API_BBHB}/${k._id}/rapor/pdf"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+            <a class="btn btn-sm btn-outline-primary" href="${API_BBHB}/${k._id}/rapor/word"><i class="bi bi-file-earmark-word me-1"></i>Word</a>
+          </div></td>
+        </tr>`).join('')}</tbody></table></div>`;
+  } catch { document.getElementById('rapor-tablo').innerHTML='<div class="alert alert-danger">Veriler alınamadı.</div>'; }
+};
+
+loadTurler();
+</script>
+<style>
+.bbhb-dropzone{border:2px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:2rem;text-align:center;transition:background .2s,border-color .2s;cursor:pointer;}
+.bbhb-dropzone.dragover{background:#E1F5EE;border-color:#1D9E75;}
+.btn-xs{padding:2px 6px;font-size:12px;}
+.bbhb-giris-tablo td,.bbhb-giris-tablo th{vertical-align:middle;padding:6px 10px;}
+.bbhb-grup-satir td{background:#f5faf7!important;padding:5px 10px;border-bottom:none;}
+</style>
+</body>
+</html>
