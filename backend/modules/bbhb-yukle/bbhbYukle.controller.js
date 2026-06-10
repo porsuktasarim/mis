@@ -141,6 +141,8 @@ const dosyalariisle = async (req, res, next) => {
       tur_sayisi: Object.keys(kategoriler).length,
       durum: 'tamamlandi',
     });
+
+    const kayit = await BBHBYukle.create({
       baslik,
       hesaplama_tarihi: hesaplamaTarihiStr,
       dosyalar: dosyaAdlari,
