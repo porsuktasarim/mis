@@ -144,46 +144,88 @@ const pdfRapor = async (req, res, next) => {
     const kayit = await BBHBHesaplama.findById(req.params.id);
     if (!kayit) return res.status(404).json({ success: false, message: 'Kayıt bulunamadı' });
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=bbhb_${kayit._id}.pdf`);
-
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
-    doc.pipe(res);
-
-    doc.fontSize(16).font('Helvetica-Bold').text('BÜYÜK BAŞ HAYVAN BİRİMİ (BBHB) RAPORU', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(11).font('Helvetica').text(`Başlık: ${kayit.baslik}`);
-    doc.text(`Tarih: ${new Date(kayit.createdAt).toLocaleDateString('tr-TR')}`);
-    if (kayit.aciklama) doc.text(`Açıklama: ${kayit.aciklama}`);
-    doc.moveDown();
-
-    const colX = [50, 260, 340, 410, 480];
-    const headers = ['Hayvan Türü', 'Katsayı', 'Adet', 'BBHB'];
-    doc.font('Helvetica-Bold').fontSize(10);
-    headers.forEach((h, i) => doc.text(h, colX[i], doc.y, { width: colX[i + 1] - colX[i] - 5 }));
-    doc.moveDown(0.3);
-    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-    doc.moveDown(0.3);
-
     const aktif = kayit.hayvanlar.filter(h => h.adet > 0);
-    doc.font('Helvetica').fontSize(10);
-    aktif.forEach(h => {
-      const y = doc.y;
-      doc.text(h.tur_adi,  colX[0], y, { width: 200 });
-      doc.text(String(h.katsayi), colX[1], y, { width: 70 });
-      doc.text(String(h.adet),    colX[2], y, { width: 60 });
-      doc.text(String(h.bbhb),    colX[3], y, { width: 70 });
-      doc.moveDown(0.4);
-    });
+    const tarih = new Date(kayit.createdAt).toLocaleDateString('tr-TR');
+    const satirlar = aktif.map(h => `
+      <tr>
+        <td>${h.tur_adi}</td>
+        <td class="center">${h.katsayi}</td>
+        <td class="center">${h.adet}</td>
+        <td class="right">${h.bbhb.toFixed(2)}</td>
+      </tr>`).join('');
 
-    doc.moveDown(0.5);
-    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-    doc.moveDown(0.3);
-    doc.font('Helvetica-Bold').fontSize(11);
-    doc.text(`Toplam Hayvan: ${kayit.toplam_adet}`, 50);
-    doc.text(`Toplam BBHB: ${kayit.toplam_bbhb}`, 50);
+    const html = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>BBHB Raporu - ${kayit.baslik}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Noto Sans', Arial, sans-serif; font-size:11pt; color:#222; padding:20mm; }
+    h1 { font-size:15pt; text-align:center; margin-bottom:8mm; color:#0F6E56; }
+    .meta { margin-bottom:6mm; font-size:10pt; }
+    .meta span { display:inline-block; margin-right:15mm; }
+    table { width:100%; border-collapse:collapse; margin-bottom:6mm; }
+    th { background:#0F6E56; color:#fff; padding:5pt 8pt; font-size:10pt; }
+    td { padding:4pt 8pt; border-bottom:1px solid #ddd; font-size:10pt; }
+    tr:nth-child(even) td { background:#f5faf7; }
+    .center { text-align:center; }
+    .right { text-align:right; }
+    .toplam { font-weight:bold; border-top:2px solid #0F6E56; }
+    .toplam td { padding-top:6pt; }
+    .ozet { margin-top:6mm; padding:5mm; background:#e1f5ee; border-radius:4px; }
+    .ozet table { margin:0; }
+    .ozet td { border:none; background:none; font-size:10pt; }
+    .footer { margin-top:10mm; font-size:9pt; color:#888; text-align:center; border-top:1px solid #ddd; padding-top:4mm; }
+    @media print { .no-print { display:none; } }
+  </style>
+</head>
+<body>
+  <div class="no-print" style="text-align:center;margin-bottom:8mm;">
+    <button onclick="window.print()" style="background:#0F6E56;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-size:12pt;cursor:pointer;">
+      PDF Olarak Yazdır / Kaydet
+    </button>
+  </div>
+  <h1>BÜYÜK BAŞ HAYVAN BİRİMİ (BBHB) RAPORU</h1>
+  <div class="meta">
+    <span><strong>Başlık:</strong> ${kayit.baslik}</span>
+    <span><strong>Tarih:</strong> ${tarih}</span>
+    ${kayit.aciklama ? `<span><strong>Açıklama:</strong> ${kayit.aciklama}</span>` : ''}
+  </div>
+  <table>
+    <thead>
+      <tr><th>Hayvan Türü</th><th class="center">Katsayı</th><th class="center">Adet</th><th class="right">BBHB</th></tr>
+    </thead>
+    <tbody>
+      ${satirlar}
+      <tr class="toplam">
+        <td colspan="2"><strong>TOPLAM</strong></td>
+        <td class="center"><strong>${kayit.toplam_adet}</strong></td>
+        <td class="right"><strong>${kayit.toplam_bbhb.toFixed(2)}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="ozet">
+    <table>
+      <tr>
+        <td><strong>Toplam Hayvan:</strong> ${kayit.toplam_adet}</td>
+        <td><strong>Toplam BBHB:</strong> ${kayit.toplam_bbhb.toFixed(2)}</td>
+        <td><strong>Aktif Tür:</strong> ${aktif.length}</td>
+        <td><strong>Canlı Ağırlık:</strong> ${(kayit.toplam_bbhb * 500).toFixed(0)} kg</td>
+      </tr>
+      <tr>
+        <td><strong>Yeşil Kaba Yem (180 gün):</strong> ${(kayit.toplam_bbhb * 50 * 180).toLocaleString('tr-TR')} kg</td>
+        <td colspan="3"><strong>Kuru Kaba Yem (180 gün):</strong> ${(kayit.toplam_bbhb * 12.5 * 180).toLocaleString('tr-TR')} kg</td>
+      </tr>
+    </table>
+  </div>
+  <div class="footer">MİS - Mera İzleme Sistemi &nbsp;|&nbsp; ${new Date().toLocaleString('tr-TR')}</div>
+</body>
+</html>`;
 
-    doc.end();
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
   } catch (err) { next(err); }
 };
 
