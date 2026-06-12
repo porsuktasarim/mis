@@ -10,6 +10,7 @@ const { errorHandler, notFound } = require('./middleware/errorHandler');
 const bbhbRoutes = require('./modules/bbhb/bbhb.routes');
 const bbhbYukleRoutes = require('./modules/bbhb-yukle/bbhbYukle.routes');
 const ayarlarRoutes = require('./modules/ayarlar/ayarlar.routes');
+const meraRoutes = require('./modules/mera/mera.routes');
 const fs = require('fs');
 
 const app = express();
@@ -68,6 +69,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/bbhb', bbhbRoutes);
 app.use('/api/bbhb-yukle', bbhbYukleRoutes);
 app.use('/api/ayarlar', ayarlarRoutes);
+app.use('/api/mera', meraRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

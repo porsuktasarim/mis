@@ -77,6 +77,18 @@ Türkvet'ten indirilen Büyükbaş/Küçükbaş XLS dosyalarını otomatik işle
 
 ## Değişiklik Geçmişi
 
+### v1.5.0
+- Mera modülü eklendi (/mera/)
+- Parsel listesi: il/ilçe/mahalle/durum filtresi, arama, sayfalama
+- Mera detay: Genel, Harita, Otlatma Kapasitesi, Notlar, Dosyalar sekmeleri
+- KML/KMZ yükleme → Drive'a kaydedilir → Leaflet.js ile haritada gösterilir
+- Google Earth Web bağlantısı (KML URL üzerinden)
+- Notlar: renkli, tarih damgalı, düzenlenebilir, silinebilir, log tutulur
+- Dosyalar: Drive'a yükleme, kategori, indirme linki
+- Otlatma kapasitesi: il+vasıf+alan → otomatik hesaplama (EK-1 tabloları)
+- PDF raporu: Noto Sans, Türkçe karakterler düzgün
+- jszip paketi eklendi (KMZ desteği)
+
 ### v1.4.0
 - Ayarlar modülü eklendi (/ayarlar/)
 - Google Drive hesap yönetimi (ekle/test/sil)

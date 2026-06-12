@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mera Modülü - MİS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+</head>
+<body>
+<div class="d-flex" id="wrapper">
+  <nav id="sidebar" class="mis-sidebar d-flex flex-column">
+    <a href="/" class="mis-sidebar-brand text-decoration-none"><i class="bi bi-tree-fill"></i><span>MİS</span></a>
+    <hr class="mis-sidebar-divider"/>
+    <ul class="nav flex-column mis-nav px-2">
+      <li class="mis-nav-section">Modüller</li>
+      <li class="nav-item"><a class="nav-link mis-nav-link" href="/bbhb/"><i class="bi bi-calculator"></i><span>BBHB Hesaplayıcı</span></a></li>
+      <li class="nav-item"><a class="nav-link mis-nav-link active" href="/mera/"><i class="bi bi-geo-alt"></i><span>Mera</span></a></li>
+      <li class="mis-nav-section mt-3">Sistem</li>
+      <li class="nav-item"><a class="nav-link mis-nav-link" href="/ayarlar/"><i class="bi bi-gear"></i><span>Ayarlar</span></a></li>
+    </ul>
+    <div class="mt-auto p-3 mis-sidebar-footer"><small class="text-muted">MİS v1.5.0</small></div>
+  </nav>
+
+  <div id="page-content" class="flex-grow-1">
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
+      <span class="mis-topbar-title">Mera Modülü</span>
+      <div class="ms-auto">
+        <button class="btn btn-sm btn-mis" onclick="yeniMera()"><i class="bi bi-plus-lg me-1"></i>Yeni Mera</button>
+      </div>
+    </nav>
+
+    <main class="mis-main p-4">
+      <!-- Filtreler -->
+      <div class="mis-card mb-4">
+        <div class="row g-2 align-items-end">
+          <div class="col-sm-3 col-lg-2">
+            <label class="form-label small fw-semibold mb-1">İl</label>
+            <select class="form-select form-select-sm" id="f-il"><option value="">Tümü</option></select>
+          </div>
+          <div class="col-sm-3 col-lg-2">
+            <label class="form-label small fw-semibold mb-1">İlçe</label>
+            <select class="form-select form-select-sm" id="f-ilce" disabled><option value="">Tümü</option></select>
+          </div>
+          <div class="col-sm-3 col-lg-2">
+            <label class="form-label small fw-semibold mb-1">Mahalle/Köy</label>
+            <select class="form-select form-select-sm" id="f-mahalle" disabled><option value="">Tümü</option></select>
+          </div>
+          <div class="col-sm-3 col-lg-2">
+            <label class="form-label small fw-semibold mb-1">Durum</label>
+            <select class="form-select form-select-sm" id="f-durum">
+              <option value="">Tümü</option>
+              <option>Aktif</option><option>Pasif</option>
+            </select>
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <label class="form-label small fw-semibold mb-1">Arama</label>
+            <input type="text" class="form-control form-control-sm" id="f-ara" placeholder="Ada, parsel, mahalle..."/>
+          </div>
+          <div class="col-sm-2 col-lg-1">
+            <button class="btn btn-sm btn-mis w-100" onclick="loadMeralar()"><i class="bi bi-search"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Liste -->
+      <div class="mis-card">
+        <div class="mis-card-header">
+          <i class="bi bi-geo-alt"></i><span class="title">Meralar</span>
+          <span class="badge bg-secondary ms-2" id="toplam-badge">0</span>
+        </div>
+        <div id="mera-tablo">
+          <div class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-success"></div><span class="ms-2">Yükleniyor...</span></div>
+        </div>
+        <div id="sayfalama" class="d-flex justify-content-center mt-3 gap-2"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Yeni/Düzenle Modal -->
+<div class="modal fade" id="meraModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-baslik">Yeni Mera</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">İl *</label>
+            <select class="form-select form-select-sm" id="m-il"><option value="">Seçin</option></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">İlçe *</label>
+            <select class="form-select form-select-sm" id="m-ilce" disabled><option value="">Önce il seçin</option></select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Mahalle/Köy *</label>
+            <select class="form-select form-select-sm" id="m-mahalle" disabled><option value="">Önce ilçe seçin</option></select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">Ada</label>
+            <input type="text" class="form-control form-control-sm" id="m-ada"/>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">Parsel *</label>
+            <input type="text" class="form-control form-control-sm" id="m-parsel"/>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">Tapu Alanı (da)</label>
+            <input type="number" step="0.01" class="form-control form-control-sm" id="m-alan"/>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">Durum</label>
+            <select class="form-select form-select-sm" id="m-durum">
+              <option>Aktif</option><option>Pasif</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Nitelik</label>
+            <input type="text" class="form-control form-control-sm" id="m-nitelik" placeholder="Örn: Mera, Yaylak..."/>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">Vasıf</label>
+            <select class="form-select form-select-sm" id="m-vasif">
+              <option value="">Seçin</option>
+              <option>Çok İyi</option><option>İyi</option><option>Orta</option><option>Zayıf</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold">Toprak Sınıfı</label>
+            <select class="form-select form-select-sm" id="m-toprak">
+              <option value="">Seçin</option>
+              <option>I</option><option>II</option><option>III</option><option>IV</option>
+              <option>V</option><option>VI</option><option>VII</option><option>VIII</option>
+            </select>
+          </div>
+          <div id="toprak-tanim" class="col-12 d-none">
+            <div class="p-2 rounded small text-muted" style="background:#f0f9f5;border:1px solid #9FE1CB" id="toprak-tanim-metin"></div>
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Açıklama</label>
+            <textarea class="form-control form-control-sm" id="m-aciklama" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-sm btn-mis" id="btnMeraKaydet" onclick="meraKaydet()">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+  <div id="mis-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex"><div class="toast-body fw-semibold" id="toast-msg"></div>
+    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API_MERA = '/api/mera';
+const API_AYAR = '/api/ayarlar';
+let meraId = null, toprakSiniflari = [], mevcutSayfa = 1;
+
+const showToast = (msg, type='success') => {
+  const el = document.getElementById('mis-toast');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+};
+
+const fmt = n => n != null ? Number(n).toLocaleString('tr-TR') : '-';
+
+// İl/ilçe/mahalle yükle
+const loadIller = async (selId, handler) => {
+  const r = await fetch(`${API_AYAR}/idari/iller`);
+  const j = await r.json();
+  const sel = document.getElementById(selId);
+  sel.innerHTML = '<option value="">Seçin</option>' + (j.data||[]).map(il=>`<option value="${il.xml_id}">${il.ad}</option>`).join('');
+  sel.addEventListener('change', () => handler(sel.value, sel.options[sel.selectedIndex]?.text));
+};
+
+const loadIlceler = async (selId, il_id, handler) => {
+  const sel = document.getElementById(selId);
+  sel.innerHTML = '<option value="">Yükleniyor...</option>';
+  sel.disabled = true;
+  const r = await fetch(`${API_AYAR}/idari/ilceler/${il_id}`);
+  const j = await r.json();
+  sel.innerHTML = '<option value="">Seçin</option>' + (j.data||[]).map(i=>`<option value="${i.ilce_id}">${i.ad}</option>`).join('');
+  sel.disabled = false;
+  sel.addEventListener('change', () => handler(sel.value, sel.options[sel.selectedIndex]?.text));
+};
+
+const loadMahalleler = async (selId, ilce_id) => {
+  const sel = document.getElementById(selId);
+  sel.innerHTML = '<option value="">Yükleniyor...</option>';
+  sel.disabled = true;
+  const r = await fetch(`${API_AYAR}/idari/mahalleler/${ilce_id}`);
+  const j = await r.json();
+  sel.innerHTML = '<option value="">Seçin</option>' + (j.data||[]).map(m=>`<option value="${m.xml_id}">${m.ad}</option>`).join('');
+  sel.disabled = false;
+};
+
+// Filtre il/ilçe/mahalle
+loadIller('f-il', (il_id) => {
+  const f_ilce = document.getElementById('f-ilce');
+  f_ilce.innerHTML = '<option value="">Tümü</option>'; f_ilce.disabled = !il_id;
+  document.getElementById('f-mahalle').innerHTML = '<option value="">Tümü</option>';
+  document.getElementById('f-mahalle').disabled = true;
+  if (il_id) loadIlceler('f-ilce', il_id, (ilce_id) => {
+    const f_m = document.getElementById('f-mahalle');
+    f_m.innerHTML = '<option value="">Tümü</option>'; f_m.disabled = !ilce_id;
+    if (ilce_id) { f_m.disabled = false; loadMahalleler('f-mahalle', ilce_id); }
+  });
+});
+
+// Mera listesi
+const loadMeralar = async (sayfa=1) => {
+  mevcutSayfa = sayfa;
+  const il_id = document.getElementById('f-il').value;
+  const ilce_id = document.getElementById('f-ilce').value;
+  const mahalle_id = document.getElementById('f-mahalle').value;
+  const durum = document.getElementById('f-durum').value;
+  const ara = document.getElementById('f-ara').value;
+  const params = new URLSearchParams({ sayfa, limit: 20 });
+  if (il_id) params.set('il_id', il_id);
+  if (ilce_id) params.set('ilce_id', ilce_id);
+  if (mahalle_id) params.set('mahalle_id', mahalle_id);
+  if (durum) params.set('durum', durum);
+  if (ara) params.set('ara', ara);
+
+  try {
+    const r = await fetch(`${API_MERA}?${params}`);
+    const j = await r.json();
+    document.getElementById('toplam-badge').textContent = j.toplam || 0;
+    const meralar = j.data || [];
+
+    if (!meralar.length) {
+      document.getElementById('mera-tablo').innerHTML = '<p class="text-muted text-center py-4 small">Kayıt bulunamadı.</p>';
+      document.getElementById('sayfalama').innerHTML = '';
+      return;
+    }
+
+    document.getElementById('mera-tablo').innerHTML = `
+      <div class="table-responsive">
+        <table class="table table-sm mis-table mb-0">
+          <thead><tr>
+            <th>Konum</th><th>Ada/Parsel</th><th class="text-end">Alan (da)</th>
+            <th>Nitelik</th><th>Vasıf</th><th>Durum</th><th>İşlemler</th>
+          </tr></thead>
+          <tbody>${meralar.map(m=>`<tr>
+            <td><strong>${m.il_ad}</strong><br><small class="text-muted">${m.ilce_ad} / ${m.mahalle_ad}</small></td>
+            <td>${m.ada ? m.ada+'/' : ''}${m.parsel}</td>
+            <td class="text-end">${fmt(m.tapu_alani_da)}</td>
+            <td class="small">${m.nitelik||'-'}</td>
+            <td><span class="grup-badge">${m.vasif||'-'}</span></td>
+            <td><span class="badge ${m.durum==='Aktif'?'bg-success':'bg-secondary'}">${m.durum}</span></td>
+            <td><div class="d-flex gap-1">
+              <a href="/mera/detay.html?id=${m._id}" class="btn btn-xs btn-mis"><i class="bi bi-eye"></i></a>
+              <button class="btn btn-xs btn-outline-secondary" onclick="meraDuzenle('${m._id}')"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-xs btn-outline-danger" onclick="meraSil('${m._id}')"><i class="bi bi-trash"></i></button>
+            </div></td>
+          </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    // Sayfalama
+    const toplamSayfa = Math.ceil(j.toplam / 20);
+    if (toplamSayfa > 1) {
+      let pHtml = '';
+      for (let i = 1; i <= toplamSayfa; i++) {
+        pHtml += `<button class="btn btn-sm ${i===sayfa?'btn-mis':'btn-outline-secondary'}" onclick="loadMeralar(${i})">${i}</button>`;
+      }
+      document.getElementById('sayfalama').innerHTML = pHtml;
+    } else document.getElementById('sayfalama').innerHTML = '';
+  } catch { showToast('Veriler alınamadı.','danger'); }
+};
+
+// Yeni mera
+window.yeniMera = async () => {
+  meraId = null;
+  document.getElementById('modal-baslik').textContent = 'Yeni Mera';
+  ['m-ada','m-parsel','m-nitelik','m-aciklama'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('m-alan').value = '';
+  document.getElementById('m-durum').value = 'Aktif';
+  document.getElementById('m-vasif').value = '';
+  document.getElementById('m-toprak').value = '';
+  document.getElementById('toprak-tanim').classList.add('d-none');
+
+  const sel_il = document.getElementById('m-il');
+  if (!sel_il.options.length || sel_il.options[0].value === '') {
+    await loadIller('m-il', async (il_id, il_ad) => {
+      document.getElementById('m-ilce').innerHTML = '<option value="">Önce il seçin</option>';
+      document.getElementById('m-ilce').disabled = !il_id;
+      if (il_id) await loadIlceler('m-ilce', il_id, async (ilce_id) => {
+        document.getElementById('m-mahalle').innerHTML = '<option value="">Önce ilçe seçin</option>';
+        document.getElementById('m-mahalle').disabled = !ilce_id;
+        if (ilce_id) await loadMahalleler('m-mahalle', ilce_id);
+      });
+    });
+  }
+  new bootstrap.Modal(document.getElementById('meraModal')).show();
+};
+
+// Toprak sınıfı tanımı
+document.getElementById('m-toprak').addEventListener('change', async function() {
+  if (!toprakSiniflari.length) {
+    const r = await fetch('/api/ayarlar');
+    const j = await r.json();
+    toprakSiniflari = j.data?.toprak_siniflari || [];
+  }
+  const sinif = toprakSiniflari.find(t => t.sinif === this.value);
+  if (sinif?.tanim) {
+    document.getElementById('toprak-tanim').classList.remove('d-none');
+    document.getElementById('toprak-tanim-metin').textContent = `Sınıf ${sinif.sinif}: ${sinif.tanim}`;
+  } else document.getElementById('toprak-tanim').classList.add('d-none');
+});
+
+// Kaydet
+window.meraKaydet = async () => {
+  const il = document.getElementById('m-il');
+  const ilce = document.getElementById('m-ilce');
+  const mahalle = document.getElementById('m-mahalle');
+  const parsel = document.getElementById('m-parsel').value.trim();
+  if (!il.value || !ilce.value || !mahalle.value || !parsel) {
+    showToast('İl, ilçe, mahalle ve parsel zorunlu.','warning'); return;
+  }
+  const veri = {
+    il_id: il.value, il_ad: il.options[il.selectedIndex].text,
+    ilce_id: ilce.value, ilce_ad: ilce.options[ilce.selectedIndex].text,
+    mahalle_id: mahalle.value, mahalle_ad: mahalle.options[mahalle.selectedIndex].text,
+    ada: document.getElementById('m-ada').value,
+    parsel,
+    tapu_alani_da: document.getElementById('m-alan').value,
+    nitelik: document.getElementById('m-nitelik').value,
+    vasif: document.getElementById('m-vasif').value,
+    toprak_sinifi: document.getElementById('m-toprak').value,
+    durum: document.getElementById('m-durum').value,
+    aciklama: document.getElementById('m-aciklama').value,
+  };
+  try {
+    const url = meraId ? `${API_MERA}/${meraId}` : API_MERA;
+    const method = meraId ? 'PUT' : 'POST';
+    const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(veri) });
+    const j = await r.json();
+    if (j.success) {
+      showToast(meraId ? 'Güncellendi.' : 'Mera oluşturuldu.');
+      bootstrap.Modal.getInstance(document.getElementById('meraModal')).hide();
+      loadMeralar();
+    } else showToast(j.message||'Hata.','danger');
+  } catch { showToast('Sunucuya ulaşılamadı.','danger'); }
+};
+
+window.meraDuzenle = async (id) => {
+  meraId = id;
+  const r = await fetch(`${API_MERA}/${id}`);
+  const j = await r.json();
+  const m = j.data;
+  document.getElementById('modal-baslik').textContent = 'Mera Düzenle';
+
+  // İl yükle ve seç
+  if (!document.getElementById('m-il').options.length || document.getElementById('m-il').options[0].value === '') {
+    await loadIller('m-il', async (il_id) => {
+      if (il_id) await loadIlceler('m-ilce', il_id, async (ilce_id) => {
+        if (ilce_id) await loadMahalleler('m-mahalle', ilce_id);
+      });
+    });
+  }
+  document.getElementById('m-il').value = m.il_id;
+  await loadIlceler('m-ilce', m.il_id, async (ilce_id) => {
+    if (ilce_id) await loadMahalleler('m-mahalle', ilce_id);
+  });
+  document.getElementById('m-ilce').value = m.ilce_id;
+  await loadMahalleler('m-mahalle', m.ilce_id);
+  document.getElementById('m-mahalle').value = m.mahalle_id;
+
+  document.getElementById('m-ada').value = m.ada||'';
+  document.getElementById('m-parsel').value = m.parsel||'';
+  document.getElementById('m-alan').value = m.tapu_alani_da||'';
+  document.getElementById('m-nitelik').value = m.nitelik||'';
+  document.getElementById('m-vasif').value = m.vasif||'';
+  document.getElementById('m-toprak').value = m.toprak_sinifi||'';
+  document.getElementById('m-durum').value = m.durum||'Aktif';
+  document.getElementById('m-aciklama').value = m.aciklama||'';
+
+  new bootstrap.Modal(document.getElementById('meraModal')).show();
+};
+
+window.meraSil = async (id) => {
+  if (!confirm('Bu mera kaydı silinecek?')) return;
+  const r = await fetch(`${API_MERA}/${id}`, { method:'DELETE' });
+  const j = await r.json();
+  if (j.success) { showToast('Silindi.'); loadMeralar(); }
+  else showToast(j.message||'Hata.','danger');
+};
+
+document.getElementById('f-ara').addEventListener('keydown', e => { if(e.key==='Enter') loadMeralar(); });
+document.getElementById('sidebarToggle').addEventListener('click', () => document.getElementById('wrapper').classList.toggle('sidebar-collapsed'));
+
+loadMeralar();
+</script>
+<style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
+</body>
+</html>
