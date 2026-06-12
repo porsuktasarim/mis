@@ -8,15 +8,32 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
   <link rel="stylesheet" href="/css/main.css"/>
   <style>
-    .ayar-sekme { border:none; background:none; padding:10px 16px; font-size:13px; color:#4a6358; border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; }
-    .ayar-sekme.active { color:#0F6E56; border-bottom-color:#0F6E56; font-weight:500; }
-    .ayar-tab { display:none; } .ayar-tab.active { display:block; }
-    .ayar-topbar { background:#fff; border-bottom:1px solid #e2e8e4; display:flex; align-items:center; gap:0; overflow-x:auto; padding:0 1rem; }
-    .renk-dot { width:20px; height:20px; border-radius:50%; display:inline-block; }
-    .tablo-input { width:70px; text-align:center; padding:2px 4px; border:1px solid #dee2e6; border-radius:4px; font-size:12px; }
+    .ayar-sekme{border:none;background:none;padding:10px 16px;font-size:13px;color:#4a6358;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;}
+    .ayar-sekme.active{color:#0F6E56;border-bottom-color:#0F6E56;font-weight:500;}
+    .ayar-tab{display:none;} .ayar-tab.active{display:block;}
+    .ayar-topbar{background:#fff;border-bottom:1px solid #e2e8e4;display:flex;align-items:center;gap:0;overflow-x:auto;padding:0 1rem;}
+    .renk-dot{width:20px;height:20px;border-radius:50%;display:inline-block;}
+    .tablo-input{width:70px;text-align:center;padding:2px 4px;border:1px solid #dee2e6;border-radius:4px;font-size:12px;}
+    #sifre-ekrani{position:fixed;inset:0;background:rgba(15,110,86,.95);display:flex;align-items:center;justify-content:center;z-index:9999;}
+    .sifre-kart{background:#fff;border-radius:16px;padding:2.5rem;width:340px;text-align:center;}
+    .adim-kutu{background:#f0f9f5;border:1px solid #9FE1CB;border-radius:8px;padding:1rem;margin-bottom:.75rem;}
+    .adim-no{width:26px;height:26px;border-radius:50%;background:#0F6E56;color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
   </style>
 </head>
 <body>
+
+<!-- Şifre Ekranı -->
+<div id="sifre-ekrani">
+  <div class="sifre-kart">
+    <i class="bi bi-tree-fill fs-1 text-success d-block mb-3"></i>
+    <h5 class="fw-bold mb-1">MİS Ayarlar</h5>
+    <p class="text-muted small mb-4">Bu alana erişmek için şifrenizi girin.</p>
+    <input type="password" class="form-control mb-3" id="sifre-inp" placeholder="Şifre" autofocus/>
+    <button class="btn btn-mis w-100" id="sifre-btn"><i class="bi bi-unlock me-2"></i>Giriş</button>
+    <div id="sifre-hata" class="text-danger small mt-2 d-none">Şifre yanlış.</div>
+  </div>
+</div>
+
 <div class="d-flex" id="wrapper">
   <nav id="sidebar" class="mis-sidebar d-flex flex-column">
     <a href="/" class="mis-sidebar-brand text-decoration-none"><i class="bi bi-tree-fill"></i><span>MİS</span></a>
@@ -27,7 +44,7 @@
       <li class="mis-nav-section mt-3">Sistem</li>
       <li class="nav-item"><a class="nav-link mis-nav-link active" href="/ayarlar/"><i class="bi bi-gear"></i><span>Ayarlar</span></a></li>
     </ul>
-    <div class="mt-auto p-3 mis-sidebar-footer"><small class="text-muted">MİS v1.3.0</small></div>
+    <div class="mt-auto p-3 mis-sidebar-footer"><small class="text-muted">MİS v1.4.0</small></div>
   </nav>
 
   <div id="page-content" class="flex-grow-1 d-flex flex-column">
@@ -47,17 +64,51 @@
       <button class="ayar-sekme" data-tab="toprak"><i class="bi bi-layers me-1"></i>Toprak Sınıfları</button>
       <button class="ayar-sekme" data-tab="yagis"><i class="bi bi-cloud-rain me-1"></i>Yağış Kuşakları</button>
       <button class="ayar-sekme" data-tab="verim"><i class="bi bi-table me-1"></i>Verim Tabloları</button>
+      <button class="ayar-sekme" data-tab="guvenlik"><i class="bi bi-shield-lock me-1"></i>Güvenlik</button>
     </div>
 
     <main class="mis-main p-4">
 
       <!-- DRIVE -->
       <div class="ayar-tab active" id="tab-drive">
-        <div class="mis-card">
-          <div class="mis-card-header"><i class="bi bi-google"></i><span class="title">Google Drive Hesapları</span>
-            <button class="btn btn-sm btn-mis ms-auto" onclick="driveEkleModal()"><i class="bi bi-plus-lg me-1"></i>Hesap Ekle</button>
+        <div class="row g-4">
+          <div class="col-lg-5">
+            <div class="mis-card mb-3">
+              <div class="mis-card-header"><i class="bi bi-info-circle text-success"></i><span class="title">Google Drive Nasıl Kurulur?</span></div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">1</span>
+                <div class="small"><strong>Google Cloud Console'a gidin</strong><br><a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> → Yeni proje oluşturun (ör: <code>mis-app</code>)</div>
+              </div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">2</span>
+                <div class="small"><strong>Drive API'yi etkinleştirin</strong><br>APIs & Services → Library → <em>Google Drive API</em> aratın → Enable</div>
+              </div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">3</span>
+                <div class="small"><strong>Servis hesabı oluşturun</strong><br>APIs & Services → Credentials → + Create Credentials → Service Account → İsim: <code>mis-drive</code> → Role: Editor → Done</div>
+              </div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">4</span>
+                <div class="small"><strong>JSON key indirin</strong><br>Oluşturduğunuz servis hesabına tıklayın → Keys → Add Key → Create new key → <strong>JSON</strong> → Create<br>Dosya bilgisayarınıza inecek.</div>
+              </div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">5</span>
+                <div class="small"><strong>Drive'da MİS klasörü oluşturun</strong><br><a href="https://drive.google.com" target="_blank">drive.google.com</a> → Yeni klasör: <code>MİS</code> → Klasöre sağ tıkla → Share → JSON'daki <code>client_email</code> adresini ekleyin → Yetki: <strong>Editor</strong> → Send</div>
+              </div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">6</span>
+                <div class="small"><strong>MİS'e ekleyin</strong><br>Sağdaki "Hesap Ekle" butonuna tıklayın → JSON dosyasını not defteri ile açıp içeriği yapıştırın → Test butonuyla doğrulayın.</div>
+              </div>
+            </div>
           </div>
-          <div id="drive-listesi"><div class="text-center py-3 text-muted small">Yükleniyor...</div></div>
+          <div class="col-lg-7">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-google"></i><span class="title">Ekli Drive Hesapları</span>
+                <button class="btn btn-sm btn-mis ms-auto" onclick="driveEkleModal()"><i class="bi bi-plus-lg me-1"></i>Hesap Ekle</button>
+              </div>
+              <div id="drive-listesi"><div class="text-center py-3 text-muted small">Yükleniyor...</div></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -100,25 +151,25 @@
         </div>
       </div>
 
-      <!-- VERİM TABLOLARI -->
+      <!-- VERİM -->
       <div class="ayar-tab" id="tab-verim">
         <div class="row g-4">
-          <div class="col-12">
+          <div class="col-12"><div class="mis-card"><div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 1: Yararlanılabilir Yeşil Ot Verimi (kg/da)</span></div><div id="tablo1"></div></div></div>
+          <div class="col-12"><div class="mis-card"><div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 2: Üretilen Yeşil Ot Verimi (kg/da)</span></div><div id="tablo2"></div></div></div>
+          <div class="col-12"><div class="mis-card"><div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 3: Üretilen Kuru Ot Verimi (kg/da)</span></div><div id="tablo3"></div></div></div>
+        </div>
+      </div>
+
+      <!-- GÜVENLİK -->
+      <div class="ayar-tab" id="tab-guvenlik">
+        <div class="row justify-content-center">
+          <div class="col-lg-5">
             <div class="mis-card">
-              <div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 1: Yararlanılabilir Yeşil Ot Verimi (kg/da)</span></div>
-              <div id="tablo1"></div>
-            </div>
-          </div>
-          <div class="col-12">
-            <div class="mis-card">
-              <div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 2: Üretilen Yeşil Ot Verimi (kg/da)</span></div>
-              <div id="tablo2"></div>
-            </div>
-          </div>
-          <div class="col-12">
-            <div class="mis-card">
-              <div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 3: Üretilen Kuru Ot Verimi (kg/da)</span></div>
-              <div id="tablo3"></div>
+              <div class="mis-card-header"><i class="bi bi-shield-lock"></i><span class="title">Ayarlar Şifresi</span></div>
+              <div class="mb-3"><label class="form-label small fw-semibold">Mevcut Şifre</label><input type="password" class="form-control form-control-sm" id="eski-sifre"/></div>
+              <div class="mb-3"><label class="form-label small fw-semibold">Yeni Şifre</label><input type="password" class="form-control form-control-sm" id="yeni-sifre"/></div>
+              <div class="mb-3"><label class="form-label small fw-semibold">Yeni Şifre (Tekrar)</label><input type="password" class="form-control form-control-sm" id="yeni-sifre2"/></div>
+              <button class="btn btn-mis w-100" id="btnSifreDegistir"><i class="bi bi-key me-2"></i>Şifreyi Değiştir</button>
             </div>
           </div>
         </div>
@@ -128,7 +179,7 @@
   </div>
 </div>
 
-<!-- Drive Ekle Modal -->
+<!-- Drive Modal -->
 <div class="modal fade" id="driveModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -138,8 +189,8 @@
         <div class="mb-3"><label class="form-label small fw-semibold">Açıklama</label><input type="text" class="form-control form-control-sm" id="drive-aciklama"/></div>
         <div class="mb-3">
           <label class="form-label small fw-semibold">Service Account JSON *</label>
-          <textarea class="form-control form-control-sm" id="drive-json" rows="6" placeholder='{"type":"service_account","project_id":"..."}'></textarea>
-          <div class="form-text">Google Cloud Console → IAM → Servis Hesapları → JSON Key</div>
+          <textarea class="form-control form-control-sm font-monospace" id="drive-json" rows="7" placeholder='{"type":"service_account","project_id":"..."}'></textarea>
+          <div class="form-text">JSON key dosyasını not defteri ile açıp tüm içeriği yapıştırın.</div>
         </div>
       </div>
       <div class="modal-footer">
@@ -162,6 +213,7 @@
 <script>
 const API = '/api/ayarlar';
 let ayarlar = {};
+const KUSAK_SECENEKLER = ['200-350','350-500','500-650','650-800','800-950','950-1100','1100-1250'];
 
 const showToast = (msg, type='success') => {
   const el = document.getElementById('mis-toast');
@@ -170,9 +222,27 @@ const showToast = (msg, type='success') => {
   bootstrap.Toast.getOrCreateInstance(el).show();
 };
 
-const KUSAK_SECENEKLER = ['200-350','350-500','500-650','650-800','800-950','950-1100','1100-1250'];
+// Şifre ekranı
+const sifreEkrani = document.getElementById('sifre-ekrani');
+const giris = async () => {
+  const sifre = document.getElementById('sifre-inp').value;
+  try {
+    const r = await fetch(`${API}/sifre/dogrula`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sifre }) });
+    const j = await r.json();
+    if (j.success) {
+      sifreEkrani.style.display = 'none';
+      loadAyarlar();
+    } else {
+      document.getElementById('sifre-hata').classList.remove('d-none');
+      document.getElementById('sifre-inp').value = '';
+      document.getElementById('sifre-inp').focus();
+    }
+  } catch { document.getElementById('sifre-hata').classList.remove('d-none'); }
+};
+document.getElementById('sifre-btn').addEventListener('click', giris);
+document.getElementById('sifre-inp').addEventListener('keydown', e => { if(e.key==='Enter') giris(); });
 
-// Sekme
+// Sekmeler
 document.querySelectorAll('.ayar-sekme').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.ayar-sekme').forEach(x => x.classList.remove('active'));
   document.querySelectorAll('.ayar-tab').forEach(x => x.classList.remove('active'));
@@ -180,29 +250,24 @@ document.querySelectorAll('.ayar-sekme').forEach(b => b.addEventListener('click'
   document.getElementById('tab-'+b.dataset.tab).classList.add('active');
 }));
 
-// Ayarları yükle
 const loadAyarlar = async () => {
   const r = await fetch(API);
   const j = await r.json();
   ayarlar = j.data;
-  renderDrive();
-  renderKategoriler();
-  renderRenkler();
-  renderToprak();
-  renderYagis();
-  renderVerimTablosu('tablo1', 'yararlanilabilir_yesil_ot');
-  renderVerimTablosu('tablo2', 'uretilen_yesil_ot');
-  renderVerimTablosu('tablo3', 'uretilen_kuru_ot');
+  renderDrive(); renderKategoriler(); renderRenkler(); renderToprak(); renderYagis();
+  renderVerim('tablo1','yararlanilabilir_yesil_ot');
+  renderVerim('tablo2','uretilen_yesil_ot');
+  renderVerim('tablo3','uretilen_kuru_ot');
 };
 
 // Drive
 const renderDrive = () => {
   const el = document.getElementById('drive-listesi');
-  if (!ayarlar.drive_hesaplari?.length) { el.innerHTML = '<p class="text-muted text-center py-3 small">Henüz hesap eklenmedi.</p>'; return; }
+  if (!ayarlar.drive_hesaplari?.length) { el.innerHTML = '<p class="text-muted text-center py-3 small">Henüz hesap eklenmedi. Sol taraftaki adımları takip edin.</p>'; return; }
   el.innerHTML = `<table class="table table-sm mis-table mb-0"><thead><tr><th>Ad</th><th>E-posta</th><th>Durum</th><th>İşlemler</th></tr></thead><tbody>
-    ${ayarlar.drive_hesaplari.map(h => `<tr>
+    ${ayarlar.drive_hesaplari.map(h=>`<tr>
       <td><strong>${h.ad}</strong>${h.aciklama?`<br><small class="text-muted">${h.aciklama}</small>`:''}</td>
-      <td class="small">${h.email||'-'}</td>
+      <td class="small text-truncate" style="max-width:200px">${h.email||'-'}</td>
       <td><span class="badge ${h.aktif?'bg-success':'bg-secondary'}">${h.aktif?'Aktif':'Pasif'}</span></td>
       <td><div class="d-flex gap-1">
         <button class="btn btn-xs btn-outline-success" onclick="driveTesti('${h._id}')"><i class="bi bi-wifi"></i> Test</button>
@@ -211,16 +276,15 @@ const renderDrive = () => {
     </tr>`).join('')}
   </tbody></table>`;
 };
-
 window.driveEkleModal = () => new bootstrap.Modal(document.getElementById('driveModal')).show();
 window.driveKaydet = async () => {
   const ad = document.getElementById('drive-ad').value.trim();
   const json = document.getElementById('drive-json').value.trim();
-  if (!ad || !json) { showToast('Ad ve JSON zorunlu.','warning'); return; }
+  if (!ad||!json) { showToast('Ad ve JSON zorunlu.','warning'); return; }
   try {
-    const r = await fetch(`${API}/drive`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ad, aciklama: document.getElementById('drive-aciklama').value, service_account_json: json }) });
+    const r = await fetch(`${API}/drive`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ad,aciklama:document.getElementById('drive-aciklama').value,service_account_json:json})});
     const j = await r.json();
-    if (j.success) { showToast('Hesap eklendi.'); bootstrap.Modal.getInstance(document.getElementById('driveModal')).hide(); loadAyarlar(); }
+    if(j.success){showToast('Hesap eklendi.');bootstrap.Modal.getInstance(document.getElementById('driveModal')).hide();loadAyarlar();}
     else showToast(j.message,'danger');
   } catch { showToast('Hata.','danger'); }
 };
@@ -228,110 +292,110 @@ window.driveTesti = async (id) => {
   showToast('Test ediliyor...','secondary');
   const r = await fetch(`${API}/drive/${id}/test`);
   const j = await r.json();
-  if (j.success) showToast(`Bağlantı başarılı. Kullanılan: ${j.data.kullanilan_mb} MB`,'success');
+  if(j.success) showToast(`✓ Bağlantı başarılı — ${j.data.kullanici||''} | ${j.data.kullanilan_mb} MB kullanıldı`,'success');
   else showToast(j.message,'danger');
 };
 window.driveSil = async (id) => {
-  if (!confirm('Hesap silinecek?')) return;
-  await fetch(`${API}/drive/${id}`, { method:'DELETE' });
+  if(!confirm('Hesap silinecek?')) return;
+  await fetch(`${API}/drive/${id}`,{method:'DELETE'});
   showToast('Silindi.'); loadAyarlar();
 };
 
 // Kategoriler
 const renderKategoriler = () => {
-  const el = document.getElementById('kategoriler-listesi');
-  el.innerHTML = (ayarlar.dosya_kategorileri||[]).map((k,i) => `
-    <div class="d-flex align-items-center gap-2 p-2 border-bottom" data-idx="${i}">
+  document.getElementById('kategoriler-listesi').innerHTML = (ayarlar.dosya_kategorileri||[]).map((k,i)=>`
+    <div class="d-flex align-items-center gap-2 p-2 border-bottom">
       <i class="bi ${k.ikon} text-success"></i>
       <input type="text" class="form-control form-control-sm flex-grow-1" value="${k.ad}" onchange="ayarlar.dosya_kategorileri[${i}].ad=this.value"/>
-      <div class="form-check mb-0"><input class="form-check-input" type="checkbox" ${k.aktif?'checked':''} onchange="ayarlar.dosya_kategorileri[${i}].aktif=this.checked"/></div>
+      <div class="form-check mb-0"><input class="form-check-input" type="checkbox" title="Aktif" ${k.aktif?'checked':''} onchange="ayarlar.dosya_kategorileri[${i}].aktif=this.checked"/></div>
       <button class="btn btn-xs btn-outline-danger" onclick="kategoriSil(${i})"><i class="bi bi-trash"></i></button>
     </div>`).join('');
 };
-window.kategoriEkle = () => {
-  ayarlar.dosya_kategorileri = ayarlar.dosya_kategorileri || [];
-  ayarlar.dosya_kategorileri.push({ ad: 'Yeni Kategori', ikon: 'bi-paperclip', sira: 99, aktif: true });
-  renderKategoriler();
-};
+window.kategoriEkle = () => { (ayarlar.dosya_kategorileri=ayarlar.dosya_kategorileri||[]).push({ad:'Yeni Kategori',ikon:'bi-paperclip',sira:99,aktif:true}); renderKategoriler(); };
 window.kategoriSil = (i) => { ayarlar.dosya_kategorileri.splice(i,1); renderKategoriler(); };
 
 // Renkler
 const renderRenkler = () => {
-  document.getElementById('renkler-listesi').innerHTML = (ayarlar.not_renkleri||[]).map((r,i) => `
+  document.getElementById('renkler-listesi').innerHTML = (ayarlar.not_renkleri||[]).map((r,i)=>`
     <div class="d-flex align-items-center gap-3 p-2 border-bottom">
       <span class="renk-dot" style="background:${r.renk}"></span>
-      <input type="text" class="form-control form-control-sm" style="max-width:180px" value="${r.ad}" onchange="ayarlar.not_renkleri[${i}].ad=this.value"/>
-      <input type="color" class="form-control form-control-color" value="${r.renk}" onchange="ayarlar.not_renkleri[${i}].renk=this.value;renderRenkler()"/>
-      <span class="text-muted small">Metin:</span>
-      <input type="color" class="form-control form-control-color" value="${r.metin_rengi||'#ffffff'}" onchange="ayarlar.not_renkleri[${i}].metin_rengi=this.value"/>
-      <span class="small ms-2" style="background:${r.renk};color:${r.metin_rengi||'#fff'};padding:2px 10px;border-radius:12px;">${r.ad}</span>
+      <input type="text" class="form-control form-control-sm" style="max-width:160px" value="${r.ad}" onchange="ayarlar.not_renkleri[${i}].ad=this.value;renderRenkler()"/>
+      <span class="small text-muted">Arka:</span>
+      <input type="color" class="form-control form-control-color" style="width:40px;height:32px" value="${r.renk}" onchange="ayarlar.not_renkleri[${i}].renk=this.value;renderRenkler()"/>
+      <span class="small text-muted">Yazı:</span>
+      <input type="color" class="form-control form-control-color" style="width:40px;height:32px" value="${r.metin_rengi||'#ffffff'}" onchange="ayarlar.not_renkleri[${i}].metin_rengi=this.value;renderRenkler()"/>
+      <span class="px-3 py-1 rounded-pill small fw-semibold" style="background:${r.renk};color:${r.metin_rengi||'#fff'}">${r.ad}</span>
     </div>`).join('');
 };
 
 // Toprak
 const renderToprak = () => {
   document.getElementById('toprak-listesi').innerHTML = `<table class="table table-sm mis-table mb-0">
-    <thead><tr><th style="width:60px">Sınıf</th><th style="width:180px">Ad</th><th>Tanım</th></tr></thead>
-    <tbody>${(ayarlar.toprak_siniflari||[]).map((t,i) => `<tr>
+    <thead><tr><th style="width:60px">Sınıf</th><th style="width:200px">Ad</th><th>Tanım</th></tr></thead>
+    <tbody>${(ayarlar.toprak_siniflari||[]).map((t,i)=>`<tr>
       <td class="fw-bold text-success">${t.sinif}</td>
       <td><input type="text" class="form-control form-control-sm" value="${t.ad}" onchange="ayarlar.toprak_siniflari[${i}].ad=this.value"/></td>
       <td><textarea class="form-control form-control-sm" rows="2" onchange="ayarlar.toprak_siniflari[${i}].tanim=this.value">${t.tanim}</textarea></td>
-    </tr>`).join('')}</tbody>
-  </table>`;
+    </tr>`).join('')}</tbody></table>`;
 };
 
 // Yağış
 const renderYagis = () => {
-  document.getElementById('yagis-tbody').innerHTML = (ayarlar.yagis_kusaklari||[]).map((y,i) => `
-    <tr>
-      <td class="small fw-medium">${y.il_ad}</td>
-      <td><select class="form-select form-select-sm" style="width:130px" onchange="ayarlar.yagis_kusaklari[${i}].kusak=this.value">
-        ${KUSAK_SECENEKLER.map(k => `<option ${y.kusak===k?'selected':''}>${k}</option>`).join('')}
-      </select></td>
-    </tr>`).join('');
+  document.getElementById('yagis-tbody').innerHTML = (ayarlar.yagis_kusaklari||[]).map((y,i)=>`
+    <tr><td class="small fw-medium">${y.il_ad}</td>
+    <td><select class="form-select form-select-sm" style="width:130px" onchange="ayarlar.yagis_kusaklari[${i}].kusak=this.value">
+      ${KUSAK_SECENEKLER.map(k=>`<option ${y.kusak===k?'selected':''}>${k}</option>`).join('')}
+    </select></td></tr>`).join('');
 };
 
-// Verim tablosu
-const renderVerimTablosu = (elId, alan) => {
+// Verim
+const renderVerim = (elId, alan) => {
   const data = ayarlar[alan]||[];
   document.getElementById(elId).innerHTML = `<table class="table table-sm mis-table mb-0">
     <thead><tr><th>Yağış (mm)</th><th class="text-center">Çok İyi</th><th class="text-center">İyi</th><th class="text-center">Orta</th><th class="text-center">Zayıf</th></tr></thead>
-    <tbody>${data.map((r,i) => `<tr>
-      <td class="fw-medium small">${r.kusak}</td>
-      ${['cok_iyi','iyi','orta','zayif'].map(k => `<td class="text-center"><input type="number" class="tablo-input" value="${r[k]}" onchange="ayarlar['${alan}'][${i}]['${k}']=parseFloat(this.value)||0"/></td>`).join('')}
-    </tr>`).join('')}
-    </tbody></table>`;
+    <tbody>${data.map((r,i)=>`<tr><td class="fw-medium small">${r.kusak}</td>
+      ${['cok_iyi','iyi','orta','zayif'].map(k=>`<td class="text-center"><input type="number" class="tablo-input" value="${r[k]}" onchange="ayarlar['${alan}'][${i}]['${k}']=parseFloat(this.value)||0"/></td>`).join('')}
+    </tr>`).join('')}</tbody></table>`;
 };
 
 // Kaydet
 document.getElementById('btnKaydet').addEventListener('click', async () => {
   try {
-    const r = await fetch(API, { method:'PUT', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        dosya_kategorileri: ayarlar.dosya_kategorileri,
-        not_renkleri: ayarlar.not_renkleri,
-        toprak_siniflari: ayarlar.toprak_siniflari,
-        yagis_kusaklari: ayarlar.yagis_kusaklari,
-        yararlanilabilir_yesil_ot: ayarlar.yararlanilabilir_yesil_ot,
-        uretilen_yesil_ot: ayarlar.uretilen_yesil_ot,
-        uretilen_kuru_ot: ayarlar.uretilen_kuru_ot,
-      })});
+    const r = await fetch(API,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      dosya_kategorileri:ayarlar.dosya_kategorileri, not_renkleri:ayarlar.not_renkleri,
+      toprak_siniflari:ayarlar.toprak_siniflari, yagis_kusaklari:ayarlar.yagis_kusaklari,
+      yararlanilabilir_yesil_ot:ayarlar.yararlanilabilir_yesil_ot,
+      uretilen_yesil_ot:ayarlar.uretilen_yesil_ot, uretilen_kuru_ot:ayarlar.uretilen_kuru_ot,
+    })});
     const j = await r.json();
-    if (j.success) showToast('Ayarlar kaydedildi.');
+    if(j.success) showToast('Ayarlar kaydedildi.');
     else showToast(j.message,'danger');
   } catch { showToast('Hata.','danger'); }
 });
 
 document.getElementById('btnSifirla').addEventListener('click', async () => {
-  if (!confirm('Tüm ayarlar varsayılanlara sıfırlanacak. Emin misiniz?')) return;
-  const r = await fetch(`${API}/sifirla`, { method:'POST' });
+  if(!confirm('Tüm ayarlar varsayılanlara sıfırlanacak?')) return;
+  const r = await fetch(`${API}/sifirla`,{method:'POST'});
   const j = await r.json();
-  if (j.success) { showToast('Sıfırlandı.'); loadAyarlar(); }
+  if(j.success){showToast('Sıfırlandı.');loadAyarlar();}
 });
 
-document.getElementById('sidebarToggle').addEventListener('click', () => document.getElementById('wrapper').classList.toggle('sidebar-collapsed'));
+// Şifre değiştir
+document.getElementById('btnSifreDegistir').addEventListener('click', async () => {
+  const eski = document.getElementById('eski-sifre').value;
+  const yeni = document.getElementById('yeni-sifre').value;
+  const yeni2 = document.getElementById('yeni-sifre2').value;
+  if(!eski||!yeni||!yeni2){showToast('Tüm alanları doldurun.','warning');return;}
+  if(yeni!==yeni2){showToast('Yeni şifreler eşleşmiyor.','warning');return;}
+  try {
+    const r = await fetch(`${API}/sifre/degistir`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({eskiSifre:eski,yeniSifre:yeni})});
+    const j = await r.json();
+    if(j.success){showToast('Şifre değiştirildi.');['eski-sifre','yeni-sifre','yeni-sifre2'].forEach(id=>document.getElementById(id).value='');}
+    else showToast(j.message,'danger');
+  } catch { showToast('Hata.','danger'); }
+});
 
-loadAyarlar();
+document.getElementById('sidebarToggle').addEventListener('click', ()=>document.getElementById('wrapper').classList.toggle('sidebar-collapsed'));
 </script>
 <style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
 </body>

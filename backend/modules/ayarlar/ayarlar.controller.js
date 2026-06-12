@@ -114,4 +114,44 @@ const getMahalleler = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getAyarlar, driveEkle, driveTesti, driveSil, guncelle, sifirla, getIller, getIlceler, getMahalleler };
+// Şifre doğrula
+const sifreDogrula = (req, res) => {
+  const { sifre } = req.body;
+  const dogruSifre = process.env.AYARLAR_SIFRE || '123456';
+  if (sifre === dogruSifre) {
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ success: false, message: 'Şifre yanlış' });
+  }
+};
+
+// Şifre değiştir
+const sifreDegistir = (req, res) => {
+  const { eskiSifre, yeniSifre } = req.body;
+  const dogruSifre = process.env.AYARLAR_SIFRE || '123456';
+  if (eskiSifre !== dogruSifre) {
+    return res.status(401).json({ success: false, message: 'Mevcut şifre yanlış' });
+  }
+  if (!yeniSifre || yeniSifre.length < 4) {
+    return res.status(400).json({ success: false, message: 'Yeni şifre en az 4 karakter olmalı' });
+  }
+  // .env dosyasını güncelle
+  const fs = require('fs');
+  const path = require('path');
+  const envPath = path.join(__dirname, '../../.env');
+  try {
+    let envContent = fs.readFileSync(envPath, 'utf8');
+    if (envContent.includes('AYARLAR_SIFRE=')) {
+      envContent = envContent.replace(/AYARLAR_SIFRE=.*/,  `AYARLAR_SIFRE=${yeniSifre}`);
+    } else {
+      envContent += `\nAYARLAR_SIFRE=${yeniSifre}`;
+    }
+    fs.writeFileSync(envPath, envContent);
+    process.env.AYARLAR_SIFRE = yeniSifre;
+    res.json({ success: true, message: 'Şifre değiştirildi' });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Şifre kaydedilemedi: ' + e.message });
+  }
+};
+
+module.exports = { getAyarlar, driveEkle, driveTesti, driveSil, guncelle, sifirla, getIller, getIlceler, getMahalleler, sifreDogrula, sifreDegistir };
