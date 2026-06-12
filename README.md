@@ -77,6 +77,17 @@ Türkvet'ten indirilen Büyükbaş/Küçükbaş XLS dosyalarını otomatik işle
 
 ## Değişiklik Geçmişi
 
+### v1.4.0
+- Ayarlar modülü eklendi (/ayarlar/)
+- Google Drive hesap yönetimi (ekle/test/sil)
+- Dosya kategorileri yönetimi
+- Not renkleri yönetimi
+- Toprak sınıfları (I-VIII, tanımlarıyla, düzenlenebilir)
+- Yağış kuşakları (81 il, EK-2'den, düzenlenebilir)
+- Otlatma verim tabloları (3 tablo, EK-1'den, düzenlenebilir)
+- İl/İlçe/Mahalle verisi otomatik yükleme (47.649 mahalle)
+- Sidebar'a Ayarlar linki eklendi
+
 ### v1.3.0
 - BBHB tek sayfa mimarisi: /bbhb/ altında sekmeli yapı (Hesapla, Yükle, Geçmiş, Raporlar)
 - URL yapısı /modules/ kaldırıldı → /bbhb/ direkt erişim

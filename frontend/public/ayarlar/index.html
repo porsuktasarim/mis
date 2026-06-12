@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ayarlar - MİS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+  <style>
+    .ayar-sekme { border:none; background:none; padding:10px 16px; font-size:13px; color:#4a6358; border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; }
+    .ayar-sekme.active { color:#0F6E56; border-bottom-color:#0F6E56; font-weight:500; }
+    .ayar-tab { display:none; } .ayar-tab.active { display:block; }
+    .ayar-topbar { background:#fff; border-bottom:1px solid #e2e8e4; display:flex; align-items:center; gap:0; overflow-x:auto; padding:0 1rem; }
+    .renk-dot { width:20px; height:20px; border-radius:50%; display:inline-block; }
+    .tablo-input { width:70px; text-align:center; padding:2px 4px; border:1px solid #dee2e6; border-radius:4px; font-size:12px; }
+  </style>
+</head>
+<body>
+<div class="d-flex" id="wrapper">
+  <nav id="sidebar" class="mis-sidebar d-flex flex-column">
+    <a href="/" class="mis-sidebar-brand text-decoration-none"><i class="bi bi-tree-fill"></i><span>MİS</span></a>
+    <hr class="mis-sidebar-divider"/>
+    <ul class="nav flex-column mis-nav px-2">
+      <li class="mis-nav-section">Modüller</li>
+      <li class="nav-item"><a class="nav-link mis-nav-link" href="/bbhb/"><i class="bi bi-calculator"></i><span>BBHB Hesaplayıcı</span></a></li>
+      <li class="mis-nav-section mt-3">Sistem</li>
+      <li class="nav-item"><a class="nav-link mis-nav-link active" href="/ayarlar/"><i class="bi bi-gear"></i><span>Ayarlar</span></a></li>
+    </ul>
+    <div class="mt-auto p-3 mis-sidebar-footer"><small class="text-muted">MİS v1.3.0</small></div>
+  </nav>
+
+  <div id="page-content" class="flex-grow-1 d-flex flex-column">
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
+      <span class="mis-topbar-title">Ayarlar</span>
+      <div class="ms-auto d-flex gap-2">
+        <button class="btn btn-sm btn-mis" id="btnKaydet"><i class="bi bi-save me-1"></i>Kaydet</button>
+        <button class="btn btn-sm btn-outline-danger" id="btnSifirla"><i class="bi bi-arrow-counterclockwise me-1"></i>Varsayılan</button>
+      </div>
+    </nav>
+
+    <div class="ayar-topbar">
+      <button class="ayar-sekme active" data-tab="drive"><i class="bi bi-google me-1"></i>Google Drive</button>
+      <button class="ayar-sekme" data-tab="kategoriler"><i class="bi bi-tags me-1"></i>Dosya Kategorileri</button>
+      <button class="ayar-sekme" data-tab="renkler"><i class="bi bi-palette me-1"></i>Not Renkleri</button>
+      <button class="ayar-sekme" data-tab="toprak"><i class="bi bi-layers me-1"></i>Toprak Sınıfları</button>
+      <button class="ayar-sekme" data-tab="yagis"><i class="bi bi-cloud-rain me-1"></i>Yağış Kuşakları</button>
+      <button class="ayar-sekme" data-tab="verim"><i class="bi bi-table me-1"></i>Verim Tabloları</button>
+    </div>
+
+    <main class="mis-main p-4">
+
+      <!-- DRIVE -->
+      <div class="ayar-tab active" id="tab-drive">
+        <div class="mis-card">
+          <div class="mis-card-header"><i class="bi bi-google"></i><span class="title">Google Drive Hesapları</span>
+            <button class="btn btn-sm btn-mis ms-auto" onclick="driveEkleModal()"><i class="bi bi-plus-lg me-1"></i>Hesap Ekle</button>
+          </div>
+          <div id="drive-listesi"><div class="text-center py-3 text-muted small">Yükleniyor...</div></div>
+        </div>
+      </div>
+
+      <!-- KATEGORİLER -->
+      <div class="ayar-tab" id="tab-kategoriler">
+        <div class="mis-card">
+          <div class="mis-card-header"><i class="bi bi-tags"></i><span class="title">Dosya Kategorileri</span>
+            <button class="btn btn-sm btn-mis ms-auto" onclick="kategoriEkle()"><i class="bi bi-plus-lg me-1"></i>Ekle</button>
+          </div>
+          <div id="kategoriler-listesi"></div>
+        </div>
+      </div>
+
+      <!-- RENKLER -->
+      <div class="ayar-tab" id="tab-renkler">
+        <div class="mis-card">
+          <div class="mis-card-header"><i class="bi bi-palette"></i><span class="title">Not Renkleri</span></div>
+          <div id="renkler-listesi"></div>
+        </div>
+      </div>
+
+      <!-- TOPRAK -->
+      <div class="ayar-tab" id="tab-toprak">
+        <div class="mis-card">
+          <div class="mis-card-header"><i class="bi bi-layers"></i><span class="title">Toprak Sınıfları</span></div>
+          <div id="toprak-listesi"></div>
+        </div>
+      </div>
+
+      <!-- YAĞIŞ -->
+      <div class="ayar-tab" id="tab-yagis">
+        <div class="mis-card">
+          <div class="mis-card-header"><i class="bi bi-cloud-rain"></i><span class="title">Yağış Kuşakları (İl Bazlı)</span></div>
+          <div class="table-responsive" style="max-height:600px;overflow-y:auto;">
+            <table class="table table-sm mis-table mb-0">
+              <thead style="position:sticky;top:0;"><tr><th>İl</th><th>Yağış Kuşağı</th></tr></thead>
+              <tbody id="yagis-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- VERİM TABLOLARI -->
+      <div class="ayar-tab" id="tab-verim">
+        <div class="row g-4">
+          <div class="col-12">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 1: Yararlanılabilir Yeşil Ot Verimi (kg/da)</span></div>
+              <div id="tablo1"></div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 2: Üretilen Yeşil Ot Verimi (kg/da)</span></div>
+              <div id="tablo2"></div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 3: Üretilen Kuru Ot Verimi (kg/da)</span></div>
+              <div id="tablo3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Drive Ekle Modal -->
+<div class="modal fade" id="driveModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Drive Hesabı Ekle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label small fw-semibold">Hesap Adı *</label><input type="text" class="form-control form-control-sm" id="drive-ad"/></div>
+        <div class="mb-3"><label class="form-label small fw-semibold">Açıklama</label><input type="text" class="form-control form-control-sm" id="drive-aciklama"/></div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Service Account JSON *</label>
+          <textarea class="form-control form-control-sm" id="drive-json" rows="6" placeholder='{"type":"service_account","project_id":"..."}'></textarea>
+          <div class="form-text">Google Cloud Console → IAM → Servis Hesapları → JSON Key</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-sm btn-mis" onclick="driveKaydet()">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+  <div id="mis-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex"><div class="toast-body fw-semibold" id="toast-msg"></div>
+    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '/api/ayarlar';
+let ayarlar = {};
+
+const showToast = (msg, type='success') => {
+  const el = document.getElementById('mis-toast');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+};
+
+const KUSAK_SECENEKLER = ['200-350','350-500','500-650','650-800','800-950','950-1100','1100-1250'];
+
+// Sekme
+document.querySelectorAll('.ayar-sekme').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.ayar-sekme').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.ayar-tab').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  document.getElementById('tab-'+b.dataset.tab).classList.add('active');
+}));
+
+// Ayarları yükle
+const loadAyarlar = async () => {
+  const r = await fetch(API);
+  const j = await r.json();
+  ayarlar = j.data;
+  renderDrive();
+  renderKategoriler();
+  renderRenkler();
+  renderToprak();
+  renderYagis();
+  renderVerimTablosu('tablo1', 'yararlanilabilir_yesil_ot');
+  renderVerimTablosu('tablo2', 'uretilen_yesil_ot');
+  renderVerimTablosu('tablo3', 'uretilen_kuru_ot');
+};
+
+// Drive
+const renderDrive = () => {
+  const el = document.getElementById('drive-listesi');
+  if (!ayarlar.drive_hesaplari?.length) { el.innerHTML = '<p class="text-muted text-center py-3 small">Henüz hesap eklenmedi.</p>'; return; }
+  el.innerHTML = `<table class="table table-sm mis-table mb-0"><thead><tr><th>Ad</th><th>E-posta</th><th>Durum</th><th>İşlemler</th></tr></thead><tbody>
+    ${ayarlar.drive_hesaplari.map(h => `<tr>
+      <td><strong>${h.ad}</strong>${h.aciklama?`<br><small class="text-muted">${h.aciklama}</small>`:''}</td>
+      <td class="small">${h.email||'-'}</td>
+      <td><span class="badge ${h.aktif?'bg-success':'bg-secondary'}">${h.aktif?'Aktif':'Pasif'}</span></td>
+      <td><div class="d-flex gap-1">
+        <button class="btn btn-xs btn-outline-success" onclick="driveTesti('${h._id}')"><i class="bi bi-wifi"></i> Test</button>
+        <button class="btn btn-xs btn-outline-danger" onclick="driveSil('${h._id}')"><i class="bi bi-trash"></i></button>
+      </div></td>
+    </tr>`).join('')}
+  </tbody></table>`;
+};
+
+window.driveEkleModal = () => new bootstrap.Modal(document.getElementById('driveModal')).show();
+window.driveKaydet = async () => {
+  const ad = document.getElementById('drive-ad').value.trim();
+  const json = document.getElementById('drive-json').value.trim();
+  if (!ad || !json) { showToast('Ad ve JSON zorunlu.','warning'); return; }
+  try {
+    const r = await fetch(`${API}/drive`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ad, aciklama: document.getElementById('drive-aciklama').value, service_account_json: json }) });
+    const j = await r.json();
+    if (j.success) { showToast('Hesap eklendi.'); bootstrap.Modal.getInstance(document.getElementById('driveModal')).hide(); loadAyarlar(); }
+    else showToast(j.message,'danger');
+  } catch { showToast('Hata.','danger'); }
+};
+window.driveTesti = async (id) => {
+  showToast('Test ediliyor...','secondary');
+  const r = await fetch(`${API}/drive/${id}/test`);
+  const j = await r.json();
+  if (j.success) showToast(`Bağlantı başarılı. Kullanılan: ${j.data.kullanilan_mb} MB`,'success');
+  else showToast(j.message,'danger');
+};
+window.driveSil = async (id) => {
+  if (!confirm('Hesap silinecek?')) return;
+  await fetch(`${API}/drive/${id}`, { method:'DELETE' });
+  showToast('Silindi.'); loadAyarlar();
+};
+
+// Kategoriler
+const renderKategoriler = () => {
+  const el = document.getElementById('kategoriler-listesi');
+  el.innerHTML = (ayarlar.dosya_kategorileri||[]).map((k,i) => `
+    <div class="d-flex align-items-center gap-2 p-2 border-bottom" data-idx="${i}">
+      <i class="bi ${k.ikon} text-success"></i>
+      <input type="text" class="form-control form-control-sm flex-grow-1" value="${k.ad}" onchange="ayarlar.dosya_kategorileri[${i}].ad=this.value"/>
+      <div class="form-check mb-0"><input class="form-check-input" type="checkbox" ${k.aktif?'checked':''} onchange="ayarlar.dosya_kategorileri[${i}].aktif=this.checked"/></div>
+      <button class="btn btn-xs btn-outline-danger" onclick="kategoriSil(${i})"><i class="bi bi-trash"></i></button>
+    </div>`).join('');
+};
+window.kategoriEkle = () => {
+  ayarlar.dosya_kategorileri = ayarlar.dosya_kategorileri || [];
+  ayarlar.dosya_kategorileri.push({ ad: 'Yeni Kategori', ikon: 'bi-paperclip', sira: 99, aktif: true });
+  renderKategoriler();
+};
+window.kategoriSil = (i) => { ayarlar.dosya_kategorileri.splice(i,1); renderKategoriler(); };
+
+// Renkler
+const renderRenkler = () => {
+  document.getElementById('renkler-listesi').innerHTML = (ayarlar.not_renkleri||[]).map((r,i) => `
+    <div class="d-flex align-items-center gap-3 p-2 border-bottom">
+      <span class="renk-dot" style="background:${r.renk}"></span>
+      <input type="text" class="form-control form-control-sm" style="max-width:180px" value="${r.ad}" onchange="ayarlar.not_renkleri[${i}].ad=this.value"/>
+      <input type="color" class="form-control form-control-color" value="${r.renk}" onchange="ayarlar.not_renkleri[${i}].renk=this.value;renderRenkler()"/>
+      <span class="text-muted small">Metin:</span>
+      <input type="color" class="form-control form-control-color" value="${r.metin_rengi||'#ffffff'}" onchange="ayarlar.not_renkleri[${i}].metin_rengi=this.value"/>
+      <span class="small ms-2" style="background:${r.renk};color:${r.metin_rengi||'#fff'};padding:2px 10px;border-radius:12px;">${r.ad}</span>
+    </div>`).join('');
+};
+
+// Toprak
+const renderToprak = () => {
+  document.getElementById('toprak-listesi').innerHTML = `<table class="table table-sm mis-table mb-0">
+    <thead><tr><th style="width:60px">Sınıf</th><th style="width:180px">Ad</th><th>Tanım</th></tr></thead>
+    <tbody>${(ayarlar.toprak_siniflari||[]).map((t,i) => `<tr>
+      <td class="fw-bold text-success">${t.sinif}</td>
+      <td><input type="text" class="form-control form-control-sm" value="${t.ad}" onchange="ayarlar.toprak_siniflari[${i}].ad=this.value"/></td>
+      <td><textarea class="form-control form-control-sm" rows="2" onchange="ayarlar.toprak_siniflari[${i}].tanim=this.value">${t.tanim}</textarea></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+};
+
+// Yağış
+const renderYagis = () => {
+  document.getElementById('yagis-tbody').innerHTML = (ayarlar.yagis_kusaklari||[]).map((y,i) => `
+    <tr>
+      <td class="small fw-medium">${y.il_ad}</td>
+      <td><select class="form-select form-select-sm" style="width:130px" onchange="ayarlar.yagis_kusaklari[${i}].kusak=this.value">
+        ${KUSAK_SECENEKLER.map(k => `<option ${y.kusak===k?'selected':''}>${k}</option>`).join('')}
+      </select></td>
+    </tr>`).join('');
+};
+
+// Verim tablosu
+const renderVerimTablosu = (elId, alan) => {
+  const data = ayarlar[alan]||[];
+  document.getElementById(elId).innerHTML = `<table class="table table-sm mis-table mb-0">
+    <thead><tr><th>Yağış (mm)</th><th class="text-center">Çok İyi</th><th class="text-center">İyi</th><th class="text-center">Orta</th><th class="text-center">Zayıf</th></tr></thead>
+    <tbody>${data.map((r,i) => `<tr>
+      <td class="fw-medium small">${r.kusak}</td>
+      ${['cok_iyi','iyi','orta','zayif'].map(k => `<td class="text-center"><input type="number" class="tablo-input" value="${r[k]}" onchange="ayarlar['${alan}'][${i}]['${k}']=parseFloat(this.value)||0"/></td>`).join('')}
+    </tr>`).join('')}
+    </tbody></table>`;
+};
+
+// Kaydet
+document.getElementById('btnKaydet').addEventListener('click', async () => {
+  try {
+    const r = await fetch(API, { method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        dosya_kategorileri: ayarlar.dosya_kategorileri,
+        not_renkleri: ayarlar.not_renkleri,
+        toprak_siniflari: ayarlar.toprak_siniflari,
+        yagis_kusaklari: ayarlar.yagis_kusaklari,
+        yararlanilabilir_yesil_ot: ayarlar.yararlanilabilir_yesil_ot,
+        uretilen_yesil_ot: ayarlar.uretilen_yesil_ot,
+        uretilen_kuru_ot: ayarlar.uretilen_kuru_ot,
+      })});
+    const j = await r.json();
+    if (j.success) showToast('Ayarlar kaydedildi.');
+    else showToast(j.message,'danger');
+  } catch { showToast('Hata.','danger'); }
+});
+
+document.getElementById('btnSifirla').addEventListener('click', async () => {
+  if (!confirm('Tüm ayarlar varsayılanlara sıfırlanacak. Emin misiniz?')) return;
+  const r = await fetch(`${API}/sifirla`, { method:'POST' });
+  const j = await r.json();
+  if (j.success) { showToast('Sıfırlandı.'); loadAyarlar(); }
+});
+
+document.getElementById('sidebarToggle').addEventListener('click', () => document.getElementById('wrapper').classList.toggle('sidebar-collapsed'));
+
+loadAyarlar();
+</script>
+<style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
+</body>
+</html>
