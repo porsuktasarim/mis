@@ -5,6 +5,28 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// Görsel ve PDF limitler
+const GORSEL_MAX_W = 1920;
+const GORSEL_MAX_H = 1920;
+const GORSEL_KALITE = 85;
+const PDF_MAX_MB = 20;
+
+let sharp;
+try { sharp = require('sharp'); } catch { sharp = null; }
+
+// Görsel sıkıştır
+const gorselSikistir = async (buffer, mimeType) => {
+  if (!sharp) return buffer;
+  const goruntuMime = ['image/jpeg','image/jpg','image/png','image/webp'];
+  if (!goruntuMime.includes(mimeType)) return buffer;
+  try {
+    return await sharp(buffer)
+      .resize(GORSEL_MAX_W, GORSEL_MAX_H, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: GORSEL_KALITE })
+      .toBuffer();
+  } catch { return buffer; }
+};
+
 // ── Drive yardımcı ────────────────────────────────────────
 const getDriveClient = async () => {
   const ayarlar = await Ayarlar.findOne();
@@ -276,26 +298,43 @@ const dosyaYukle = async (req, res, next) => {
     if (!mera) return res.status(404).json({ success: false, message: 'Mera bulunamadı' });
     if (!req.file) return res.status(400).json({ success: false, message: 'Dosya seçin' });
 
+    // PDF boyut kontrolü
+    if (req.file.mimetype === 'application/pdf') {
+      const mbCinsinden = req.file.size / 1024 / 1024;
+      if (mbCinsinden > PDF_MAX_MB) {
+        return res.status(400).json({ success: false, message: `PDF maksimum ${PDF_MAX_MB}MB olabilir (${mbCinsinden.toFixed(1)}MB)` });
+      }
+    }
+
     const { kategori, ad } = req.body;
     const tarih = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const dosyaAdi = `${tarih}-${kategori || 'diger'}-${ad || req.file.originalname}`;
+    const dosyaAdi = `${tarih}-${(kategori || 'diger').replace(/\s/g,'-')}-${ad || req.file.originalname}`;
     const ext = path.extname(req.file.originalname);
     const temizAd = dosyaAdi.endsWith(ext) ? dosyaAdi : dosyaAdi + ext;
+
+    // Görsel sıkıştır
+    let buffer = req.file.buffer;
+    let mimeType = req.file.mimetype;
+    const goruntuMime = ['image/jpeg','image/jpg','image/png','image/webp'];
+    if (goruntuMime.includes(mimeType)) {
+      buffer = await gorselSikistir(buffer, mimeType);
+      mimeType = 'image/jpeg';
+    }
 
     const drive = await getDriveClient();
     const folderId = await getMisDriveFolder(drive, [
       mera.il_ad, mera.ilce_ad, mera.mahalle_ad,
       `${mera.ada || '0'}-${mera.parsel}`, kategori || 'Diger'
     ]);
-    const driveData = await driveYukle(drive, folderId, temizAd, req.file.mimetype, req.file.buffer);
+    const driveData = await driveYukle(drive, folderId, temizAd, mimeType, buffer);
 
     mera.dosyalar.push({
       ad: temizAd, kategori,
       drive_file_id: driveData.id,
       drive_web_link: driveData.webViewLink,
       drive_download_link: `https://drive.google.com/uc?export=download&id=${driveData.id}`,
-      boyut: req.file.size,
-      mime_type: req.file.mimetype,
+      boyut: buffer.length,
+      mime_type: mimeType,
     });
     await mera.save();
     res.json({ success: true, data: mera.dosyalar[mera.dosyalar.length - 1] });
@@ -385,6 +424,85 @@ const pdfRapor = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ── Vasıf Dosya Yükleme ───────────────────────────────────
+const vasifDosyaYukle = async (req, res, next) => {
+  try {
+    const mera = await Mera.findById(req.params.id);
+    if (!mera) return res.status(404).json({ success: false, message: 'Mera bulunamadı' });
+    if (!req.file) return res.status(400).json({ success: false, message: 'Dosya seçin' });
+    const { vasif, tarih } = req.body;
+    if (!tarih) return res.status(400).json({ success: false, message: 'Tarih zorunlu' });
+
+    const tarihObj = new Date(tarih);
+    const bitisTarihi = new Date(tarihObj);
+    bitisTarihi.setFullYear(bitisTarihi.getFullYear() + 1);
+
+    const drive = await getDriveClient();
+    const tarihStr = tarihObj.toISOString().slice(0,10).replace(/-/g,'');
+    const folderId = await getMisDriveFolder(drive, [mera.il_ad, mera.ilce_ad, mera.mahalle_ad, `${mera.ada||'0'}-${mera.parsel}`, 'Vasıf']);
+    const driveData = await driveYukle(drive, folderId, `${tarihStr}-vasif-belgesi${path.extname(req.file.originalname)}`, req.file.mimetype, req.file.buffer);
+
+    if (vasif) mera.vasif = vasif;
+    mera.vasif_tarih = tarihObj;
+    mera.vasif_bitis = bitisTarihi;
+    mera.vasif_dosya_id = driveData.id;
+    mera.vasif_dosya_link = driveData.webViewLink;
+    await mera.save();
+    res.json({ success: true, data: { vasif: mera.vasif, vasif_tarih: mera.vasif_tarih, vasif_bitis: mera.vasif_bitis, link: driveData.webViewLink } });
+  } catch (err) { next(err); }
+};
+
+// ── Tahsis Durumu Dosya Yükleme ───────────────────────────
+const tahsisDosyaYukle = async (req, res, next) => {
+  try {
+    const mera = await Mera.findById(req.params.id);
+    if (!mera) return res.status(404).json({ success: false, message: 'Mera bulunamadı' });
+    if (!req.file) return res.status(400).json({ success: false, message: 'Dosya seçin' });
+    const { tahsis_durumu, tarih } = req.body;
+    if (!tarih) return res.status(400).json({ success: false, message: 'Tarih zorunlu' });
+
+    const tarihObj = new Date(tarih);
+    const bitisTarihi = new Date(tarihObj);
+    bitisTarihi.setFullYear(bitisTarihi.getFullYear() + 5);
+
+    const drive = await getDriveClient();
+    const tarihStr = tarihObj.toISOString().slice(0,10).replace(/-/g,'');
+    const folderId = await getMisDriveFolder(drive, [mera.il_ad, mera.ilce_ad, mera.mahalle_ad, `${mera.ada||'0'}-${mera.parsel}`, 'Tahsis']);
+    const driveData = await driveYukle(drive, folderId, `${tarihStr}-tahsis-belgesi${path.extname(req.file.originalname)}`, req.file.mimetype, req.file.buffer);
+
+    if (tahsis_durumu) mera.tahsis_durumu = tahsis_durumu;
+    mera.tahsis_durumu_tarih = tarihObj;
+    mera.tahsis_durumu_bitis = bitisTarihi;
+    mera.tahsis_durumu_dosya_id = driveData.id;
+    mera.tahsis_durumu_dosya_link = driveData.webViewLink;
+    await mera.save();
+    res.json({ success: true, data: { tahsis_durumu: mera.tahsis_durumu, tarih: mera.tahsis_durumu_tarih, bitis: mera.tahsis_durumu_bitis, link: driveData.webViewLink } });
+  } catch (err) { next(err); }
+};
+
+// ── İstatistik ────────────────────────────────────────────
+const istatistik = async (req, res, next) => {
+  try {
+    const bugun = new Date();
+    const altıAy = new Date(bugun); altıAy.setMonth(altıAy.getMonth() + 6);
+    const birYil = new Date(bugun); birYil.setFullYear(birYil.getFullYear() + 1);
+
+    const [toplam, aktif, vasifUyari, tahsisUyari] = await Promise.all([
+      Mera.countDocuments(),
+      Mera.countDocuments({ durum: 'Aktif' }),
+      Mera.countDocuments({ vasif_bitis: { $lt: altıAy, $gt: bugun } }),
+      Mera.countDocuments({ tahsis_durumu_bitis: { $lt: birYil, $gt: bugun } }),
+    ]);
+
+    const vasifUyarilar = await Mera.find({ vasif_bitis: { $lt: altıAy, $gt: bugun } })
+      .select('il_ad ilce_ad mahalle_ad ada parsel vasif vasif_bitis').limit(10);
+    const tahsisUyarilar = await Mera.find({ tahsis_durumu_bitis: { $lt: birYil, $gt: bugun } })
+      .select('il_ad ilce_ad mahalle_ad ada parsel tahsis_durumu tahsis_durumu_bitis').limit(10);
+
+    res.json({ success: true, data: { toplam, aktif, pasif: toplam - aktif, vasif_uyari: vasifUyari, tahsis_uyari: tahsisUyari, vasif_uyarilar, tahsis_uyarilar } });
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   listele, getById, olustur, guncelle, sil,
   kmlYukle: [upload.single('kml'), kmlYukle],
@@ -392,6 +510,9 @@ module.exports = {
   notEkle, notGuncelle, notSil,
   dosyaYukle: [upload.single('dosya'), dosyaYukle],
   dosyaSil,
+  vasifDosyaYukle: [upload.single('dosya'), vasifDosyaYukle],
+  tahsisDosyaYukle: [upload.single('dosya'), tahsisDosyaYukle],
+  istatistik,
   pdfRapor,
   hesaplaOtlatma,
 };

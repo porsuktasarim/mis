@@ -64,6 +64,7 @@
       <button class="ayar-sekme" data-tab="toprak"><i class="bi bi-layers me-1"></i>Toprak Sınıfları</button>
       <button class="ayar-sekme" data-tab="yagis"><i class="bi bi-cloud-rain me-1"></i>Yağış Kuşakları</button>
       <button class="ayar-sekme" data-tab="verim"><i class="bi bi-table me-1"></i>Verim Tabloları</button>
+      <button class="ayar-sekme" data-tab="idari"><i class="bi bi-map me-1"></i>İdari Yönetim</button>
       <button class="ayar-sekme" data-tab="guvenlik"><i class="bi bi-shield-lock me-1"></i>Güvenlik</button>
     </div>
 
@@ -157,6 +158,57 @@
           <div class="col-12"><div class="mis-card"><div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 1: Yararlanılabilir Yeşil Ot Verimi (kg/da)</span></div><div id="tablo1"></div></div></div>
           <div class="col-12"><div class="mis-card"><div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 2: Üretilen Yeşil Ot Verimi (kg/da)</span></div><div id="tablo2"></div></div></div>
           <div class="col-12"><div class="mis-card"><div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 3: Üretilen Kuru Ot Verimi (kg/da)</span></div><div id="tablo3"></div></div></div>
+        </div>
+      </div>
+
+      <!-- İDARİ YÖNETİM -->
+      <div class="ayar-tab" id="tab-idari">
+        <div class="row g-4">
+          <div class="col-lg-4">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-search"></i><span class="title">İdari Kayıt Ara</span></div>
+              <div class="mb-2">
+                <select class="form-select form-select-sm mb-2" id="idari-tip-filtre">
+                  <option value="il">İl</option><option value="ilce">İlçe</option><option value="mahalle">Mahalle/Köy</option>
+                </select>
+                <div class="input-group input-group-sm">
+                  <input type="text" class="form-control" id="idari-ara-inp" placeholder="Ad ile ara..."/>
+                  <button class="btn btn-mis" onclick="idariAra()"><i class="bi bi-search"></i></button>
+                </div>
+              </div>
+              <div id="idari-ara-sonuc" style="max-height:400px;overflow-y:auto;"></div>
+            </div>
+          </div>
+          <div class="col-lg-8">
+            <div class="mis-card mb-3">
+              <div class="mis-card-header"><i class="bi bi-plus-circle"></i><span class="title">Yeni Kayıt Ekle</span></div>
+              <div class="row g-2">
+                <div class="col-md-3">
+                  <select class="form-select form-select-sm" id="yeni-tip">
+                    <option value="il">İl</option><option value="ilce">İlçe</option><option value="mahalle">Mahalle/Köy</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <select class="form-select form-select-sm" id="yeni-il" onchange="yeniIlDegisti()"><option value="">İl seçin</option></select>
+                </div>
+                <div class="col-md-3">
+                  <select class="form-select form-select-sm" id="yeni-ilce" disabled><option value="">İlçe seçin</option></select>
+                </div>
+                <div class="col-md-3">
+                  <input type="text" class="form-control form-control-sm" id="yeni-ad" placeholder="Ad"/>
+                </div>
+                <div class="col-12">
+                  <button class="btn btn-sm btn-mis" onclick="idariEkle()"><i class="bi bi-plus me-1"></i>Ekle</button>
+                </div>
+              </div>
+            </div>
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-star"></i><span class="title">İl Öncelikleri (Ana sayfada öne çıkar)</span></div>
+              <p class="small text-muted mb-2">En fazla 3 il seçin. Uyarılar bu iller için öncelikli gösterilir.</p>
+              <div id="il-oncelik-alani"></div>
+              <button class="btn btn-sm btn-mis mt-2" onclick="oncelikKaydet()"><i class="bi bi-save me-1"></i>Öncelikleri Kaydet</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -258,6 +310,7 @@ const loadAyarlar = async () => {
   renderVerim('tablo1','yararlanilabilir_yesil_ot');
   renderVerim('tablo2','uretilen_yesil_ot');
   renderVerim('tablo3','uretilen_kuru_ot');
+  loadIdariIller();
 };
 
 // Drive
@@ -396,6 +449,107 @@ document.getElementById('btnSifreDegistir').addEventListener('click', async () =
 });
 
 document.getElementById('sidebarToggle').addEventListener('click', ()=>document.getElementById('wrapper').classList.toggle('sidebar-collapsed'));
+
+// İdari yönetim
+let idariIller = [];
+const loadIdariIller = async () => {
+  const r = await fetch(`${API}/idari/iller`);
+  const j = await r.json();
+  idariIller = j.data || [];
+  const sel = document.getElementById('yeni-il');
+  sel.innerHTML = '<option value="">İl seçin</option>' + idariIller.map(il=>`<option value="${il.xml_id}" data-ad="${il.ad}">${il.ad}</option>`).join('');
+
+  // Öncelik alanı
+  const onc = ayarlar?.idari_oncelikler || [];
+  document.getElementById('il-oncelik-alani').innerHTML = `
+    <div class="d-flex gap-2 flex-wrap">${[1,2,3].map(sira=>{
+      const mevcut = onc.find(o=>o.sira===sira);
+      return `<div class="d-flex align-items-center gap-1"><span class="badge bg-secondary">${sira}.</span>
+        <select class="form-select form-select-sm" style="width:160px" id="onc-${sira}">
+          <option value="">Seçin</option>
+          ${idariIller.map(il=>`<option value="${il.xml_id}" ${mevcut?.il_id===il.xml_id?'selected':''}>${il.ad}</option>`).join('')}
+        </select></div>`;
+    }).join('')}</div>`;
+};
+
+window.yeniIlDegisti = async () => {
+  const il_id = document.getElementById('yeni-il').value;
+  const sel = document.getElementById('yeni-ilce');
+  sel.disabled = !il_id; sel.innerHTML = '<option value="">İlçe seçin</option>';
+  if (!il_id) return;
+  const r = await fetch(`${API}/idari/ilceler/${il_id}`);
+  const j = await r.json();
+  sel.innerHTML = '<option value="">İlçe seçin</option>' + (j.data||[]).map(i=>`<option value="${i.ilce_id}" data-ad="${i.ad}">${i.ad}</option>`).join('');
+  sel.disabled = false;
+};
+
+window.idariAra = async () => {
+  const tip = document.getElementById('idari-tip-filtre').value;
+  const ara = document.getElementById('idari-ara-inp').value.trim();
+  if (!ara) return;
+  const r = await fetch(`${API}/idari/ara?tip=${tip}&ara=${encodeURIComponent(ara)}`);
+  const j = await r.json();
+  document.getElementById('idari-ara-sonuc').innerHTML = (j.data||[]).length
+    ? (j.data||[]).map(k=>`
+      <div class="d-flex align-items-center gap-2 p-2 border-bottom">
+        <div class="flex-grow-1">
+          <div class="small fw-semibold" id="ad-${k._id}">${k.ad}</div>
+          <div class="small text-muted">${k.il_ad||''}${k.ilce_ad?' / '+k.ilce_ad:''}</div>
+        </div>
+        <input type="text" class="form-control form-control-sm" style="width:140px" value="${k.ad}" id="inp-${k._id}" placeholder="Yeni ad"/>
+        <button class="btn btn-xs btn-mis" onclick="idariGuncelle('${k._id}')"><i class="bi bi-check"></i></button>
+        <button class="btn btn-xs btn-outline-danger" onclick="idariSil('${k._id}')"><i class="bi bi-trash"></i></button>
+      </div>`).join('')
+    : '<p class="text-muted text-center small py-2">Sonuç yok.</p>';
+};
+
+window.idariGuncelle = async (id) => {
+  const yeniAd = document.getElementById(`inp-${id}`).value.trim();
+  if (!yeniAd) { showToast('Ad boş olamaz.','warning'); return; }
+  const r = await fetch(`${API}/idari/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ad:yeniAd})});
+  const j = await r.json();
+  if (j.success) { document.getElementById(`ad-${id}`).textContent = yeniAd; showToast('Güncellendi.'); }
+  else showToast(j.message,'danger');
+};
+
+window.idariSil = async (id) => {
+  if (!confirm('Bu kayıt silinecek?')) return;
+  const r = await fetch(`${API}/idari/${id}`,{method:'DELETE'});
+  const j = await r.json();
+  if (j.success) { showToast('Silindi.'); idariAra(); }
+  else showToast(j.message,'danger');
+};
+
+window.idariEkle = async () => {
+  const tip = document.getElementById('yeni-tip').value;
+  const ad = document.getElementById('yeni-ad').value.trim();
+  if (!ad) { showToast('Ad zorunlu.','warning'); return; }
+  const il_sel = document.getElementById('yeni-il');
+  const ilce_sel = document.getElementById('yeni-ilce');
+  const il_id = il_sel.value;
+  const il_ad = il_sel.options[il_sel.selectedIndex]?.dataset?.ad || '';
+  const ilce_id = ilce_sel.value;
+  const ilce_ad = ilce_sel.options[ilce_sel.selectedIndex]?.dataset?.ad || '';
+  const r = await fetch(`${API}/idari`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tip,ad,il_id,il_ad,ilce_id,ilce_ad})});
+  const j = await r.json();
+  if (j.success) { showToast('Eklendi.'); document.getElementById('yeni-ad').value=''; }
+  else showToast(j.message,'danger');
+};
+
+window.oncelikKaydet = async () => {
+  const oncelikler = [1,2,3].map(sira=>{
+    const sel = document.getElementById(`onc-${sira}`);
+    if (!sel?.value) return null;
+    const il = idariIller.find(i=>i.xml_id===sel.value);
+    return il ? {sira, il_id: il.xml_id, il_ad: il.ad} : null;
+  }).filter(Boolean);
+  const r = await fetch(`${API}/idari/oncelik`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({oncelikler})});
+  const j = await r.json();
+  if (j.success) showToast('Öncelikler kaydedildi.');
+  else showToast(j.message,'danger');
+};
+
+document.getElementById('idari-ara-inp').addEventListener('keydown', e=>{if(e.key==='Enter') idariAra();});
 </script>
 <style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
 </body>

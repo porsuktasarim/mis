@@ -77,6 +77,20 @@ Türkvet'ten indirilen Büyükbaş/Küçükbaş XLS dosyalarını otomatik işle
 
 ## Değişiklik Geçmişi
 
+### v1.5.1
+- İller plaka sırasına, ilçe/mahalleler alfabetik sıralanıyor (Türkçe collation)
+- Ayarlar > İdari Yönetim sekmesi: il/ilçe/mahalle ara, düzenle, sil, ekle
+- İl öncelikleri (1-2-3 sıra) ayarlanabilir
+- Vasıf: Bilinmiyor seçeneği eklendi, Bilinmiyor dışında belge yükleme uyarısı
+- Nitelik: dropdown (Mera/Yaylak/Kışlak/Çayır/Otlak/Harman/Panayır/Sıvat/Eyrek/Diğer), Diğer serbest metin
+- Vasıf belgesi: tarih + dosya → 1 yıl geri sayım, 6 aydan az kaldıysa ana sayfada uyarı
+- Tahsis belgesi: tarih + dosya → 5 yıl geri sayım, 1 yıldan az kaldıysa ana sayfada uyarı
+- Detay sayfası: geri sayım sayacı, belge linki, düzenle butonu
+- Detay genel tab: bilgi notları önizleme, son notlar sabit yükseklik + devamını oku
+- Ana sayfa: istatistik kartları + uyarı listesi
+- Görsel sıkıştırma: sharp ile 1920px max, JPEG 85 kalite
+- PDF limit: 20MB
+
 ### v1.5.0
 - Mera modülü eklendi (/mera/)
 - Parsel listesi: il/ilçe/mahalle/durum filtresi, arama, sayfalama

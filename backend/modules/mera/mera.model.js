@@ -52,13 +52,22 @@ const MeraSchema = new mongoose.Schema({
 
   // Nitelik
   nitelik: { type: String },
-  vasif: { type: String, enum: ['Çok İyi', 'İyi', 'Orta', 'Zayıf'] },
+  nitelik_diger: { type: String },
+  vasif: { type: String, enum: ['Çok İyi', 'İyi', 'Orta', 'Zayıf', 'Bilinmiyor'], default: 'Bilinmiyor' },
+  vasif_tarih: { type: Date },
+  vasif_bitis: { type: Date },
+  vasif_dosya_id: { type: String },
+  vasif_dosya_link: { type: String },
   toprak_sinifi: { type: String },
   toprak_sinifi_tanim: { type: String },
 
   // Durum
   durum: { type: String, enum: ['Aktif', 'Pasif'], default: 'Aktif' },
   tahsis_durumu: { type: String, default: '' },
+  tahsis_durumu_tarih: { type: Date },
+  tahsis_durumu_bitis: { type: Date },
+  tahsis_durumu_dosya_id: { type: String },
+  tahsis_durumu_dosya_link: { type: String },
   tahsis_amaci: { type: String, default: '' },
 
   // Harita

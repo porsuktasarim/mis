@@ -95,22 +95,79 @@ const Idari = require('../idari/idari.model');
 
 const getIller = async (req, res, next) => {
   try {
-    const iller = await Idari.find({ tip: 'il' }).sort({ ad: 1 }).select('xml_id ad');
+    // Plaka sırasına göre (xml_id sayısal)
+    const iller = await Idari.find({ tip: 'il' }).select('xml_id ad');
+    iller.sort((a, b) => parseInt(a.xml_id) - parseInt(b.xml_id));
     res.json({ success: true, data: iller });
   } catch (err) { next(err); }
 };
 
 const getIlceler = async (req, res, next) => {
   try {
-    const ilceler = await Idari.find({ tip: 'ilce', il_id: req.params.il_id }).sort({ ad: 1 }).select('xml_id ilce_id ad');
+    const ilceler = await Idari.find({ tip: 'ilce', il_id: req.params.il_id })
+      .collation({ locale: 'tr', strength: 1 })
+      .sort({ ad: 1 }).select('xml_id ilce_id ad');
     res.json({ success: true, data: ilceler });
   } catch (err) { next(err); }
 };
 
 const getMahalleler = async (req, res, next) => {
   try {
-    const mahalleler = await Idari.find({ tip: 'mahalle', ilce_id: req.params.ilce_id }).sort({ ad: 1 }).select('xml_id ad');
+    const mahalleler = await Idari.find({ tip: 'mahalle', ilce_id: req.params.ilce_id })
+      .collation({ locale: 'tr', strength: 1 })
+      .sort({ ad: 1 }).select('xml_id ad');
     res.json({ success: true, data: mahalleler });
+  } catch (err) { next(err); }
+};
+
+// İdari kayıt ekle
+const idariEkle = async (req, res, next) => {
+  try {
+    const { tip, ad, il_id, il_ad, ilce_id, ilce_ad } = req.body;
+    const yeni = await Idari.create({ tip, ad, il_id, il_ad, ilce_id, ilce_ad, xml_id: Date.now().toString() });
+    res.json({ success: true, data: yeni });
+  } catch (err) { next(err); }
+};
+
+// İdari kayıt güncelle (isim düzeltme)
+const idariGuncelle = async (req, res, next) => {
+  try {
+    const kayit = await Idari.findByIdAndUpdate(req.params.id, { ad: req.body.ad }, { new: true });
+    if (!kayit) return res.status(404).json({ success: false, message: 'Kayıt bulunamadı' });
+    res.json({ success: true, data: kayit });
+  } catch (err) { next(err); }
+};
+
+// İdari kayıt sil
+const idariSil = async (req, res, next) => {
+  try {
+    await Idari.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Silindi' });
+  } catch (err) { next(err); }
+};
+
+// İl öncelikleri kaydet
+const idariOncelikKaydet = async (req, res, next) => {
+  try {
+    const ayarlar = await Ayarlar.findOne() || await Ayarlar.create(VARSAYILAN);
+    ayarlar.idari_oncelikler = req.body.oncelikler || [];
+    await ayarlar.save();
+    res.json({ success: true });
+  } catch (err) { next(err); }
+};
+
+// İl mahallelerini ara
+const idariAra = async (req, res, next) => {
+  try {
+    const { tip, il_id, ilce_id, ara } = req.query;
+    const filtre = { tip };
+    if (il_id) filtre.il_id = il_id;
+    if (ilce_id) filtre.ilce_id = ilce_id;
+    if (ara) filtre.ad = new RegExp(ara, 'i');
+    const kayitlar = await Idari.find(filtre)
+      .collation({ locale: 'tr', strength: 1 })
+      .sort({ ad: 1 }).limit(100).select('xml_id ad il_id il_ad ilce_id ilce_ad');
+    res.json({ success: true, data: kayitlar });
   } catch (err) { next(err); }
 };
 
@@ -154,4 +211,6 @@ const sifreDegistir = (req, res) => {
   }
 };
 
-module.exports = { getAyarlar, driveEkle, driveTesti, driveSil, guncelle, sifirla, getIller, getIlceler, getMahalleler, sifreDogrula, sifreDegistir };
+module.exports = { getAyarlar, driveEkle, driveTesti, driveSil, guncelle, sifirla,
+  getIller, getIlceler, getMahalleler, idariEkle, idariGuncelle, idariSil, idariOncelikKaydet, idariAra,
+  sifreDogrula, sifreDegistir };

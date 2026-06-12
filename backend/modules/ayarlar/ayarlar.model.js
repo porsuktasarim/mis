@@ -51,6 +51,13 @@ const VerimSatirSchema = new mongoose.Schema({
   zayif: { type: Number },
 });
 
+// İdari öncelik (ana sayfada öne çıkan iller)
+const IdariOncelikSchema = new mongoose.Schema({
+  sira: { type: Number, required: true },
+  il_id: { type: String, required: true },
+  il_ad: { type: String, required: true },
+});
+
 const AyarlarSchema = new mongoose.Schema({
   drive_hesaplari: [DriveHesapSchema],
   dosya_kategorileri: [DosyaKategoriSchema],
@@ -60,6 +67,7 @@ const AyarlarSchema = new mongoose.Schema({
   yararlanilabilir_yesil_ot: [VerimSatirSchema],
   uretilen_yesil_ot: [VerimSatirSchema],
   uretilen_kuru_ot: [VerimSatirSchema],
+  idari_oncelikler: [IdariOncelikSchema],
 }, { timestamps: true });
 
 module.exports = mongoose.model('Ayarlar', AyarlarSchema);
