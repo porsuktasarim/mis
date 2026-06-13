@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('./mera.controller');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 router.get('/istatistik',     ctrl.istatistik);
 router.get('/',               ctrl.listele);
