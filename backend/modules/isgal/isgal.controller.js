@@ -169,30 +169,32 @@ const ADIM_SIRASI = [
 
 const adimEkle = async (req, res, next) => {
   try {
-    if (!req.file) return res.status(400).json({ success: false, message: 'Belge yüklemek zorunludur' });
     const isgal = await Isgal.findById(req.params.id);
     if (!isgal) return res.status(404).json({ success: false, message: 'İşgal bulunamadı' });
 
     const { tip, aciklama, sorumlu, sure_gun } = req.body;
-    const gorunurNo = isgal.kullanici_no || isgal.isgal_no;
+    if (!aciklama?.trim()) return res.status(400).json({ success: false, message: 'Açıklama zorunludur' });
 
-    // Drive'a yükle - dosya adı formatı
-    const drive = await getDriveClient();
     const evrakTarihi = new Date().toISOString().slice(0,10).split('-').reverse().join('');
     const adimSira = isgal.adimlar.filter(a => a.tip === tip).length + 1;
-    const tipKisa = tip.replace(/_/g,'-').slice(0,20);
-    const dosyaAdi = `ISGAL-${isgal.isgal_no}-${evrakTarihi}-${tipKisa}-${adimSira}${path.extname(req.file.originalname)}`;
-
-    const folderId = await getMisDriveFolder(drive, [
-      isgal.mera_il_ad, isgal.mera_ilce_ad, isgal.mera_mahalle_ad,
-      `${isgal.mera_ada||'0'}-${isgal.mera_parsel}`, 'Isgal', isgal.isgal_no
-    ]);
-    const driveData = await driveYukle(drive, folderId, dosyaAdi, req.file.mimetype, req.file.buffer);
 
     const adimVerisi = {
       sira: isgal.adimlar.length + 1,
       tip, aciklama, sorumlu, tamamlandi: true,
-      dosyalar: [{
+      dosyalar: [],
+    };
+
+    // Dosya varsa Drive'a yükle
+    if (req.file) {
+      const drive = await getDriveClient();
+      const tipKisa = tip.replace(/_/g,'-').slice(0,20);
+      const dosyaAdi = `ISGAL-${isgal.isgal_no}-${evrakTarihi}-${tipKisa}-${adimSira}${path.extname(req.file.originalname)}`;
+      const folderId = await getMisDriveFolder(drive, [
+        isgal.mera_il_ad, isgal.mera_ilce_ad, isgal.mera_mahalle_ad,
+        `${isgal.mera_ada||'0'}-${isgal.mera_parsel}`, 'Isgal', isgal.isgal_no
+      ]);
+      const driveData = await driveYukle(drive, folderId, dosyaAdi, req.file.mimetype, req.file.buffer);
+      adimVerisi.dosyalar.push({
         ad: dosyaAdi,
         adim_tip: tip,
         drive_file_id: driveData.id,
@@ -200,8 +202,8 @@ const adimEkle = async (req, res, next) => {
         drive_download_link: `https://drive.google.com/uc?export=download&id=${driveData.id}`,
         mime_type: req.file.mimetype,
         boyut: req.file.size,
-      }],
-    };
+      });
+    }
 
     if (tip === 'ucuncu_yol_3091') {
       const sure = parseInt(sure_gun) || 15;
@@ -211,10 +213,8 @@ const adimEkle = async (req, res, next) => {
 
     isgal.adimlar.push(adimVerisi);
 
-    // Sonraki aktif adımı belirle
     const siradakiIdx = ADIM_SIRASI.indexOf(tip) + 1;
     if (siradakiIdx < ADIM_SIRASI.length) isgal.aktif_adim = ADIM_SIRASI[siradakiIdx];
-
     if (tip === 'sonuc') isgal.durum = 'cozuldu';
     if (tip === 'dava_men_mudahale') isgal.durum = 'mahkemede';
 
@@ -222,7 +222,6 @@ const adimEkle = async (req, res, next) => {
     res.json({ success: true, data: isgal });
   } catch (err) { next(err); }
 };
-
 // ── KML ───────────────────────────────────────────────────
 const kmlYukle = async (req, res, next) => {
   try {
@@ -432,9 +431,195 @@ const istatistik = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ── Adıma Dosya Ekle ─────────────────────────────────────
+const adimDosyaEkle = async (req, res, next) => {
+  try {
+    const isgal = await Isgal.findById(req.params.id);
+    if (!isgal) return res.status(404).json({ success: false, message: 'İşgal bulunamadı' });
+    if (!req.file) return res.status(400).json({ success: false, message: 'Dosya seçin' });
+
+    const { adim_id } = req.body;
+    const adim = isgal.adimlar.id(adim_id);
+    if (!adim) return res.status(404).json({ success: false, message: 'Adım bulunamadı' });
+    if (!adim.tamamlandi) return res.status(400).json({ success: false, message: 'Adım henüz işaretlenmemiş. Önce adımı tamamlayın.' });
+
+    const drive = await getDriveClient();
+    const evrakTarihi = new Date().toISOString().slice(0,10).split('-').reverse().join('');
+    const adimSira = adim.dosyalar.length + 1;
+    const tipKisa = adim.tip.replace(/_/g,'-').slice(0,20);
+    const dosyaAdi = `ISGAL-${isgal.isgal_no}-${evrakTarihi}-${tipKisa}-${adimSira}${path.extname(req.file.originalname)}`;
+    const folderId = await getMisDriveFolder(drive, [
+      isgal.mera_il_ad, isgal.mera_ilce_ad, isgal.mera_mahalle_ad,
+      `${isgal.mera_ada||'0'}-${isgal.mera_parsel}`, 'Isgal', isgal.isgal_no
+    ]);
+    const driveData = await driveYukle(drive, folderId, dosyaAdi, req.file.mimetype, req.file.buffer);
+
+    adim.dosyalar.push({
+      ad: dosyaAdi, adim_tip: adim.tip,
+      drive_file_id: driveData.id, drive_web_link: driveData.webViewLink,
+      drive_download_link: `https://drive.google.com/uc?export=download&id=${driveData.id}`,
+      mime_type: req.file.mimetype, boyut: req.file.size,
+    });
+    await isgal.save();
+    res.json({ success: true, data: adim.dosyalar[adim.dosyalar.length - 1] });
+  } catch (err) { next(err); }
+};
+
+// ── Excel Raporu (Tüm İşgaller) ──────────────────────────
+const excelRapor = async (req, res, next) => {
+  try {
+    const { durum } = req.query;
+    const filtre = durum ? { durum } : {};
+    const isgaller = await Isgal.find(filtre).sort({ createdAt: -1 });
+
+    const ExcelJS = require('exceljs');
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('İşgal Kayıtları');
+
+    const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+    const DURUM_ETIKET = { aktif:'Aktif', mahkemede:'Mahkemede', cozuldu:'Çözüldü', arsiv:'Arşiv' };
+    const TESPIT_ETIKET = { teknik_ekip:'Teknik Ekip', sikayet:'Şikayet', ihbar:'İhbar' };
+    const ADIM_ET = { tespit_tutanak:'Tespit', komisyon_intikal:'Komisyon İntikal', komisyon_karar:'Komisyon Karar', ucuncu_yol_3091:'3091', uc_bin_doksan_bir_sonuc:'3091 Sonuç', iki_bin_sekiz_yuz_seksen_alti:'2886/75', dava_men_mudahale:'Dava', suc_duyurusu:'Suç Duyurusu', eski_hale_getirme:'Eski Hale', tazminat_davasi:'Tazminat', sonuc:'Sonuç', diger:'Diğer' };
+
+    ws.columns = [
+      { header: 'İşgal No', key: 'no', width: 18 },
+      { header: 'Sistem No', key: 'sistem_no', width: 15 },
+      { header: 'İl', key: 'il', width: 12 },
+      { header: 'İlçe', key: 'ilce', width: 14 },
+      { header: 'Mahalle/Köy', key: 'mahalle', width: 16 },
+      { header: 'Ada', key: 'ada', width: 8 },
+      { header: 'Parsel', key: 'parsel', width: 10 },
+      { header: 'İşgal Türü', key: 'tur', width: 20 },
+      { header: 'Alan (m²)', key: 'alan', width: 12 },
+      { header: 'İşgalci', key: 'isgalci', width: 20 },
+      { header: 'TC', key: 'tc', width: 14 },
+      { header: 'Tespit Şekli', key: 'tespit_sekli', width: 15 },
+      { header: 'Tespit Tarihi', key: 'tespit_tarihi', width: 14 },
+      { header: 'Aktif Adım', key: 'aktif_adim', width: 18 },
+      { header: 'Durum', key: 'durum', width: 12 },
+      { header: 'Açıklama', key: 'aciklama', width: 30 },
+    ];
+
+    // Başlık stili
+    ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F6E56' } };
+
+    isgaller.forEach(ig => {
+      ws.addRow({
+        no: ig.kullanici_no || ig.isgal_no,
+        sistem_no: ig.kullanici_no ? ig.isgal_no : '',
+        il: ig.mera_il_ad, ilce: ig.mera_ilce_ad, mahalle: ig.mera_mahalle_ad,
+        ada: ig.mera_ada||'', parsel: ig.mera_parsel,
+        tur: TUR_ETIKET[ig.isgal_turu]||ig.isgal_turu,
+        alan: ig.isgal_alani_m2||'',
+        isgalci: ig.isgalci_ad_soyad||'', tc: ig.isgalci_tc||'',
+        tespit_sekli: TESPIT_ETIKET[ig.tespit_sekli]||'',
+        tespit_tarihi: ig.tespit_tarihi ? new Date(ig.tespit_tarihi).toLocaleDateString('tr-TR') : '',
+        aktif_adim: ADIM_ET[ig.aktif_adim]||ig.aktif_adim||'',
+        durum: DURUM_ETIKET[ig.durum]||ig.durum,
+        aciklama: ig.isgal_turu_aciklama||'',
+      });
+    });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="isgal-raporu-${new Date().toISOString().slice(0,10)}.xlsx"`);
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err) { next(err); }
+};
+
+// ── Word Raporu (Tekil İşgal) ─────────────────────────────
+const wordRapor = async (req, res, next) => {
+  try {
+    const isgal = await Isgal.findById(req.params.id);
+    if (!isgal) return res.status(404).json({ success: false, message: 'İşgal bulunamadı' });
+
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, HeadingLevel, AlignmentType } = require('docx');
+    const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+    const DURUM_ETIKET = { aktif:'Aktif', mahkemede:'Mahkemede', cozuldu:'Çözüldü', arsiv:'Arşiv' };
+    const TESPIT_ETIKET = { teknik_ekip:'Teknik Ekip', sikayet:'Şikayet', ihbar:'İhbar' };
+    const TIP_ETIKET = { tespit_tutanak:'Tespit Tutanağı', komisyon_intikal:'Komisyona İntikal', komisyon_karar:'Komisyon Kararı', ucuncu_yol_3091:'3091 - Kaymakamlık/Valilik', uc_bin_doksan_bir_sonuc:'3091 Sonucu', iki_bin_sekiz_yuz_seksen_alti:'2886/75 - Jandarma/Kaymakamlık', dava_men_mudahale:'Men-i Müdahale ve Kal Davası', suc_duyurusu:'Suç Duyurusu', eski_hale_getirme:'Eski Hale Getirme', tazminat_davasi:'Tazminat Davası', sonuc:'Sonuç/Kapatma', diger:'Diğer' };
+
+    const gorunurNo = isgal.kullanici_no ? `${isgal.kullanici_no} (${isgal.isgal_no})` : isgal.isgal_no;
+
+    const bilgiSatiri = (etiket, deger) => new Paragraph({
+      children: [
+        new TextRun({ text: `${etiket}: `, bold: true }),
+        new TextRun({ text: deger || '-' }),
+      ],
+      spacing: { after: 60 },
+    });
+
+    const baslik = new Paragraph({
+      text: `İŞGAL KAYIT RAPORU — ${gorunurNo}`,
+      heading: HeadingLevel.HEADING_1,
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 },
+    });
+
+    const altBaslik = new Paragraph({
+      children: [new TextRun({ text: `${isgal.mera_il_ad} / ${isgal.mera_mahalle_ad} — Ada: ${isgal.mera_ada||'-'} Parsel: ${isgal.mera_parsel}`, color: '666666' })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 400 },
+    });
+
+    const bolumBasligi = (metin) => new Paragraph({
+      text: metin,
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 300, after: 150 },
+    });
+
+    const adimParagraflar = isgal.adimlar.flatMap(a => [
+      new Paragraph({
+        children: [
+          new TextRun({ text: `${TIP_ETIKET[a.tip]||a.tip}`, bold: true }),
+          new TextRun({ text: ` — ${new Date(a.createdAt).toLocaleDateString('tr-TR')}`, color: '888888' }),
+          a.sorumlu ? new TextRun({ text: ` (${a.sorumlu})`, color: '666666' }) : new TextRun(''),
+        ],
+        spacing: { before: 120, after: 60 },
+      }),
+      new Paragraph({ text: a.aciklama, spacing: { after: 60 } }),
+      ...(a.dosyalar||[]).map(d => new Paragraph({
+        children: [new TextRun({ text: `📎 ${d.ad}`, color: '0F6E56' })],
+        spacing: { after: 40 },
+      })),
+    ]);
+
+    const doc = new Document({
+      sections: [{
+        children: [
+          baslik, altBaslik,
+          bolumBasligi('İşgal Bilgileri'),
+          bilgiSatiri('İşgal No', gorunurNo),
+          bilgiSatiri('Mera', `${isgal.mera_il_ad} / ${isgal.mera_ilce_ad} / ${isgal.mera_mahalle_ad}`),
+          bilgiSatiri('Ada / Parsel', `${isgal.mera_ada||'-'} / ${isgal.mera_parsel}`),
+          bilgiSatiri('İşgal Türü', TUR_ETIKET[isgal.isgal_turu]||'-'),
+          bilgiSatiri('Alan', isgal.isgal_alani_m2 ? `${Number(isgal.isgal_alani_m2).toLocaleString('tr-TR')} m²` : '-'),
+          bilgiSatiri('Açıklama', isgal.isgal_turu_aciklama),
+          bilgiSatiri('Tespit Şekli', TESPIT_ETIKET[isgal.tespit_sekli]||'-'),
+          bilgiSatiri('Tespit Tarihi', isgal.tespit_tarihi ? new Date(isgal.tespit_tarihi).toLocaleDateString('tr-TR') : '-'),
+          bilgiSatiri('Tespit Eden', isgal.tespit_eden),
+          bilgiSatiri('Durum', DURUM_ETIKET[isgal.durum]||'-'),
+          bolumBasligi('İşgalci Bilgileri'),
+          bilgiSatiri('Ad Soyad', isgal.isgalci_ad_soyad),
+          bilgiSatiri('TC', isgal.isgalci_tc),
+          bilgiSatiri('Adres', isgal.isgalci_adres),
+          ...(isgal.adimlar?.length ? [bolumBasligi('Süreç Adımları'), ...adimParagraflar] : []),
+        ],
+      }],
+    });
+
+    const buffer = await Packer.toBuffer(doc);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="isgal-${isgal.isgal_no}.docx"`);
+    res.send(buffer);
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   listele, getById, olustur, guncelle, sil,
   adimEkle: [upload.single('belge'), adimEkle],
+  adimDosyaEkle: [upload.single('belge'), adimDosyaEkle],
   kmlYukle: [upload.single('kml'), kmlYukle],
-  kmlGetir, tekRapor, tumRapor, istatistik,
+  kmlGetir, tekRapor, tumRapor, excelRapor, wordRapor, istatistik,
 };
