@@ -497,7 +497,24 @@ document.getElementById('btnSifreDegistir').addEventListener('click', async () =
   } catch { showToast('Hata.','danger'); }
 });
 
-.join('')}</div>`;
+// İdari yönetim
+let idariIller = [];
+const loadIdariIller = async () => {
+  const r = await fetch(`${API}/idari/iller`);
+  const j = await r.json();
+  idariIller = j.data || [];
+  const sel = document.getElementById('yeni-il');
+  if (sel) sel.innerHTML = '<option value="">İl seçin</option>' + idariIller.map(il=>`<option value="${il.xml_id}" data-ad="${il.ad}">${il.ad}</option>`).join('');
+  const onc = ayarlar?.idari_oncelikler || [];
+  const alan = document.getElementById('il-oncelik-alani');
+  if (alan) alan.innerHTML = `<div class="d-flex gap-2 flex-wrap">${[1,2,3].map(sira=>{
+    const mevcut = onc.find(o=>o.sira===sira);
+    return `<div class="d-flex align-items-center gap-1"><span class="badge bg-secondary">${sira}.</span>
+      <select class="form-select form-select-sm" style="width:160px" id="onc-${sira}">
+        <option value="">Seçin</option>
+        ${idariIller.map(il=>`<option value="${il.xml_id}" ${mevcut?.il_id===il.xml_id?'selected':''}>${il.ad}</option>`).join('')}
+      </select></div>`;
+  }).join('')}</div>`;
 };
 
 window.yeniIlDegisti = async () => {
