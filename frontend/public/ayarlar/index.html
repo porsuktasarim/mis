@@ -35,17 +35,7 @@
 </div>
 
 <div class="d-flex" id="wrapper">
-  <nav id="sidebar" class="mis-sidebar d-flex flex-column">
-    <a href="/" class="mis-sidebar-brand text-decoration-none"><i class="bi bi-tree-fill"></i><span>MİS</span></a>
-    <hr class="mis-sidebar-divider"/>
-    <ul class="nav flex-column mis-nav px-2">
-      <li class="mis-nav-section">Modüller</li>
-      <li class="nav-item"><a class="nav-link mis-nav-link" href="/bbhb/"><i class="bi bi-calculator"></i><span>BBHB Hesaplayıcı</span></a></li>
-      <li class="mis-nav-section mt-3">Sistem</li>
-      <li class="nav-item"><a class="nav-link mis-nav-link active" href="/ayarlar/"><i class="bi bi-gear"></i><span>Ayarlar</span></a></li>
-    </ul>
-    <div class="mt-auto p-3 mis-sidebar-footer"><small class="text-muted">MİS v1.4.0</small></div>
-  </nav>
+  <div id="mis-sidebar-mount"></div>
 
   <div id="page-content" class="flex-grow-1 d-flex flex-column">
     <nav class="navbar mis-topbar px-3">
@@ -237,12 +227,25 @@
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Drive Hesabı Ekle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Hesap Tipi</label>
+          <select class="form-select form-select-sm" id="drive-tip" onchange="driveTipDegisti()">
+            <option value="oauth2">OAuth2 (Kişisel Google Hesabı)</option>
+            <option value="service_account">Service Account</option>
+          </select>
+        </div>
+        <div class="mb-2 p-2 rounded small" id="drive-oauth-aciklama" style="background:#e7f3ff;border:1px solid #b6d4fe">
+          <strong>OAuth2:</strong> Google Cloud Console → Credentials → Create OAuth client ID → Desktop app → JSON indir. Bir kez yetkilendirme yapmanız gerekecek.
+        </div>
+        <div class="mb-2 p-2 rounded small d-none" id="drive-sa-aciklama" style="background:#fff3cd;border:1px solid #ffc107">
+          <strong>Servis Hesabı:</strong> Yalnızca Shared Drive ile çalışır. Normal Drive'da kota hatası verir.
+        </div>
         <div class="mb-3"><label class="form-label small fw-semibold">Hesap Adı *</label><input type="text" class="form-control form-control-sm" id="drive-ad"/></div>
         <div class="mb-3"><label class="form-label small fw-semibold">Açıklama</label><input type="text" class="form-control form-control-sm" id="drive-aciklama"/></div>
         <div class="mb-3">
-          <label class="form-label small fw-semibold">Service Account JSON *</label>
-          <textarea class="form-control form-control-sm font-monospace" id="drive-json" rows="7" placeholder='{"type":"service_account","project_id":"..."}'></textarea>
-          <div class="form-text">JSON key dosyasını not defteri ile açıp tüm içeriği yapıştırın.</div>
+          <label class="form-label small fw-semibold" id="drive-json-label">OAuth Client JSON *</label>
+          <textarea class="form-control form-control-sm font-monospace" id="drive-json" rows="7" placeholder='{"installed":{"client_id":"..."}}'></textarea>
+          <div class="form-text">JSON dosyasını not defteri ile açıp tüm içeriği yapıştırın.</div>
         </div>
       </div>
       <div class="modal-footer">
@@ -261,6 +264,7 @@
   </div>
 </div>
 
+<script src="/js/sidebar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const API = '/api/ayarlar';
@@ -317,28 +321,73 @@ const loadAyarlar = async () => {
 const renderDrive = () => {
   const el = document.getElementById('drive-listesi');
   if (!ayarlar.drive_hesaplari?.length) { el.innerHTML = '<p class="text-muted text-center py-3 small">Henüz hesap eklenmedi. Sol taraftaki adımları takip edin.</p>'; return; }
-  el.innerHTML = `<table class="table table-sm mis-table mb-0"><thead><tr><th>Ad</th><th>E-posta</th><th>Durum</th><th>İşlemler</th></tr></thead><tbody>
+  el.innerHTML = `<table class="table table-sm mis-table mb-0"><thead><tr><th>Ad</th><th>Tip</th><th>E-posta</th><th>Durum</th><th>İşlemler</th></tr></thead><tbody>
     ${ayarlar.drive_hesaplari.map(h=>`<tr>
       <td><strong>${h.ad}</strong>${h.aciklama?`<br><small class="text-muted">${h.aciklama}</small>`:''}</td>
-      <td class="small text-truncate" style="max-width:200px">${h.email||'-'}</td>
-      <td><span class="badge ${h.aktif?'bg-success':'bg-secondary'}">${h.aktif?'Aktif':'Pasif'}</span></td>
-      <td><div class="d-flex gap-1">
+      <td><span class="grup-badge">${h.tip==='oauth2'?'OAuth2':'Servis'}</span></td>
+      <td class="small text-truncate" style="max-width:180px">${h.email||'-'}</td>
+      <td>
+        ${h.tip==='oauth2' && !h.yetkili ? '<span class="badge bg-warning text-dark">Yetkilendirilmemiş</span>' : ''}
+        ${h.yetkili ? '<span class="badge bg-success">Aktif</span>' : ''}
+        ${!h.aktif ? '<span class="badge bg-secondary">Pasif</span>' : ''}
+      </td>
+      <td><div class="d-flex gap-1 flex-wrap">
+        ${h.tip==='oauth2' && !h.yetkili ? `<button class="btn btn-xs btn-mis" onclick="driveYetkilendir('${h._id}')"><i class="bi bi-key me-1"></i>Yetkilendir</button>` : ''}
         <button class="btn btn-xs btn-outline-success" onclick="driveTesti('${h._id}')"><i class="bi bi-wifi"></i> Test</button>
         <button class="btn btn-xs btn-outline-danger" onclick="driveSil('${h._id}')"><i class="bi bi-trash"></i></button>
       </div></td>
     </tr>`).join('')}
   </tbody></table>`;
 };
-window.driveEkleModal = () => new bootstrap.Modal(document.getElementById('driveModal')).show();
+window.driveEkleModal = () => {
+  document.getElementById('drive-ad').value='';
+  document.getElementById('drive-aciklama').value='';
+  document.getElementById('drive-json').value='';
+  document.getElementById('drive-tip').value='oauth2';
+  driveTipDegisti();
+  new bootstrap.Modal(document.getElementById('driveModal')).show();
+};
+
+window.driveTipDegisti = () => {
+  const tip = document.getElementById('drive-tip').value;
+  document.getElementById('drive-oauth-aciklama').classList.toggle('d-none', tip!=='oauth2');
+  document.getElementById('drive-sa-aciklama').classList.toggle('d-none', tip!=='service_account');
+  document.getElementById('drive-json-label').textContent = tip==='oauth2' ? 'OAuth Client JSON *' : 'Service Account JSON *';
+};
+
 window.driveKaydet = async () => {
   const ad = document.getElementById('drive-ad').value.trim();
   const json = document.getElementById('drive-json').value.trim();
+  const tip = document.getElementById('drive-tip').value;
   if (!ad||!json) { showToast('Ad ve JSON zorunlu.','warning'); return; }
+  const body = { ad, aciklama: document.getElementById('drive-aciklama').value };
+  if (tip==='oauth2') body.oauth_client_json = json;
+  else body.service_account_json = json;
   try {
-    const r = await fetch(`${API}/drive`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ad,aciklama:document.getElementById('drive-aciklama').value,service_account_json:json})});
+    const r = await fetch(`${API}/drive`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j = await r.json();
-    if(j.success){showToast('Hesap eklendi.');bootstrap.Modal.getInstance(document.getElementById('driveModal')).hide();loadAyarlar();}
-    else showToast(j.message,'danger');
+    if(j.success){
+      showToast(tip==='oauth2'?'OAuth hesabı eklendi. Şimdi yetkilendirin.':'Hesap eklendi.');
+      bootstrap.Modal.getInstance(document.getElementById('driveModal')).hide();
+      loadAyarlar();
+    } else showToast(j.message,'danger');
+  } catch { showToast('Hata.','danger'); }
+};
+
+window.driveYetkilendir = async (id) => {
+  try {
+    const r = await fetch(`${API}/drive/${id}/oauth-url`);
+    const j = await r.json();
+    if (!j.success) { showToast(j.message,'danger'); return; }
+    // URL'i yeni sekmede aç
+    window.open(j.url, '_blank');
+    // Kod giriş modalı göster
+    const kod = prompt('Google hesabınıza giriş yaptıktan sonra aldığınız kodu yapıştırın:');
+    if (!kod) return;
+    const r2 = await fetch(`${API}/drive/${id}/oauth-token`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kod})});
+    const j2 = await r2.json();
+    if(j2.success){ showToast(`Yetkilendirildi: ${j2.email||''}`,'success'); loadAyarlar(); }
+    else showToast(j2.message,'danger');
   } catch { showToast('Hata.','danger'); }
 };
 window.driveTesti = async (id) => {
@@ -448,28 +497,7 @@ document.getElementById('btnSifreDegistir').addEventListener('click', async () =
   } catch { showToast('Hata.','danger'); }
 });
 
-document.getElementById('sidebarToggle').addEventListener('click', ()=>document.getElementById('wrapper').classList.toggle('sidebar-collapsed'));
-
-// İdari yönetim
-let idariIller = [];
-const loadIdariIller = async () => {
-  const r = await fetch(`${API}/idari/iller`);
-  const j = await r.json();
-  idariIller = j.data || [];
-  const sel = document.getElementById('yeni-il');
-  sel.innerHTML = '<option value="">İl seçin</option>' + idariIller.map(il=>`<option value="${il.xml_id}" data-ad="${il.ad}">${il.ad}</option>`).join('');
-
-  // Öncelik alanı
-  const onc = ayarlar?.idari_oncelikler || [];
-  document.getElementById('il-oncelik-alani').innerHTML = `
-    <div class="d-flex gap-2 flex-wrap">${[1,2,3].map(sira=>{
-      const mevcut = onc.find(o=>o.sira===sira);
-      return `<div class="d-flex align-items-center gap-1"><span class="badge bg-secondary">${sira}.</span>
-        <select class="form-select form-select-sm" style="width:160px" id="onc-${sira}">
-          <option value="">Seçin</option>
-          ${idariIller.map(il=>`<option value="${il.xml_id}" ${mevcut?.il_id===il.xml_id?'selected':''}>${il.ad}</option>`).join('')}
-        </select></div>`;
-    }).join('')}</div>`;
+.join('')}</div>`;
 };
 
 window.yeniIlDegisti = async () => {

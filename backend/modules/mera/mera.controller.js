@@ -32,6 +32,19 @@ const getDriveClient = async () => {
   const ayarlar = await Ayarlar.findOne();
   const hesap = ayarlar?.drive_hesaplari?.find(h => h.aktif);
   if (!hesap) throw new Error('Aktif Drive hesabı bulunamadı. Ayarlar sayfasından ekleyin.');
+
+  if (hesap.tip === 'oauth2') {
+    if (!hesap.oauth_token) throw new Error('Drive hesabı yetkilendirilmemiş. Ayarlar > Google Drive > Yetkilendir.');
+    const { client_id, client_secret } = hesap.oauth_client_json.installed || hesap.oauth_client_json.web;
+    const oauth2 = new google.auth.OAuth2(client_id, client_secret, 'urn:ietf:wg:oauth:2.0:oob');
+    oauth2.setCredentials(hesap.oauth_token);
+    oauth2.on('tokens', async (tokens) => {
+      const guncellenen = { ...hesap.oauth_token, ...tokens };
+      await Ayarlar.updateOne({ 'drive_hesaplari._id': hesap._id }, { $set: { 'drive_hesaplari.$.oauth_token': guncellenen } });
+    });
+    return google.drive({ version: 'v3', auth: oauth2 });
+  }
+
   const auth = new google.auth.GoogleAuth({
     credentials: hesap.service_account_json,
     scopes: ['https://www.googleapis.com/auth/drive'],

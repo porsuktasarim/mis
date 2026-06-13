@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { getAyarlar, driveEkle, driveTesti, driveSil, guncelle, sifirla,
+const { getAyarlar, driveEkle, driveTesti, driveSil, driveOAuthUrl, driveOAuthToken,
+  guncelle, sifirla,
   getIller, getIlceler, getMahalleler, idariEkle, idariGuncelle, idariSil, idariOncelikKaydet, idariAra,
   sifreDogrula, sifreDegistir } = require('./ayarlar.controller');
 
@@ -22,10 +23,8 @@ router.post('/sifirla', sifirla);
 
 router.post('/drive', driveEkle);
 router.get('/drive/:id/test', driveTesti);
+router.get('/drive/:id/oauth-url', driveOAuthUrl);
+router.post('/drive/:id/oauth-token', driveOAuthToken);
 router.delete('/drive/:id', driveSil);
-
-router.get('/idari/iller', getIller);
-router.get('/idari/ilceler/:il_id', getIlceler);
-router.get('/idari/mahalleler/:ilce_id', getMahalleler);
 
 module.exports = router;

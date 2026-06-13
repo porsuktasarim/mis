@@ -4,11 +4,14 @@ const mongoose = require('mongoose');
 const DriveHesapSchema = new mongoose.Schema({
   ad: { type: String, required: true },
   aciklama: { type: String },
+  tip: { type: String, enum: ['service_account', 'oauth2'], default: 'service_account' },
   service_account_json: { type: mongoose.Schema.Types.Mixed },
+  oauth_client_json: { type: mongoose.Schema.Types.Mixed },
+  oauth_token: { type: mongoose.Schema.Types.Mixed },
   email: { type: String },
   aktif: { type: Boolean, default: true },
   kota_kullanilan: { type: Number, default: 0 },
-  kota_toplam: { type: Number, default: 15 * 1024 }, // MB
+  kota_toplam: { type: Number, default: 15 * 1024 },
 }, { timestamps: true });
 
 // Dosya kategorileri

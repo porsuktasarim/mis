@@ -11,20 +11,7 @@
 <body>
 <div class="d-flex" id="wrapper">
 
-  <nav id="sidebar" class="mis-sidebar d-flex flex-column">
-    <div class="mis-sidebar-brand"><i class="bi bi-tree-fill"></i><span>MİS</span></div>
-    <hr class="mis-sidebar-divider" />
-    <ul class="nav flex-column mis-nav px-2">
-      <li class="mis-nav-section">Hesaplama</li>
-      <li class="nav-item"><a class="nav-link mis-nav-link" href="/modules/bbhb/"><i class="bi bi-calculator"></i> <span>BBHB Hesaplayıcı</span></a></li>
-      <li class="mis-nav-section mt-3">Dosya Yükleme</li>
-      <li class="nav-item"><a class="nav-link mis-nav-link" href="/modules/bbhb-yukle/"><i class="bi bi-upload"></i> <span>BBHB Dosya Yükle</span></a></li>
-      <li class="nav-item"><a class="nav-link mis-nav-link active" href="/modules/bbhb-yukle/liste.html"><i class="bi bi-table"></i> <span>Yükleme Geçmişi</span></a></li>
-      <li class="mis-nav-section mt-3">Raporlar</li>
-      <li class="nav-item"><a class="nav-link mis-nav-link" href="/modules/bbhb/liste.html"><i class="bi bi-clock-history"></i> <span>BBHB Kayıtları</span></a></li>
-    </ul>
-    <div class="mt-auto p-3 mis-sidebar-footer"><small class="text-muted">MİS v1.0.0</small></div>
-  </nav>
+  <div id="mis-sidebar-mount"></div>
 
   <div id="page-content" class="flex-grow-1">
     <nav class="navbar mis-topbar px-3">
@@ -63,6 +50,7 @@
   </div>
 </div>
 
+<script src="/js/sidebar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const API = '/api/bbhb-yukle';
@@ -141,10 +129,6 @@ const sil = async (id) => {
     else showToast(json.message || 'Hata.', 'danger');
   } catch { showToast('Sunucuya ulaşılamadı.', 'danger'); }
 };
-
-document.getElementById('sidebarToggle').addEventListener('click', () => {
-  document.getElementById('wrapper').classList.toggle('sidebar-collapsed');
-});
 
 loadListe();
 </script>
