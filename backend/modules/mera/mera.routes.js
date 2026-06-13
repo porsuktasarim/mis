@@ -14,7 +14,7 @@ router.post('/:id/kml',       ...ctrl.kmlYukle);
 router.get('/:id/kml',        ctrl.kmlGetir);
 
 // Notlar
-router.post('/:id/notlar',              ctrl.notEkle);
+router.post('/:id/notlar',              upload.single('dosya'), ctrl.notEkle);
 router.put('/:id/notlar/:notId',        ctrl.notGuncelle);
 router.delete('/:id/notlar/:notId',     ctrl.notSil);
 

@@ -11,30 +11,32 @@
   <style>
     .detay-sekme{border:none;background:none;padding:9px 15px;font-size:13px;color:#4a6358;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;}
     .detay-sekme.active{color:#0F6E56;border-bottom-color:#0F6E56;font-weight:500;}
-    .detay-tab{display:none;} .detay-tab.active{display:block;}
+    .detay-tab{display:none;}.detay-tab.active{display:block;}
     .detay-topbar{background:#fff;border-bottom:1px solid #e2e8e4;display:flex;align-items:center;overflow-x:auto;padding:0 1rem;}
-    #harita{height:420px;border-radius:8px;}
+    #harita{height:340px;border-radius:8px;}
     .not-kart{border-radius:8px;padding:.85rem 1rem;margin-bottom:.65rem;border-left:4px solid;}
     .not-meta{font-size:11px;opacity:.75;margin-bottom:4px;}
     .not-icerik{font-size:13px;line-height:1.5;}
     .not-silindi{opacity:.4;text-decoration:line-through;}
     .not-kutu-wrap{max-height:320px;overflow:hidden;position:relative;}
-    .not-kutu-wrap.tam{max-height:none;}
     .not-devam-btn{display:block;text-align:center;padding:6px;background:linear-gradient(to bottom,transparent,#f5f7f5 60%);margin-top:-40px;position:relative;cursor:pointer;font-size:12px;color:#0F6E56;font-weight:500;}
     .ot-kutu{background:#f0f9f5;border:1px solid #9FE1CB;border-radius:10px;padding:1rem;}
     .ot-label{font-size:11px;color:#4a6358;text-transform:uppercase;letter-spacing:.04em;}
     .ot-val{font-size:1.1rem;font-weight:600;color:#0F6E56;}
     .ot-alt{font-size:11px;color:#888;}
-    .sayac-kutu{border-radius:8px;padding:.6rem .85rem;font-size:12px;display:inline-flex;align-items:center;gap:6px;}
+    .sayac-kutu{border-radius:8px;padding:.4rem .7rem;font-size:12px;display:inline-flex;align-items:center;gap:6px;}
     .sayac-vasif{background:#fff3cd;color:#856404;}
     .sayac-tahsis{background:#f8d7da;color:#721c24;}
     .sayac-ok{background:#d1e7dd;color:#0a3622;}
+    .kaynak-badge{font-size:10px;padding:1px 6px;border-radius:10px;background:#e2e8e4;color:#4a6358;}
+    .kaynak-kml{background:#d1ecf1;color:#0c5460;}
+    .kaynak-vasif{background:#d4edda;color:#155724;}
+    .kaynak-tahsis{background:#fff3cd;color:#856404;}
   </style>
 </head>
 <body>
 <div class="d-flex" id="wrapper">
   <div id="mis-sidebar-mount"></div>
-
   <div id="page-content" class="flex-grow-1 d-flex flex-column">
     <nav class="navbar mis-topbar px-3">
       <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
@@ -45,10 +47,8 @@
         <a id="btn-pdf" href="#" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
       </div>
     </nav>
-
     <div class="detay-topbar">
       <button class="detay-sekme active" data-tab="genel"><i class="bi bi-info-circle me-1"></i>Genel</button>
-      <button class="detay-sekme" data-tab="harita"><i class="bi bi-map me-1"></i>Harita</button>
       <button class="detay-sekme" data-tab="otlatma"><i class="bi bi-grass me-1"></i>Otlatma</button>
       <button class="detay-sekme" data-tab="notlar"><i class="bi bi-journal-text me-1"></i>Notlar <span class="badge bg-secondary ms-1" id="not-sayisi">0</span></button>
       <button class="detay-sekme" data-tab="dosyalar"><i class="bi bi-folder me-1"></i>Dosyalar <span class="badge bg-secondary ms-1" id="dosya-sayisi">0</span></button>
@@ -59,29 +59,27 @@
       <!-- GENEL -->
       <div class="detay-tab active" id="tab-genel">
         <div class="row g-4">
-          <div class="col-lg-6">
-            <div class="mis-card">
+          <div class="col-lg-5">
+            <div class="mis-card mb-3">
               <div class="mis-card-header"><i class="bi bi-geo-alt"></i><span class="title">Konum</span></div>
               <table class="table table-sm mb-0">
-                <tr><td class="text-muted small w-35">İl</td><td class="fw-medium" id="d-il">-</td></tr>
+                <tr><td class="text-muted small" style="width:35%">İl</td><td class="fw-medium" id="d-il">-</td></tr>
                 <tr><td class="text-muted small">İlçe</td><td id="d-ilce">-</td></tr>
                 <tr><td class="text-muted small">Mahalle/Köy</td><td id="d-mahalle">-</td></tr>
                 <tr><td class="text-muted small">Ada / Parsel</td><td id="d-ada-parsel">-</td></tr>
                 <tr><td class="text-muted small">Tapu Alanı</td><td id="d-alan">-</td></tr>
               </table>
             </div>
-          </div>
-          <div class="col-lg-6">
             <div class="mis-card">
               <div class="mis-card-header"><i class="bi bi-card-list"></i><span class="title">Nitelik & Durum</span></div>
               <table class="table table-sm mb-0">
-                <tr><td class="text-muted small w-35">Nitelik</td><td id="d-nitelik">-</td></tr>
+                <tr><td class="text-muted small" style="width:35%">Nitelik</td><td id="d-nitelik">-</td></tr>
                 <tr>
                   <td class="text-muted small">Vasıf</td>
                   <td>
                     <span id="d-vasif">-</span>
-                    <span id="d-vasif-sayac" class="sayac-kutu ms-2 d-none"></span>
-                    <button class="btn btn-xs btn-outline-secondary ms-1" onclick="vasifBelgeAc()"><i class="bi bi-upload"></i> Belge</button>
+                    <span id="d-vasif-sayac"></span>
+                    <button class="btn btn-xs btn-outline-secondary ms-1" onclick="vasifBelgeAc()"><i class="bi bi-upload"></i></button>
                     <a id="d-vasif-link" href="#" target="_blank" class="btn btn-xs btn-outline-success ms-1 d-none"><i class="bi bi-file-earmark"></i></a>
                   </td>
                 </tr>
@@ -91,8 +89,8 @@
                   <td class="text-muted small">Tahsis Durumu</td>
                   <td>
                     <span id="d-tahsis">-</span>
-                    <span id="d-tahsis-sayac" class="sayac-kutu ms-2 d-none"></span>
-                    <button class="btn btn-xs btn-outline-secondary ms-1" onclick="tahsisBelgeAc()"><i class="bi bi-upload"></i> Belge</button>
+                    <span id="d-tahsis-sayac"></span>
+                    <button class="btn btn-xs btn-outline-secondary ms-1" onclick="tahsisBelgeAc()"><i class="bi bi-upload"></i></button>
                     <a id="d-tahsis-link" href="#" target="_blank" class="btn btn-xs btn-outline-success ms-1 d-none"><i class="bi bi-file-earmark"></i></a>
                   </td>
                 </tr>
@@ -100,20 +98,36 @@
             </div>
           </div>
 
-          <!-- Bilgi notları önizleme -->
-          <div class="col-12" id="bilgi-notu-alani" style="display:none">
-            <div class="mis-card" style="border-left:4px solid #0d6efd">
-              <div class="mis-card-header"><i class="bi bi-info-circle text-primary"></i><span class="title">Bilgi Notları</span></div>
-              <div id="bilgi-notu-listesi"></div>
+          <div class="col-lg-7">
+            <!-- Harita kutucuğu -->
+            <div class="mis-card mb-3">
+              <div class="mis-card-header">
+                <i class="bi bi-map"></i><span class="title">Harita</span>
+                <div class="ms-auto d-flex gap-2">
+                  <a id="btn-earth" href="#" target="_blank" class="btn btn-xs btn-outline-secondary d-none"><i class="bi bi-globe me-1"></i>Google Earth</a>
+                  <a id="btn-kml-indir" href="#" class="btn btn-xs btn-outline-success d-none"><i class="bi bi-download me-1"></i>KML</a>
+                  <label class="btn btn-xs btn-mis mb-0" for="kml-input-genel"><i class="bi bi-upload me-1"></i>KML Yükle</label>
+                  <input type="file" id="kml-input-genel" accept=".kml,.kmz" class="d-none" onchange="kmlYukle(this)"/>
+                </div>
+              </div>
+              <div id="harita-genel-placeholder" class="text-center py-4 text-muted" style="background:#f8faf8;border-radius:8px;">
+                <i class="bi bi-map fs-2 d-block mb-1 opacity-25"></i>
+                <small>KML/KMZ yükleyerek parseli haritada görün</small>
+              </div>
+              <div id="harita-genel" style="display:none;height:300px;border-radius:8px;"></div>
+              <div id="btn-earth-pro-wrap" class="mt-2 d-none">
+                <a id="btn-earth-pro" href="#" target="_blank" class="btn btn-sm btn-outline-secondary w-100">
+                  <i class="bi bi-globe2 me-1"></i>Google Earth Pro'da Göster
+                </a>
+              </div>
             </div>
-          </div>
 
-          <!-- Son notlar önizleme -->
-          <div class="col-lg-8">
+            <!-- Son notlar önizleme -->
             <div class="mis-card">
               <div class="mis-card-header"><i class="bi bi-journal-text"></i><span class="title">Son Notlar</span>
                 <button class="btn btn-xs btn-outline-secondary ms-auto" onclick="sekmeyiAc('notlar')">Tümü</button>
               </div>
+              <div id="bilgi-notu-listesi" class="mb-2"></div>
               <div class="not-kutu-wrap" id="son-notlar-wrap">
                 <div id="son-notlar-icerik"></div>
               </div>
@@ -123,34 +137,12 @@
             </div>
           </div>
 
-          <!-- Toprak tanımı -->
-          <div class="col-lg-4" id="d-toprak-tanim-alani" style="display:none">
-            <div class="mis-card" style="background:#f0f9f5;border-color:#9FE1CB">
+          <div class="col-12" id="d-toprak-tanim-alani" style="display:none">
+            <div class="mis-card p-3" style="background:#f0f9f5;border-color:#9FE1CB">
               <small class="text-muted d-block mb-1 fw-semibold">Toprak Sınıfı Tanımı</small>
               <p id="d-toprak-tanim" class="mb-0 small"></p>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- HARİTA -->
-      <div class="detay-tab" id="tab-harita">
-        <div class="mis-card mb-3">
-          <div class="mis-card-header">
-            <i class="bi bi-upload"></i><span class="title">KML/KMZ Yükle</span>
-            <div class="ms-auto d-flex gap-2">
-              <a id="btn-earth" href="#" target="_blank" class="btn btn-sm btn-outline-secondary d-none"><i class="bi bi-globe me-1"></i>Google Earth</a>
-              <a id="btn-kml-indir" href="#" class="btn btn-sm btn-outline-success d-none"><i class="bi bi-download me-1"></i>KML İndir</a>
-            </div>
-          </div>
-          <div class="d-flex gap-2 align-items-center">
-            <input type="file" id="kml-input" accept=".kml,.kmz" class="form-control form-control-sm" style="max-width:300px"/>
-            <button class="btn btn-sm btn-mis" onclick="kmlYukle()"><i class="bi bi-upload me-1"></i>Yükle</button>
-          </div>
-        </div>
-        <div class="mis-card">
-          <div id="harita-placeholder" class="text-center py-5 text-muted"><i class="bi bi-map fs-1 d-block mb-2 opacity-25"></i><p class="small">KML/KMZ yüklendiğinde parsel haritada gösterilecek.</p></div>
-          <div id="harita" style="display:none"></div>
         </div>
       </div>
 
@@ -167,7 +159,14 @@
             <div class="mis-card">
               <div class="mis-card-header"><i class="bi bi-plus-circle"></i><span class="title">Not Ekle</span></div>
               <div class="mb-2"><label class="form-label small fw-semibold">Renk</label><div id="renk-secim" class="d-flex gap-2 flex-wrap"></div></div>
-              <div class="mb-2"><textarea class="form-control form-control-sm" id="not-icerik" rows="4" placeholder="Not içeriği..."></textarea></div>
+              <div class="mb-2"><textarea class="form-control form-control-sm" id="not-icerik" rows="3" placeholder="Not içeriği..."></textarea></div>
+              <div class="mb-2">
+                <label class="form-label small fw-semibold">Dosya Ekle (isteğe bağlı)</label>
+                <input type="file" class="form-control form-control-sm mb-1" id="not-dosya-input"/>
+                <select class="form-select form-select-sm" id="not-dosya-sec">
+                  <option value="">— Yüklü dosyadan seç —</option>
+                </select>
+              </div>
               <button class="btn btn-mis w-100 btn-sm" onclick="notEkle()"><i class="bi bi-plus me-1"></i>Ekle</button>
             </div>
           </div>
@@ -179,7 +178,18 @@
         <div class="row g-4">
           <div class="col-lg-8">
             <div class="mis-card">
-              <div class="mis-card-header"><i class="bi bi-folder"></i><span class="title">Yüklü Dosyalar</span></div>
+              <div class="mis-card-header">
+                <i class="bi bi-folder"></i><span class="title">Tüm Dosyalar</span>
+                <div class="ms-auto d-flex gap-2">
+                  <select class="form-select form-select-sm" id="dosya-kaynak-filtre" style="width:130px" onchange="renderDosyalar()">
+                    <option value="">Tümü</option>
+                    <option value="dosyalar">Genel</option>
+                    <option value="kml">KML</option>
+                    <option value="vasif">Vasıf</option>
+                    <option value="tahsis">Tahsis</option>
+                  </select>
+                </div>
+              </div>
               <div id="dosya-listesi"><p class="text-muted text-center py-3 small">Henüz dosya yok.</p></div>
             </div>
           </div>
@@ -188,7 +198,15 @@
               <div class="mis-card-header"><i class="bi bi-upload"></i><span class="title">Dosya Yükle</span></div>
               <div class="mb-2"><label class="form-label small fw-semibold">Kategori</label><select class="form-select form-select-sm" id="dosya-kategori"></select></div>
               <div class="mb-2"><label class="form-label small fw-semibold">Dosya Adı</label><input type="text" class="form-control form-control-sm" id="dosya-ad" placeholder="İsteğe bağlı"/></div>
-              <div class="mb-2"><label class="form-label small fw-semibold">Dosya</label><input type="file" class="form-control form-control-sm" id="dosya-input"/></div>
+              <div class="mb-2"><label class="form-label small fw-semibold">Dosya *</label><input type="file" class="form-control form-control-sm" id="dosya-input"/></div>
+              <div class="mb-2">
+                <label class="form-label small fw-semibold">Not Ekle (isteğe bağlı)</label>
+                <textarea class="form-control form-control-sm" id="dosya-not" rows="2" placeholder="Bu dosya hakkında not..."></textarea>
+              </div>
+              <div id="dosya-not-renk" class="mb-2 d-none">
+                <label class="form-label small fw-semibold">Not Rengi</label>
+                <div id="dosya-not-renk-secim" class="d-flex gap-2 flex-wrap"></div>
+              </div>
               <div class="form-text mb-2">Görseller otomatik küçültülür. PDF max 20MB.</div>
               <button class="btn btn-mis w-100 btn-sm" onclick="dosyaYukle()"><i class="bi bi-upload me-1"></i>Yükle</button>
             </div>
@@ -200,70 +218,49 @@
   </div>
 </div>
 
-<!-- Vasıf Belge Modal -->
+<!-- Vasıf Modal -->
 <div class="modal fade" id="vasifModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Vasıf Belgesi Yükle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <div class="mb-3"><label class="form-label small fw-semibold">Vasıf</label>
-          <select class="form-select form-select-sm" id="vb-vasif">
-            <option value="Çok İyi">Çok İyi</option><option value="İyi">İyi</option>
-            <option value="Orta">Orta</option><option value="Zayıf">Zayıf</option>
-          </select>
-        </div>
-        <div class="mb-3"><label class="form-label small fw-semibold">Belge Tarihi *</label><input type="date" class="form-control form-control-sm" id="vb-tarih"/></div>
-        <div class="mb-1"><label class="form-label small fw-semibold">Belge Dosyası *</label><input type="file" class="form-control form-control-sm" id="vb-dosya"/></div>
-        <div class="form-text">Belge tarihinden itibaren 1 yıl geçerli sayılır.</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
-        <button class="btn btn-sm btn-mis" onclick="vasifBelgeKaydet()">Yükle</button>
-      </div>
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Vasıf Belgesi</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-3"><label class="form-label small fw-semibold">Vasıf</label>
+        <select class="form-select form-select-sm" id="vb-vasif"><option>Çok İyi</option><option>İyi</option><option>Orta</option><option>Zayıf</option></select></div>
+      <div class="mb-3"><label class="form-label small fw-semibold">Belge Tarihi *</label><input type="date" class="form-control form-control-sm" id="vb-tarih"/></div>
+      <div class="mb-1"><label class="form-label small fw-semibold">Belge *</label><input type="file" class="form-control form-control-sm" id="vb-dosya"/></div>
+      <div class="form-text">1 yıl geçerli sayılır.</div>
     </div>
-  </div>
+    <div class="modal-footer"><button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button><button class="btn btn-sm btn-mis" onclick="vasifBelgeKaydet()">Yükle</button></div>
+  </div></div>
 </div>
 
-<!-- Tahsis Belge Modal -->
+<!-- Tahsis Modal -->
 <div class="modal fade" id="tahsisModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Tahsis Durumu Belgesi Yükle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <div class="mb-3"><label class="form-label small fw-semibold">Tahsis Durumu</label>
-          <input type="text" class="form-control form-control-sm" id="tb-tahsis" placeholder="Örn: Tahsisli"/>
-        </div>
-        <div class="mb-3"><label class="form-label small fw-semibold">Belge Tarihi *</label><input type="date" class="form-control form-control-sm" id="tb-tarih"/></div>
-        <div class="mb-1"><label class="form-label small fw-semibold">Belge Dosyası *</label><input type="file" class="form-control form-control-sm" id="tb-dosya"/></div>
-        <div class="form-text">Belge tarihinden itibaren 5 yıl geçerli sayılır.</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
-        <button class="btn btn-sm btn-mis" onclick="tahsisBelgeKaydet()">Yükle</button>
-      </div>
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Tahsis Belgesi</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-3"><label class="form-label small fw-semibold">Tahsis Durumu</label><input type="text" class="form-control form-control-sm" id="tb-tahsis"/></div>
+      <div class="mb-3"><label class="form-label small fw-semibold">Belge Tarihi *</label><input type="date" class="form-control form-control-sm" id="tb-tarih"/></div>
+      <div class="mb-1"><label class="form-label small fw-semibold">Belge *</label><input type="file" class="form-control form-control-sm" id="tb-dosya"/></div>
+      <div class="form-text">5 yıl geçerli sayılır.</div>
     </div>
-  </div>
+    <div class="modal-footer"><button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button><button class="btn btn-sm btn-mis" onclick="tahsisBelgeKaydet()">Yükle</button></div>
+  </div></div>
 </div>
 
 <!-- Not Düzenle Modal -->
 <div class="modal fade" id="notModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Not Düzenle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <div id="not-duzenle-renkler" class="d-flex gap-2 mb-3 flex-wrap"></div>
-        <textarea class="form-control" id="not-duzenle-icerik" rows="4"></textarea>
-        <div id="not-gecmis" class="mt-3 d-none">
-          <div class="small text-muted fw-semibold mb-1">Düzenleme Geçmişi</div>
-          <div id="not-gecmis-liste" style="max-height:120px;overflow-y:auto;"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
-        <button class="btn btn-sm btn-mis" onclick="notGuncelle()">Kaydet</button>
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Not Düzenle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div id="not-duzenle-renkler" class="d-flex gap-2 mb-3 flex-wrap"></div>
+      <textarea class="form-control" id="not-duzenle-icerik" rows="4"></textarea>
+      <div id="not-gecmis" class="mt-3 d-none">
+        <div class="small text-muted fw-semibold mb-1">Geçmiş</div>
+        <div id="not-gecmis-liste" style="max-height:120px;overflow-y:auto;"></div>
       </div>
     </div>
-  </div>
+    <div class="modal-footer"><button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button><button class="btn btn-sm btn-mis" onclick="notGuncelle()">Kaydet</button></div>
+  </div></div>
 </div>
 
 <!-- Toast -->
@@ -282,7 +279,8 @@
 const API_MERA = '/api/mera';
 const API_AYAR = '/api/ayarlar';
 const id = new URLSearchParams(location.search).get('id');
-let mera = null, harita = null, seciliRenk = null, duzenlenenNotId = null, ayarlar = null;
+let mera = null, haritaGenel = null, seciliRenk = null, duzenlenenNotId = null, ayarlar = null;
+let seciliDosyaNotRenk = { renk:'#0d6efd', renk_adi:'Bilgi', metin_rengi:'#fff' };
 
 const showToast = (msg, type='success') => {
   const el = document.getElementById('mis-toast');
@@ -291,18 +289,13 @@ const showToast = (msg, type='success') => {
   bootstrap.Toast.getOrCreateInstance(el).show();
 };
 const fmt = n => n != null ? Number(n).toLocaleString('tr-TR') : '-';
-
-const gunKalan = (bitis) => {
-  if (!bitis) return null;
-  return Math.ceil((new Date(bitis) - new Date()) / 86400000);
-};
-
+const gunKalan = (bitis) => bitis ? Math.ceil((new Date(bitis) - new Date()) / 86400000) : null;
 const sayacHtml = (kalan, tip) => {
   if (kalan === null) return '';
   const cls = kalan < 0 ? 'sayac-tahsis' : (kalan < (tip==='vasif'?180:365) ? (tip==='vasif'?'sayac-vasif':'sayac-tahsis') : 'sayac-ok');
   const ikon = kalan < 0 ? 'bi-x-circle' : (kalan < (tip==='vasif'?180:365) ? 'bi-exclamation-triangle' : 'bi-check-circle');
   const metin = kalan < 0 ? `${Math.abs(kalan)} gün geçti` : `${kalan} gün kaldı`;
-  return `<span class="sayac-kutu ${cls}"><i class="bi ${ikon}"></i>${metin}</span>`;
+  return `<span class="sayac-kutu ${cls} ms-1"><i class="bi ${ikon}"></i>${metin}</span>`;
 };
 
 // Sekmeler
@@ -311,12 +304,10 @@ document.querySelectorAll('.detay-sekme').forEach(b => b.addEventListener('click
   document.querySelectorAll('.detay-tab').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');
   document.getElementById('tab-'+b.dataset.tab).classList.add('active');
-  if (b.dataset.tab==='harita' && mera?.kml_drive_file_id) haritaYukle();
 }));
-window.sekmeyiAc = (id) => {
-  document.querySelectorAll('.detay-sekme').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
-  document.querySelectorAll('.detay-tab').forEach(p=>p.classList.toggle('active',p.id==='tab-'+id));
-  if (id==='harita' && mera?.kml_drive_file_id) haritaYukle();
+window.sekmeyiAc = (tabId) => {
+  document.querySelectorAll('.detay-sekme').forEach(b=>b.classList.toggle('active',b.dataset.tab===tabId));
+  document.querySelectorAll('.detay-tab').forEach(p=>p.classList.toggle('active',p.id==='tab-'+tabId));
 };
 
 const loadMera = async () => {
@@ -327,6 +318,7 @@ const loadMera = async () => {
   renderGenel(); renderOtlatma(); renderNotlar(); renderDosyalar();
   document.getElementById('btn-pdf').href = `${API_MERA}/${id}/rapor/pdf`;
   document.getElementById('page-baslik').textContent = `${mera.il_ad}/${mera.mahalle_ad} — ${mera.ada?mera.ada+'/':''}${mera.parsel}`;
+  if (mera.kml_drive_file_id) setTimeout(() => haritaYukleGenel(), 300);
 };
 
 const renderGenel = () => {
@@ -341,55 +333,35 @@ const renderGenel = () => {
   document.getElementById('d-durum').innerHTML = `<span class="badge ${mera.durum==='Aktif'?'bg-success':'bg-secondary'}">${mera.durum}</span>`;
   document.getElementById('d-tahsis').textContent = mera.tahsis_durumu || '-';
 
-  // Vasıf sayacı
   const vKalan = gunKalan(mera.vasif_bitis);
-  if (vKalan !== null) {
-    const el = document.getElementById('d-vasif-sayac');
-    el.outerHTML = sayacHtml(vKalan, 'vasif') + `<span id="d-vasif-sayac" class="d-none"></span>`;
-  }
-  if (mera.vasif_dosya_link) { const l = document.getElementById('d-vasif-link'); l.href = mera.vasif_dosya_link; l.classList.remove('d-none'); }
+  if (vKalan !== null) document.getElementById('d-vasif-sayac').innerHTML = sayacHtml(vKalan, 'vasif');
+  if (mera.vasif_dosya_link) { const l=document.getElementById('d-vasif-link'); l.href=mera.vasif_dosya_link; l.classList.remove('d-none'); }
 
-  // Tahsis sayacı
   const tKalan = gunKalan(mera.tahsis_durumu_bitis);
-  if (tKalan !== null) {
-    const el = document.getElementById('d-tahsis-sayac');
-    el.outerHTML = sayacHtml(tKalan, 'tahsis') + `<span id="d-tahsis-sayac" class="d-none"></span>`;
-  }
-  if (mera.tahsis_durumu_dosya_link) { const l = document.getElementById('d-tahsis-link'); l.href = mera.tahsis_durumu_dosya_link; l.classList.remove('d-none'); }
+  if (tKalan !== null) document.getElementById('d-tahsis-sayac').innerHTML = sayacHtml(tKalan, 'tahsis');
+  if (mera.tahsis_durumu_dosya_link) { const l=document.getElementById('d-tahsis-link'); l.href=mera.tahsis_durumu_dosya_link; l.classList.remove('d-none'); }
 
-  if (mera.toprak_sinifi_tanim) { document.getElementById('d-toprak-tanim').textContent = mera.toprak_sinifi_tanim; document.getElementById('d-toprak-tanim-alani').style.display=''; }
+  if (mera.toprak_sinifi_tanim) { document.getElementById('d-toprak-tanim').textContent=mera.toprak_sinifi_tanim; document.getElementById('d-toprak-tanim-alani').style.display=''; }
 
   // Bilgi notları
-  const bilgiNotlari = (mera.notlar||[]).filter(n=>n.renk_adi==='Bilgi'&&n.icerik!=='[SİLİNDİ]');
-  if (bilgiNotlari.length) {
-    document.getElementById('bilgi-notu-alani').style.display='';
-    document.getElementById('bilgi-notu-listesi').innerHTML = bilgiNotlari.slice(0,3).map(n=>`
-      <div class="not-kart" style="background:#e7f3ff;border-left-color:#0d6efd">
-        <div class="not-meta">${new Date(n.createdAt).toLocaleString('tr-TR')}</div>
-        <div class="not-icerik">${n.icerik}</div>
-      </div>`).join('');
-  }
+  const bilgi = (mera.notlar||[]).filter(n=>n.renk_adi==='Bilgi'&&n.icerik!=='[SİLİNDİ]');
+  const bilgiEl = document.getElementById('bilgi-notu-listesi');
+  bilgiEl.innerHTML = bilgi.slice(0,2).map(n=>`<div class="not-kart" style="background:#e7f3ff;border-left-color:#0d6efd"><div class="not-meta">${new Date(n.createdAt).toLocaleString('tr-TR')}</div><div class="not-icerik">${n.icerik}</div></div>`).join('');
 
-  // Son notlar önizleme
-  const aktifNotlar = (mera.notlar||[]).filter(n=>n.icerik!=='[SİLİNDİ]');
-  document.getElementById('not-sayisi').textContent = aktifNotlar.length;
-  const sonNotlar = [...aktifNotlar].reverse().slice(0, 5);
-  const wrap = document.getElementById('son-notlar-wrap');
-  if (!sonNotlar.length) {
-    document.getElementById('son-notlar-icerik').innerHTML = '<p class="text-muted text-center small py-2">Henüz not yok.</p>';
-  } else {
-    document.getElementById('son-notlar-icerik').innerHTML = sonNotlar.map(n=>`
-      <div class="not-kart" style="background:${n.renk}15;border-left-color:${n.renk}">
-        <div class="not-meta">${new Date(n.createdAt).toLocaleString('tr-TR')}</div>
-        <div class="not-icerik">${n.icerik}</div>
-      </div>`).join('');
-    // Taşıyor mu kontrol et
-    setTimeout(() => {
-      if (wrap.scrollHeight > wrap.clientHeight + 10) {
-        document.getElementById('son-notlar-devam').classList.remove('d-none');
-      }
-    }, 100);
-  }
+  // Son notlar
+  const aktif = (mera.notlar||[]).filter(n=>n.icerik!=='[SİLİNDİ]');
+  document.getElementById('not-sayisi').textContent = aktif.length;
+  const son = [...aktif].reverse().slice(0,5);
+  document.getElementById('son-notlar-icerik').innerHTML = son.map(n=>`
+    <div class="not-kart" style="background:${n.renk}15;border-left-color:${n.renk}">
+      <div class="not-meta">${new Date(n.createdAt).toLocaleString('tr-TR')}</div>
+      <div class="not-icerik">${n.icerik}</div>
+      ${n.dosya_id ? `<div class="mt-1"><i class="bi bi-paperclip"></i> <small class="text-muted">Dosya ekli</small></div>` : ''}
+    </div>`).join('') || '<p class="text-muted text-center small py-2">Henüz not yok.</p>';
+  setTimeout(() => {
+    const wrap = document.getElementById('son-notlar-wrap');
+    if (wrap && wrap.scrollHeight > wrap.clientHeight + 10) document.getElementById('son-notlar-devam').classList.remove('d-none');
+  }, 100);
 };
 
 const renderOtlatma = () => {
@@ -405,7 +377,7 @@ const renderOtlatma = () => {
       <div class="col-md-4"><div class="ot-kutu text-center"><div class="ot-label">Otlatma Kapasitesi</div><div class="ot-val" style="font-size:1.8rem">${fmt(o.otlatma_kapasitesi_bbhb)}</div><div class="ot-alt">BBHB</div></div></div>
       <div class="col-md-4"><div class="ot-kutu text-center"><div class="ot-label">180 Günlük Hayvan</div><div class="ot-val" style="font-size:1.8rem">${fmt(o.hayvan_sayisi_180gun)}</div><div class="ot-alt">baş / dönem</div></div></div>
       <div class="col-md-4"></div>
-      <div class="col-md-4"><div class="ot-kutu"><div class="ot-label">Yararlanılabilir Yeşil Ot</div><div class="ot-val">${fmt(o.yararlanilabilir_yesil_ot_ton)} <small style="font-size:12px">ton</small></div><div class="ot-alt">${fmt(o.yararlanilabilir_yesil_ot_kg)} kg / 180 gün</div></div></div>
+      <div class="col-md-4"><div class="ot-kutu"><div class="ot-label">Yararlanılabilir Yeşil Ot</div><div class="ot-val">${fmt(o.yararlanilabilir_yesil_ot_ton)} <small style="font-size:12px">ton</small></div><div class="ot-alt">${fmt(o.yararlanilabilir_yesil_ot_kg)} kg</div></div></div>
       <div class="col-md-4"><div class="ot-kutu"><div class="ot-label">Üretilen Yeşil Ot</div><div class="ot-val">${fmt(o.uretilen_yesil_ot_ton)} <small style="font-size:12px">ton</small></div><div class="ot-alt">${fmt(o.uretilen_yesil_ot_kg)} kg</div></div></div>
       <div class="col-md-4"><div class="ot-kutu"><div class="ot-label">Üretilen Kuru Ot</div><div class="ot-val">${fmt(o.uretilen_kuru_ot_ton)} <small style="font-size:12px">ton</small></div><div class="ot-alt">${fmt(o.uretilen_kuru_ot_kg)} kg</div></div></div>
     </div>`;
@@ -413,13 +385,21 @@ const renderOtlatma = () => {
 
 // Notlar
 const renderNotlar = () => {
-  const notlar = mera.notlar || [];
   const renkler = ayarlar?.not_renkleri || [];
   if (!seciliRenk && renkler.length) seciliRenk = renkler[0];
   document.getElementById('renk-secim').innerHTML = renkler.map(r=>`
     <span class="px-3 py-1 rounded-pill small fw-semibold" style="background:${r.renk};color:${r.metin_rengi};cursor:pointer;border:2px solid ${seciliRenk?.renk===r.renk?'#000':'transparent'}" onclick="secRenk('${r.renk}','${r.ad}','${r.metin_rengi}')">${r.ad}</span>`).join('');
 
-  document.getElementById('not-listesi-tam').innerHTML = [...notlar].reverse().map(n=>`
+  // Dosya notuna renk seçici
+  document.getElementById('dosya-not-renk-secim').innerHTML = renkler.map(r=>`
+    <span class="px-2 py-0 rounded-pill small fw-semibold" style="background:${r.renk};color:${r.metin_rengi};cursor:pointer;border:2px solid ${seciliDosyaNotRenk?.renk===r.renk?'#000':'transparent'}" onclick="secDosyaNotRenk('${r.renk}','${r.ad}','${r.metin_rengi}')">${r.ad}</span>`).join('');
+
+  // Yüklü dosyadan seçim listesi
+  const dosyaSec = document.getElementById('not-dosya-sec');
+  const aktifDosyalar = (mera.dosyalar||[]).filter(d=>d.drive_web_link);
+  dosyaSec.innerHTML = '<option value="">— Yüklü dosyadan seç —</option>' + aktifDosyalar.map(d=>`<option value="${d._id}">${d.ad}</option>`).join('');
+
+  document.getElementById('not-listesi-tam').innerHTML = [...(mera.notlar||[])].reverse().map(n=>`
     <div class="not-kart ${n.icerik==='[SİLİNDİ]'?'not-silindi':''}" style="background:${n.renk}15;border-left-color:${n.renk}">
       <div class="not-meta d-flex justify-content-between">
         <span><span class="px-2 py-0 rounded-pill" style="background:${n.renk};color:${n.metin_rengi};font-size:10px">${n.renk_adi}</span> &nbsp;${new Date(n.createdAt).toLocaleString('tr-TR')}</span>
@@ -429,34 +409,52 @@ const renderNotlar = () => {
         </div>`:''}
       </div>
       <div class="not-icerik">${n.icerik}</div>
+      ${n.dosya_id ? (() => { const d=(mera.dosyalar||[]).find(x=>String(x._id)===String(n.dosya_id)); return d?`<div class="mt-1 small"><i class="bi bi-paperclip text-muted"></i> <a href="${d.drive_web_link}" target="_blank" class="text-muted">${d.ad}</a></div>`:''; })() : ''}
     </div>`).join('') || '<p class="text-muted text-center small py-3">Henüz not yok.</p>';
 };
 
 window.secRenk = (renk,ad,metin) => { seciliRenk={renk,ad,metin_rengi:metin}; renderNotlar(); };
+window.secDosyaNotRenk = (renk,ad,metin) => { seciliDosyaNotRenk={renk,ad,metin_rengi:metin}; renderNotlar(); };
+
+// Dosya not alanı göster/gizle
+document.addEventListener('DOMContentLoaded', () => {
+  const notInp = document.getElementById('dosya-not');
+  if (notInp) notInp.addEventListener('input', () => {
+    document.getElementById('dosya-not-renk').classList.toggle('d-none', !notInp.value.trim());
+  });
+});
 
 window.notEkle = async () => {
   const icerik = document.getElementById('not-icerik').value.trim();
   if (!icerik) { showToast('Not içeriği giriniz.','warning'); return; }
-  const r = await fetch(`${API_MERA}/${id}/notlar`,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({icerik,renk:seciliRenk?.renk||'#0d6efd',renk_adi:seciliRenk?.ad||'Bilgi',metin_rengi:seciliRenk?.metin_rengi||'#fff'})});
+  const dosyaInput = document.getElementById('not-dosya-input');
+  const dosyaSec = document.getElementById('not-dosya-sec').value;
+
+  const form = new FormData();
+  form.append('icerik', icerik);
+  form.append('renk', seciliRenk?.renk||'#0d6efd');
+  form.append('renk_adi', seciliRenk?.ad||'Bilgi');
+  form.append('metin_rengi', seciliRenk?.metin_rengi||'#fff');
+  if (dosyaInput.files[0]) form.append('dosya', dosyaInput.files[0]);
+  else if (dosyaSec) form.append('dosya_id', dosyaSec);
+
+  const r = await fetch(`${API_MERA}/${id}/notlar`,{method:'POST',body:form});
   const j = await r.json();
-  if (j.success) { document.getElementById('not-icerik').value=''; await loadMera(); showToast('Not eklendi.'); }
+  if (j.success) { document.getElementById('not-icerik').value=''; dosyaInput.value=''; document.getElementById('not-dosya-sec').value=''; await loadMera(); showToast('Not eklendi.'); }
   else showToast(j.message,'danger');
 };
 
 window.notDuzenleAc = (notId) => {
   duzenlenenNotId = notId;
-  const not = mera.notlar.find(n=>n._id===notId);
-  if (!not) return;
+  const not = mera.notlar.find(n=>n._id===notId); if (!not) return;
   document.getElementById('not-duzenle-icerik').value = not.icerik;
   const renkler = ayarlar?.not_renkleri||[];
   document.getElementById('not-duzenle-renkler').innerHTML = renkler.map(r=>`
     <span class="px-3 py-1 rounded-pill small fw-semibold" style="background:${r.renk};color:${r.metin_rengi};cursor:pointer;border:2px solid ${not.renk===r.renk?'#000':'transparent'}" onclick="this.parentElement.querySelectorAll('span').forEach(s=>s.style.border='2px solid transparent');this.style.border='2px solid #000';window.duzenlenenRenk={renk:'${r.renk}',renk_adi:'${r.ad}',metin_rengi:'${r.metin_rengi}'}">${r.ad}</span>`).join('');
-  if (not.duzenlemeler?.length) { document.getElementById('not-gecmis').classList.remove('d-none'); document.getElementById('not-gecmis-liste').innerHTML = not.duzenlemeler.map(d=>`<div class="small border-bottom py-1 text-muted">${new Date(d.tarih).toLocaleString('tr-TR')}: ${d.eski_icerik}</div>`).join(''); }
+  if (not.duzenlemeler?.length) { document.getElementById('not-gecmis').classList.remove('d-none'); document.getElementById('not-gecmis-liste').innerHTML=not.duzenlemeler.map(d=>`<div class="small border-bottom py-1 text-muted">${new Date(d.tarih).toLocaleString('tr-TR')}: ${d.eski_icerik}</div>`).join(''); }
   else document.getElementById('not-gecmis').classList.add('d-none');
   new bootstrap.Modal(document.getElementById('notModal')).show();
 };
-
 window.duzenlenenRenk = null;
 window.notGuncelle = async () => {
   const icerik = document.getElementById('not-duzenle-icerik').value.trim();
@@ -465,128 +463,146 @@ window.notGuncelle = async () => {
   const renk = window.duzenlenenRenk||{renk:not?.renk,renk_adi:not?.renk_adi,metin_rengi:not?.metin_rengi};
   const r = await fetch(`${API_MERA}/${id}/notlar/${duzenlenenNotId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({icerik,...renk})});
   const j = await r.json();
-  if (j.success) { bootstrap.Modal.getInstance(document.getElementById('notModal')).hide(); await loadMera(); showToast('Not güncellendi.'); }
+  if(j.success){bootstrap.Modal.getInstance(document.getElementById('notModal')).hide();await loadMera();showToast('Not güncellendi.');}
   else showToast(j.message,'danger');
 };
-
 window.notSil = async (notId) => {
-  if (!confirm('Not silinecek (log tutulacak).')) return;
+  if(!confirm('Not silinecek (log tutulacak).')) return;
   const r = await fetch(`${API_MERA}/${id}/notlar/${notId}`,{method:'DELETE'});
   const j = await r.json();
-  if (j.success) { await loadMera(); showToast('Not silindi.'); }
+  if(j.success){await loadMera();showToast('Not silindi.');}
 };
 
 // Dosyalar
 const renderDosyalar = () => {
-  const dosyalar = mera.dosyalar||[];
-  document.getElementById('dosya-sayisi').textContent = dosyalar.length;
+  const filtre = document.getElementById('dosya-kaynak-filtre')?.value || '';
+  const dosyalar = (mera.dosyalar||[]).filter(d => !filtre || d.kaynak === filtre);
+  document.getElementById('dosya-sayisi').textContent = (mera.dosyalar||[]).length;
   const kategoriler = ayarlar?.dosya_kategorileri?.filter(k=>k.aktif)||[];
   document.getElementById('dosya-kategori').innerHTML = kategoriler.map(k=>`<option>${k.ad}</option>`).join('');
+
+  const kaynakEtiket = (kaynak) => {
+    const map = {kml:'KML',vasif:'Vasıf',tahsis:'Tahsis',dosyalar:'Genel'};
+    const cls = {kml:'kaynak-kml',vasif:'kaynak-vasif',tahsis:'kaynak-tahsis',dosyalar:''};
+    return `<span class="kaynak-badge ${cls[kaynak]||''}">${map[kaynak]||kaynak}</span>`;
+  };
+
   document.getElementById('dosya-listesi').innerHTML = dosyalar.length ? `
     <table class="table table-sm mis-table mb-0">
-      <thead><tr><th>Ad</th><th>Kategori</th><th>Boyut</th><th>Tarih</th><th>İşlemler</th></tr></thead>
+      <thead><tr><th>Ad</th><th>Kategori</th><th>Kaynak</th><th>Tarih</th><th>İşlemler</th></tr></thead>
       <tbody>${dosyalar.map(d=>`<tr>
-        <td class="small">${d.ad}</td>
+        <td class="small">${d.ad}${d.not_icerik?`<br><small class="text-muted"><i class="bi bi-chat-text"></i> ${d.not_icerik}</small>`:''}</td>
         <td><span class="grup-badge">${d.kategori||'-'}</span></td>
-        <td class="small text-muted">${d.boyut?(d.boyut/1024).toFixed(0)+' KB':'-'}</td>
-        <td class="small text-muted">${new Date(d.yukleme_tarihi).toLocaleDateString('tr-TR')}</td>
+        <td>${kaynakEtiket(d.kaynak||'dosyalar')}</td>
+        <td class="small text-muted">${new Date(d.yukleme_tarihi||d.createdAt).toLocaleDateString('tr-TR')}</td>
         <td><div class="d-flex gap-1">
           <a href="${d.drive_web_link}" target="_blank" class="btn btn-xs btn-outline-secondary"><i class="bi bi-eye"></i></a>
           <a href="${d.drive_download_link}" class="btn btn-xs btn-outline-success"><i class="bi bi-download"></i></a>
           <button class="btn btn-xs btn-outline-danger" onclick="dosyaSil('${d._id}')"><i class="bi bi-trash"></i></button>
         </div></td>
       </tr>`).join('')}</tbody>
-    </table>` : '<p class="text-muted text-center py-3 small">Henüz dosya yok.</p>';
+    </table>` : '<p class="text-muted text-center py-3 small">Dosya yok.</p>';
 };
 
 window.dosyaYukle = async () => {
   const input = document.getElementById('dosya-input');
   if (!input.files[0]) { showToast('Dosya seçin.','warning'); return; }
+  const not_icerik = document.getElementById('dosya-not').value.trim();
   const form = new FormData();
   form.append('dosya', input.files[0]);
   form.append('kategori', document.getElementById('dosya-kategori').value);
   form.append('ad', document.getElementById('dosya-ad').value);
+  if (not_icerik) {
+    form.append('not_icerik', not_icerik);
+    form.append('renk', seciliDosyaNotRenk.renk);
+    form.append('renk_adi', seciliDosyaNotRenk.renk_adi);
+    form.append('metin_rengi', seciliDosyaNotRenk.metin_rengi);
+  }
   showToast('Yükleniyor...','secondary');
   const r = await fetch(`${API_MERA}/${id}/dosyalar`,{method:'POST',body:form});
   const j = await r.json();
-  if (j.success) { await loadMera(); showToast('Dosya yüklendi.'); input.value=''; }
+  if(j.success){await loadMera();showToast('Dosya yüklendi.');input.value='';document.getElementById('dosya-not').value='';document.getElementById('dosya-not-renk').classList.add('d-none');}
   else showToast(j.message,'danger');
 };
-
 window.dosyaSil = async (dosyaId) => {
   if (!confirm('Dosya silinecek?')) return;
   const r = await fetch(`${API_MERA}/${id}/dosyalar/${dosyaId}`,{method:'DELETE'});
   const j = await r.json();
-  if (j.success) { await loadMera(); showToast('Silindi.'); }
+  if(j.success){await loadMera();showToast('Silindi.');}
 };
 
-// Vasıf belge
+// Vasıf/Tahsis
 window.vasifBelgeAc = () => new bootstrap.Modal(document.getElementById('vasifModal')).show();
 window.vasifBelgeKaydet = async () => {
-  const tarih = document.getElementById('vb-tarih').value;
-  const dosya = document.getElementById('vb-dosya').files[0];
-  if (!tarih||!dosya) { showToast('Tarih ve dosya zorunlu.','warning'); return; }
-  const form = new FormData();
-  form.append('dosya', dosya);
-  form.append('vasif', document.getElementById('vb-vasif').value);
-  form.append('tarih', tarih);
+  const tarih=document.getElementById('vb-tarih').value;
+  const dosya=document.getElementById('vb-dosya').files[0];
+  if(!tarih||!dosya){showToast('Tarih ve dosya zorunlu.','warning');return;}
+  const form=new FormData(); form.append('dosya',dosya); form.append('vasif',document.getElementById('vb-vasif').value); form.append('tarih',tarih);
   showToast('Yükleniyor...','secondary');
-  const r = await fetch(`${API_MERA}/${id}/vasif-dosya`,{method:'POST',body:form});
-  const j = await r.json();
-  if (j.success) { bootstrap.Modal.getInstance(document.getElementById('vasifModal')).hide(); await loadMera(); showToast('Vasıf belgesi yüklendi.'); }
+  const r=await fetch(`${API_MERA}/${id}/vasif-dosya`,{method:'POST',body:form});
+  const j=await r.json();
+  if(j.success){bootstrap.Modal.getInstance(document.getElementById('vasifModal')).hide();await loadMera();showToast('Vasıf belgesi yüklendi.');}
   else showToast(j.message,'danger');
 };
-
-// Tahsis belge
 window.tahsisBelgeAc = () => new bootstrap.Modal(document.getElementById('tahsisModal')).show();
 window.tahsisBelgeKaydet = async () => {
-  const tarih = document.getElementById('tb-tarih').value;
-  const dosya = document.getElementById('tb-dosya').files[0];
-  if (!tarih||!dosya) { showToast('Tarih ve dosya zorunlu.','warning'); return; }
-  const form = new FormData();
-  form.append('dosya', dosya);
-  form.append('tahsis_durumu', document.getElementById('tb-tahsis').value);
-  form.append('tarih', tarih);
+  const tarih=document.getElementById('tb-tarih').value;
+  const dosya=document.getElementById('tb-dosya').files[0];
+  if(!tarih||!dosya){showToast('Tarih ve dosya zorunlu.','warning');return;}
+  const form=new FormData(); form.append('dosya',dosya); form.append('tahsis_durumu',document.getElementById('tb-tahsis').value); form.append('tarih',tarih);
   showToast('Yükleniyor...','secondary');
-  const r = await fetch(`${API_MERA}/${id}/tahsis-dosya`,{method:'POST',body:form});
-  const j = await r.json();
-  if (j.success) { bootstrap.Modal.getInstance(document.getElementById('tahsisModal')).hide(); await loadMera(); showToast('Tahsis belgesi yüklendi.'); }
+  const r=await fetch(`${API_MERA}/${id}/tahsis-dosya`,{method:'POST',body:form});
+  const j=await r.json();
+  if(j.success){bootstrap.Modal.getInstance(document.getElementById('tahsisModal')).hide();await loadMera();showToast('Tahsis belgesi yüklendi.');}
   else showToast(j.message,'danger');
 };
 
-// Harita
-const haritaYukle = () => {
+// Harita - genel sekmede
+const haritaYukleGenel = () => {
   if (!mera?.kml_drive_file_id) return;
-  if (!harita) {
-    document.getElementById('harita-placeholder').style.display='none';
-    document.getElementById('harita').style.display='';
-    harita = L.map('harita').setView([39.0,35.0],6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(harita);
+  const placeholder = document.getElementById('harita-genel-placeholder');
+  const haritaEl = document.getElementById('harita-genel');
+  if (!haritaGenel) {
+    placeholder.style.display='none'; haritaEl.style.display='';
+    haritaGenel = L.map('harita-genel').setView([39.0,35.0],6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(haritaGenel);
   }
-  const layer = omnivore.kml(`/api/mera/${id}/kml`).addTo(harita);
-  layer.on('ready',()=>{ if(layer.getBounds().isValid()) harita.fitBounds(layer.getBounds(),{padding:[20,20]}); });
-  const dlUrl = mera.kml_drive_download_link;
-  if (dlUrl) { const eb=document.getElementById('btn-earth'); eb.href=`https://earth.google.com/web/search/${encodeURIComponent(dlUrl)}`; eb.classList.remove('d-none'); }
+  const layer = omnivore.kml(`/api/mera/${id}/kml`).addTo(haritaGenel);
+  layer.on('ready',()=>{ if(layer.getBounds().isValid()) haritaGenel.fitBounds(layer.getBounds(),{padding:[10,10]}); });
+
+  // KML indirme
   document.getElementById('btn-kml-indir').href=`/api/mera/${id}/kml`; document.getElementById('btn-kml-indir').classList.remove('d-none');
+
+  // Google Earth - drive download linki ile
+  const dlUrl = mera.kml_drive_download_link;
+  if (dlUrl) {
+    const earthBtn = document.getElementById('btn-earth');
+    // Google Earth Web için doğrudan KML URL'si
+    earthBtn.href = `https://earth.google.com/web/@0,0,0a,22251752.39587329d,35y,0h,0t,0r/data=CiwiJgokCYgLXoE29zlAEYcLXoE29znAGd1yKB0zBktAITwqzTSmZUvA?kml=${encodeURIComponent(dlUrl)}`;
+    earthBtn.classList.remove('d-none');
+    // Google Earth Pro bağlantısı
+    const proWrap = document.getElementById('btn-earth-pro-wrap');
+    const proBtn = document.getElementById('btn-earth-pro');
+    proBtn.href = `googleearth:${dlUrl}`;
+    proWrap.classList.remove('d-none');
+  }
+  setTimeout(()=>haritaGenel.invalidateSize(),100);
 };
 
-window.kmlYukle = async () => {
-  const input = document.getElementById('kml-input');
-  if (!input.files[0]) { showToast('Dosya seçin.','warning'); return; }
+window.kmlYukle = async (input) => {
+  if (!input.files[0]) return;
   const form = new FormData(); form.append('kml', input.files[0]);
   showToast('KML yükleniyor...','secondary');
   const r = await fetch(`${API_MERA}/${id}/kml`,{method:'POST',body:form});
   const j = await r.json();
-  if (j.success) { showToast('KML yüklendi.'); await loadMera(); if(harita){harita.remove();harita=null;} haritaYukle(); }
+  if(j.success){showToast('KML yüklendi.');await loadMera();if(haritaGenel){haritaGenel.remove();haritaGenel=null;}haritaYukleGenel();}
   else showToast(j.message,'danger');
+  input.value='';
 };
 
-// Düzenle
-window.duzenleAc = () => window.location.href = `/mera/?duzenle=${id}`;
-
-document.getElementById('sidebarToggle').addEventListener('click',()=>document.getElementById('wrapper').classList.toggle('sidebar-collapsed'));
+window.duzenleAc = () => window.location.href=`/mera/?duzenle=${id}`;
 loadMera();
 </script>
-<style>.btn-xs{padding:2px 6px;font-size:12px;}.w-35{width:35%;}</style>
+<style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
 </body>
 </html>

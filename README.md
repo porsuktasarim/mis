@@ -77,6 +77,16 @@ Türkvet'ten indirilen Büyükbaş/Küçükbaş XLS dosyalarını otomatik işle
 
 ## Değişiklik Geçmişi
 
+### v1.5.2
+- Tüm dosyalar (KML, vasıf, tahsis, genel) dosyalar sekmesinde görünür, kaynak filtresi var
+- KML dosyaları il-ilçe-mahalle-ada-parsel-tarih-sürüm formatında adlandırılır, geçmiş saklanır
+- Tahsis dosyaları: `tarih-tahsis-belgesi-SÜRÜM` adıyla kaydedilir
+- Vasıf dosyaları: `tarih-teknik-personel-raporu-vasif-raporu-SÜRÜM` adıyla kaydedilir
+- Harita kutucuğu genel sekmede, KML yükleme inline, Google Earth Pro bağlantısı
+- Not eklerken dosya yüklenebilir veya yüklü dosyadan seçim yapılabilir
+- Dosya yüklerken not eklenebilir, not notlar sekmesinde dosya bağlantısıyla görünür
+- Google Earth URL formatı düzeltildi
+
 ### v1.5.1
 - İller plaka sırasına, ilçe/mahalleler alfabetik sıralanıyor (Türkçe collation)
 - Ayarlar > İdari Yönetim sekmesi: il/ilçe/mahalle ara, düzenle, sil, ekle

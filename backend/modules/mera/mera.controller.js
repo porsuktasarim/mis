@@ -226,28 +226,55 @@ const kmlYukle = async (req, res, next) => {
     let kmlBuffer = req.file.buffer;
     let mimeType = 'application/vnd.google-earth.kml+xml';
 
-    // KMZ ise aç
     if (req.file.originalname.toLowerCase().endsWith('.kmz')) {
       const JSZip = require('jszip');
       const zip = await JSZip.loadAsync(kmlBuffer);
       const kmlFile = Object.keys(zip.files).find(f => f.endsWith('.kml'));
       if (!kmlFile) return res.status(400).json({ success: false, message: 'KMZ içinde KML bulunamadı' });
       kmlBuffer = Buffer.from(await zip.files[kmlFile].async('arraybuffer'));
-      mimeType = 'application/vnd.google-earth.kml+xml';
     }
 
-    // Drive'a yükle
-    const drive = await getDriveClient();
-    const dosyaAdi = `${mera.ada || '0'}-${mera.parsel}-parsel.kml`;
-    const folderId = await getMisDriveFolder(drive, [mera.il_ad, mera.ilce_ad, mera.mahalle_ad, `${mera.ada || '0'}-${mera.parsel}`]);
-    const driveData = await driveYukle(drive, folderId, dosyaAdi, mimeType, kmlBuffer);
+    // Adlandırma: il-ilçe-mahalle-ada-parsel-YYYYMMDD-surum
+    const tarihStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const surum = Math.random().toString(36).slice(2,6).toUpperCase();
+    const temizle = (s) => (s||'').replace(/\s+/g,'-').replace(/[^a-zA-Z0-9\-_ğüşıöçĞÜŞİÖÇ]/g,'');
+    const dosyaAdi = `${temizle(mera.il_ad)}-${temizle(mera.ilce_ad)}-${temizle(mera.mahalle_ad)}-${mera.ada||'0'}-${mera.parsel}-${tarihStr}-${surum}.kml`;
 
+    const drive = await getDriveClient();
+    const folderId = await getMisDriveFolder(drive, [mera.il_ad, mera.ilce_ad, mera.mahalle_ad, `${mera.ada||'0'}-${mera.parsel}`, 'KML']);
+    const driveData = await driveYukle(drive, folderId, dosyaAdi, mimeType, kmlBuffer);
+    const downloadLink = `https://drive.google.com/uc?export=download&id=${driveData.id}`;
+
+    // Eski KML'i geçmişe al
+    if (mera.kml_drive_file_id) {
+      mera.kml_gecmis.push({
+        drive_file_id: mera.kml_drive_file_id,
+        drive_web_link: mera.kml_drive_web_link,
+        drive_download_link: mera.kml_drive_download_link,
+        dosya_adi: mera.kml_gecmis.length > 0 ? `önceki-${mera.kml_gecmis.length}` : 'ilk',
+        surum,
+      });
+    }
+
+    // Aktif KML güncelle
     mera.kml_drive_file_id = driveData.id;
     mera.kml_drive_web_link = driveData.webViewLink;
-    mera.kml_drive_download_link = `https://drive.google.com/uc?export=download&id=${driveData.id}`;
-    await mera.save();
+    mera.kml_drive_download_link = downloadLink;
 
-    res.json({ success: true, data: { file_id: driveData.id, web_link: driveData.webViewLink, download_link: mera.kml_drive_download_link } });
+    // Dosyalar sekmesine de ekle
+    mera.dosyalar.push({
+      ad: dosyaAdi,
+      kategori: 'KML Dosyası',
+      kaynak: 'kml',
+      drive_file_id: driveData.id,
+      drive_web_link: driveData.webViewLink,
+      drive_download_link: downloadLink,
+      boyut: kmlBuffer.length,
+      mime_type: mimeType,
+    });
+
+    await mera.save();
+    res.json({ success: true, data: { file_id: driveData.id, web_link: driveData.webViewLink, download_link: downloadLink, dosya_adi: dosyaAdi } });
   } catch (err) { next(err); }
 };
 
@@ -268,8 +295,44 @@ const notEkle = async (req, res, next) => {
   try {
     const mera = await Mera.findById(req.params.id);
     if (!mera) return res.status(404).json({ success: false, message: 'Mera bulunamadı' });
-    const { icerik, renk, renk_adi, metin_rengi } = req.body;
-    mera.notlar.push({ icerik, renk: renk || '#0d6efd', renk_adi: renk_adi || 'Bilgi', metin_rengi: metin_rengi || '#fff' });
+    const { icerik, renk, renk_adi, metin_rengi, dosya_id } = req.body;
+
+    const notVerisi = {
+      icerik,
+      renk: renk || '#0d6efd',
+      renk_adi: renk_adi || 'Bilgi',
+      metin_rengi: metin_rengi || '#fff',
+    };
+
+    // Dosya yükleme varsa Drive'a at
+    if (req.file) {
+      const drive = await getDriveClient();
+      const tarihStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+      const surum = Math.random().toString(36).slice(2,6).toUpperCase();
+      const dosyaAdi = `${tarihStr}-not-eki-${surum}${path.extname(req.file.originalname)}`;
+      const folderId = await getMisDriveFolder(drive, [mera.il_ad, mera.ilce_ad, mera.mahalle_ad, `${mera.ada||'0'}-${mera.parsel}`, 'Notlar']);
+      const driveData = await driveYukle(drive, folderId, dosyaAdi, req.file.mimetype, req.file.buffer);
+      const downloadLink = `https://drive.google.com/uc?export=download&id=${driveData.id}`;
+
+      // Dosyalar listesine ekle
+      mera.dosyalar.push({
+        ad: dosyaAdi,
+        kategori: 'Not Eki',
+        kaynak: 'dosyalar',
+        drive_file_id: driveData.id,
+        drive_web_link: driveData.webViewLink,
+        drive_download_link: downloadLink,
+        boyut: req.file.buffer.length,
+        mime_type: req.file.mimetype,
+        not_icerik: icerik,
+      });
+      notVerisi.dosya_id = mera.dosyalar[mera.dosyalar.length - 1]._id;
+    } else if (dosya_id) {
+      // Mevcut dosyadan seçim
+      notVerisi.dosya_id = dosya_id;
+    }
+
+    mera.notlar.push(notVerisi);
     await mera.save();
     res.json({ success: true, data: mera.notlar[mera.notlar.length - 1] });
   } catch (err) { next(err); }
@@ -319,13 +382,13 @@ const dosyaYukle = async (req, res, next) => {
       }
     }
 
-    const { kategori, ad } = req.body;
+    const { kategori, ad, not_icerik } = req.body;
     const tarih = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const dosyaAdi = `${tarih}-${(kategori || 'diger').replace(/\s/g,'-')}-${ad || req.file.originalname}`;
+    const surum = Math.random().toString(36).slice(2,6).toUpperCase();
+    const dosyaAdi = `${tarih}-${(kategori || 'diger').replace(/\s/g,'-')}-${ad || surum}`;
     const ext = path.extname(req.file.originalname);
     const temizAd = dosyaAdi.endsWith(ext) ? dosyaAdi : dosyaAdi + ext;
 
-    // Görsel sıkıştır
     let buffer = req.file.buffer;
     let mimeType = req.file.mimetype;
     const goruntuMime = ['image/jpeg','image/jpg','image/png','image/webp'];
@@ -340,15 +403,31 @@ const dosyaYukle = async (req, res, next) => {
       `${mera.ada || '0'}-${mera.parsel}`, kategori || 'Diger'
     ]);
     const driveData = await driveYukle(drive, folderId, temizAd, mimeType, buffer);
+    const downloadLink = `https://drive.google.com/uc?export=download&id=${driveData.id}`;
 
     mera.dosyalar.push({
       ad: temizAd, kategori,
+      kaynak: 'dosyalar',
       drive_file_id: driveData.id,
       drive_web_link: driveData.webViewLink,
-      drive_download_link: `https://drive.google.com/uc?export=download&id=${driveData.id}`,
+      drive_download_link: downloadLink,
       boyut: buffer.length,
       mime_type: mimeType,
+      not_icerik: not_icerik || '',
     });
+
+    // Not ekleme
+    if (not_icerik) {
+      const { renk, renk_adi, metin_rengi } = req.body;
+      mera.notlar.push({
+        icerik: not_icerik,
+        renk: renk || '#0d6efd',
+        renk_adi: renk_adi || 'Bilgi',
+        metin_rengi: metin_rengi || '#fff',
+        dosya_id: mera.dosyalar[mera.dosyalar.length - 1]._id,
+      });
+    }
+
     await mera.save();
     res.json({ success: true, data: mera.dosyalar[mera.dosyalar.length - 1] });
   } catch (err) { next(err); }
@@ -452,14 +531,30 @@ const vasifDosyaYukle = async (req, res, next) => {
 
     const drive = await getDriveClient();
     const tarihStr = tarihObj.toISOString().slice(0,10).replace(/-/g,'');
+    const surum = Math.random().toString(36).slice(2,6).toUpperCase();
+    const dosyaAdi = `${tarihStr}-teknik-personel-raporu-vasif-raporu-${surum}${path.extname(req.file.originalname)}`;
     const folderId = await getMisDriveFolder(drive, [mera.il_ad, mera.ilce_ad, mera.mahalle_ad, `${mera.ada||'0'}-${mera.parsel}`, 'Vasıf']);
-    const driveData = await driveYukle(drive, folderId, `${tarihStr}-vasif-belgesi${path.extname(req.file.originalname)}`, req.file.mimetype, req.file.buffer);
+    const driveData = await driveYukle(drive, folderId, dosyaAdi, req.file.mimetype, req.file.buffer);
+    const downloadLink = `https://drive.google.com/uc?export=download&id=${driveData.id}`;
 
     if (vasif) mera.vasif = vasif;
     mera.vasif_tarih = tarihObj;
     mera.vasif_bitis = bitisTarihi;
     mera.vasif_dosya_id = driveData.id;
     mera.vasif_dosya_link = driveData.webViewLink;
+
+    // Dosyalar sekmesine ekle
+    mera.dosyalar.push({
+      ad: dosyaAdi,
+      kategori: 'Teknik Personel Raporu',
+      kaynak: 'vasif',
+      drive_file_id: driveData.id,
+      drive_web_link: driveData.webViewLink,
+      drive_download_link: downloadLink,
+      boyut: req.file.size,
+      mime_type: req.file.mimetype,
+    });
+
     await mera.save();
     res.json({ success: true, data: { vasif: mera.vasif, vasif_tarih: mera.vasif_tarih, vasif_bitis: mera.vasif_bitis, link: driveData.webViewLink } });
   } catch (err) { next(err); }
@@ -480,14 +575,30 @@ const tahsisDosyaYukle = async (req, res, next) => {
 
     const drive = await getDriveClient();
     const tarihStr = tarihObj.toISOString().slice(0,10).replace(/-/g,'');
+    const surum = Math.random().toString(36).slice(2,6).toUpperCase();
+    const dosyaAdi = `${tarihStr}-tahsis-belgesi-${surum}${path.extname(req.file.originalname)}`;
     const folderId = await getMisDriveFolder(drive, [mera.il_ad, mera.ilce_ad, mera.mahalle_ad, `${mera.ada||'0'}-${mera.parsel}`, 'Tahsis']);
-    const driveData = await driveYukle(drive, folderId, `${tarihStr}-tahsis-belgesi${path.extname(req.file.originalname)}`, req.file.mimetype, req.file.buffer);
+    const driveData = await driveYukle(drive, folderId, dosyaAdi, req.file.mimetype, req.file.buffer);
+    const downloadLink = `https://drive.google.com/uc?export=download&id=${driveData.id}`;
 
     if (tahsis_durumu) mera.tahsis_durumu = tahsis_durumu;
     mera.tahsis_durumu_tarih = tarihObj;
     mera.tahsis_durumu_bitis = bitisTarihi;
     mera.tahsis_durumu_dosya_id = driveData.id;
     mera.tahsis_durumu_dosya_link = driveData.webViewLink;
+
+    // Dosyalar sekmesine ekle
+    mera.dosyalar.push({
+      ad: dosyaAdi,
+      kategori: 'Tahsis Belgesi',
+      kaynak: 'tahsis',
+      drive_file_id: driveData.id,
+      drive_web_link: driveData.webViewLink,
+      drive_download_link: downloadLink,
+      boyut: req.file.size,
+      mime_type: req.file.mimetype,
+    });
+
     await mera.save();
     res.json({ success: true, data: { tahsis_durumu: mera.tahsis_durumu, tarih: mera.tahsis_durumu_tarih, bitis: mera.tahsis_durumu_bitis, link: driveData.webViewLink } });
   } catch (err) { next(err); }
