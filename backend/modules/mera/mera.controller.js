@@ -191,8 +191,9 @@ const guncelle = async (req, res, next) => {
     const mera = await Mera.findById(req.params.id);
     if (!mera) return res.status(404).json({ success: false, message: 'Mera bulunamadı' });
     const guncellenecek = ['il_id','il_ad','ilce_id','ilce_ad','mahalle_id','mahalle_ad',
-      'ada','parsel','tapu_alani_da','nitelik','vasif','toprak_sinifi','durum','aciklama'];
+      'ada','parsel','tapu_alani_da','kadastral_alan_da','nitelik','vasif','toprak_sinifi','durum','aciklama'];
     guncellenecek.forEach(alan => { if (req.body[alan] !== undefined) mera[alan] = req.body[alan]; });
+    if (req.body.mulkiyet !== undefined) mera.mulkiyet = { ...mera.mulkiyet?.toObject?.() || {}, ...req.body.mulkiyet };
 
     const ayarlar = await Ayarlar.findOne();
     if (req.body.toprak_sinifi) {
@@ -455,60 +456,114 @@ const pdfRapor = async (req, res, next) => {
     if (!mera) return res.status(404).json({ success: false, message: 'Mera bulunamadı' });
 
     const o = mera.otlatma;
-    const fmt = (n) => n != null ? n.toLocaleString('tr-TR') : '-';
+    const m = mera.mulkiyet || {};
+    const fmt = (n) => n != null ? Number(n).toLocaleString('tr-TR') : '-';
+
+    const baslik = `${mera.il_ad} / ${mera.ilce_ad} / ${mera.mahalle_ad} — Ada: ${mera.ada||'-'} Parsel: ${mera.parsel}`;
+
+    const sayfaBasligi = `
+      <div class="sayfa-baslik">
+        <strong>MERA PARSEL RAPORU</strong>
+        <span class="kucuk">${baslik}</span>
+      </div>`;
 
     const html = `<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8"/>
-  <title>Mera Raporu - ${mera.il_ad}/${mera.mahalle_ad} Ada:${mera.ada} Parsel:${mera.parsel}</title>
+  <title>Mera Raporu - ${baslik}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&display=swap');
     *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:'Noto Sans',Arial,sans-serif;font-size:11pt;color:#222;padding:15mm;}
-    h1{font-size:14pt;text-align:center;margin-bottom:6mm;color:#0F6E56;}
-    h2{font-size:11pt;color:#0F6E56;margin:5mm 0 3mm;border-bottom:1px solid #9FE1CB;padding-bottom:2mm;}
-    table{width:100%;border-collapse:collapse;margin-bottom:4mm;font-size:10pt;}
-    th{background:#0F6E56;color:#fff;padding:4pt 8pt;text-align:left;}
-    td{padding:3pt 8pt;border-bottom:1px solid #eee;}
-    .label{color:#666;width:35%;}
+    body{font-family:'Noto Sans',Arial,sans-serif;font-size:10pt;color:#222;padding:12mm 15mm;}
+    .sayfa-baslik{border-bottom:2px solid #0F6E56;padding-bottom:3mm;margin-bottom:4mm;display:flex;justify-content:space-between;align-items:flex-end;}
+    .sayfa-baslik strong{font-size:13pt;color:#0F6E56;}
+    .sayfa-baslik .kucuk{font-size:9pt;color:#666;}
+    h2{font-size:11pt;color:#0F6E56;margin:5mm 0 2mm;border-bottom:1px solid #9FE1CB;padding-bottom:1mm;}
+    table{width:100%;border-collapse:collapse;margin-bottom:3mm;font-size:9.5pt;}
+    th{background:#0F6E56;color:#fff;padding:3pt 7pt;text-align:left;font-size:9pt;}
+    td{padding:3pt 7pt;border-bottom:1px solid #eee;vertical-align:top;}
+    .label{color:#555;width:28%;font-size:9pt;}
     .val{font-weight:500;}
-    .footer{margin-top:8mm;font-size:9pt;color:#aaa;text-align:center;border-top:1px solid #ddd;padding-top:3mm;}
-    @media print{.no-print{display:none;}}
+    .badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:8.5pt;}
+    .footer{margin-top:6mm;font-size:8.5pt;color:#aaa;text-align:center;border-top:1px solid #ddd;padding-top:2mm;}
+    .print-btn{text-align:center;margin-bottom:6mm;}
+    @media print{
+      .print-btn{display:none;}
+      .sayfa-kirici{page-break-before:always;}
+      .sayfa-baslik{display:flex!important;}
+    }
   </style>
 </head>
 <body>
-  <div class="no-print" style="text-align:center;margin-bottom:6mm;">
+  <div class="print-btn">
     <button onclick="window.print()" style="background:#0F6E56;color:#fff;border:none;padding:7px 22px;border-radius:6px;font-size:11pt;cursor:pointer;">PDF Olarak Yazdır / Kaydet</button>
   </div>
-  <h1>MERA PARSEL RAPORU</h1>
-  <h2>Konum Bilgileri</h2>
+
+  ${sayfaBasligi}
+
+  <h2>Mera Bilgileri</h2>
   <table><tbody>
     <tr><td class="label">İl</td><td class="val">${mera.il_ad}</td><td class="label">İlçe</td><td class="val">${mera.ilce_ad}</td></tr>
-    <tr><td class="label">Mahalle/Köy</td><td class="val">${mera.mahalle_ad}</td><td class="label">Ada</td><td class="val">${mera.ada||'-'}</td></tr>
-    <tr><td class="label">Parsel</td><td class="val">${mera.parsel}</td><td class="label">Tapu Alanı</td><td class="val">${fmt(mera.tapu_alani_da)} da</td></tr>
+    <tr><td class="label">Mahalle/Köy</td><td class="val">${mera.mahalle_ad}</td><td class="label">Ada / Parsel</td><td class="val">${mera.ada||'-'} / ${mera.parsel}</td></tr>
+    <tr><td class="label">Tapu Alanı</td><td class="val">${fmt(mera.tapu_alani_da)} da</td><td class="label">Kadastral Alan</td><td class="val">${mera.kadastral_alan_da ? fmt(mera.kadastral_alan_da)+' da' : '-'}</td></tr>
     <tr><td class="label">Nitelik</td><td class="val">${mera.nitelik||'-'}</td><td class="label">Durum</td><td class="val">${mera.durum}</td></tr>
-    <tr><td class="label">Vasıf</td><td class="val">${mera.vasif||'-'}</td><td class="label">Toprak Sınıfı</td><td class="val">${mera.toprak_sinifi||'-'}</td></tr>
+    <tr><td class="label">Vasıf</td><td class="val">${mera.vasif||'-'}${mera.vasif_bitis?` (${new Date(mera.vasif_bitis).toLocaleDateString('tr-TR')} bitiş)`:''}</td><td class="label">Toprak Sınıfı</td><td class="val">${mera.toprak_sinifi||'-'}</td></tr>
+    <tr><td class="label">Tahsis Durumu</td><td class="val">${mera.tahsis_durumu||'-'}${mera.tahsis_durumu_bitis?` (${new Date(mera.tahsis_durumu_bitis).toLocaleDateString('tr-TR')} bitiş)`:''}</td><td class="label">KML Haritası</td><td class="val">${mera.kml_drive_file_id ? '✓ Yüklü' : '✗ Yüklenmemiş'}</td></tr>
   </tbody></table>
+
+  ${(m.malik || m.cilt_no) ? `
+  <h2>Mülkiyet Bilgileri (Tapu Kaydı)</h2>
+  <table><tbody>
+    <tr><td class="label">Cilt No</td><td class="val">${m.cilt_no||'-'}</td><td class="label">Sayfa No</td><td class="val">${m.sayfa_no||'-'}</td></tr>
+    <tr><td class="label">Kayıt Durumu</td><td class="val">${m.kayit_durum||'-'}</td><td class="label">Pay / Payda</td><td class="val">${m.pay||'-'} / ${m.payda||'-'}</td></tr>
+    <tr><td class="label">Malik</td><td class="val" colspan="3">${m.malik||'-'}</td></tr>
+    ${m.serhler ? `<tr><td class="label">Şerhler</td><td class="val" colspan="3">${m.serhler}</td></tr>` : ''}
+  </tbody></table>` : ''}
+
   ${o ? `
   <h2>Otlatma Kapasitesi</h2>
   <table><tbody>
     <tr><td class="label">Yağış Kuşağı</td><td class="val">${o.kusak} mm</td><td class="label">Vasıf</td><td class="val">${o.vasif}</td></tr>
     <tr><td class="label">Alan</td><td class="val">${fmt(o.alan_da)} da</td><td class="label">Otlatma Kap.</td><td class="val">${fmt(o.otlatma_kapasitesi_bbhb)} BBHB</td></tr>
-    <tr><td class="label">Yar. Yeşil Ot</td><td class="val">${fmt(o.yararlanilabilir_yesil_ot_kg)} kg / ${fmt(o.yararlanilabilir_yesil_ot_ton)} ton</td>
-        <td class="label">180 Günlük Hayvan</td><td class="val">${fmt(o.hayvan_sayisi_180gun)} baş</td></tr>
-    <tr><td class="label">Üretilen Yeşil Ot</td><td class="val">${fmt(o.uretilen_yesil_ot_kg)} kg / ${fmt(o.uretilen_yesil_ot_ton)} ton</td>
-        <td class="label">Üretilen Kuru Ot</td><td class="val">${fmt(o.uretilen_kuru_ot_kg)} kg / ${fmt(o.uretilen_kuru_ot_ton)} ton</td></tr>
+    <tr><td class="label">180 Gün Hayvan</td><td class="val">${fmt(o.hayvan_sayisi_180gun)} baş</td><td class="label"></td><td></td></tr>
+    <tr><td class="label">Yar. Yeşil Ot</td><td class="val">${fmt(o.yararlanilabilir_yesil_ot_ton)} ton (${fmt(o.yararlanilabilir_yesil_ot_kg)} kg)</td>
+        <td class="label">Üretilen Yeşil Ot</td><td class="val">${fmt(o.uretilen_yesil_ot_ton)} ton</td></tr>
+    <tr><td class="label">Üretilen Kuru Ot</td><td class="val">${fmt(o.uretilen_kuru_ot_ton)} ton (${fmt(o.uretilen_kuru_ot_kg)} kg)</td><td></td><td></td></tr>
   </tbody></table>` : ''}
-  ${mera.notlar?.length ? `
+
+  ${mera.notlar?.filter(n=>n.icerik!=='[SİLİNDİ]').length ? `
+  <div class="sayfa-kirici"></div>
+  ${sayfaBasligi}
   <h2>Notlar</h2>
-  <table><tbody>
+  <table>
+    <thead><tr><th style="width:25%">Tarih</th><th style="width:12%">Tür</th><th>İçerik</th></tr></thead>
+    <tbody>
     ${mera.notlar.filter(n=>n.icerik!=='[SİLİNDİ]').map(n=>`
-    <tr><td style="width:25%;color:#666;font-size:9pt">${new Date(n.createdAt).toLocaleString('tr-TR')}</td>
-    <td><span style="background:${n.renk};color:${n.metin_rengi};padding:1px 8px;border-radius:10px;font-size:9pt">${n.renk_adi}</span></td>
+    <tr><td style="font-size:8.5pt;color:#666">${new Date(n.createdAt).toLocaleString('tr-TR')}</td>
+    <td><span class="badge" style="background:${n.renk};color:${n.metin_rengi}">${n.renk_adi}</span></td>
     <td>${n.icerik}</td></tr>`).join('')}
-  </tbody></table>` : ''}
-  <div class="footer">MİS - Mera İzleme Sistemi &nbsp;|&nbsp; ${new Date().toLocaleString('tr-TR')}</div>
+    </tbody>
+  </table>` : ''}
+
+  ${mera.dosyalar?.length ? `
+  <h2>Yüklü Dosyalar</h2>
+  <table>
+    <thead><tr><th>Dosya Adı</th><th style="width:20%">Kategori</th><th style="width:15%">Kaynak</th><th style="width:20%">Tarih</th></tr></thead>
+    <tbody>
+    ${mera.dosyalar.map(d=>{
+      const kaynakMap = {kml:'KML',vasif:'Vasıf',tahsis:'Tahsis',dosyalar:'Genel'};
+      return `<tr>
+        <td style="font-size:8.5pt">${d.ad}</td>
+        <td style="font-size:8.5pt">${d.kategori||'-'}</td>
+        <td style="font-size:8.5pt">${kaynakMap[d.kaynak]||'-'}</td>
+        <td style="font-size:8.5pt">${new Date(d.yukleme_tarihi||d.createdAt).toLocaleDateString('tr-TR')}</td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table>` : ''}
+
+  <div class="footer">MİS - Mera İzleme Sistemi &nbsp;|&nbsp; Rapor Tarihi: ${new Date().toLocaleString('tr-TR')}</div>
 </body></html>`;
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -608,22 +663,33 @@ const tahsisDosyaYukle = async (req, res, next) => {
 const istatistik = async (req, res, next) => {
   try {
     const bugun = new Date();
-    const altıAy = new Date(bugun); altıAy.setMonth(altıAy.getMonth() + 6);
+    const altiAy = new Date(bugun); altiAy.setMonth(altiAy.getMonth() + 6);
     const birYil = new Date(bugun); birYil.setFullYear(birYil.getFullYear() + 1);
 
     const [toplam, aktif, vasifUyari, tahsisUyari] = await Promise.all([
-      Mera.countDocuments(),
       Mera.countDocuments({ durum: 'Aktif' }),
-      Mera.countDocuments({ vasif_bitis: { $lt: altıAy, $gt: bugun } }),
-      Mera.countDocuments({ tahsis_durumu_bitis: { $lt: birYil, $gt: bugun } }),
+      Mera.countDocuments({ durum: 'Aktif' }),
+      Mera.countDocuments({ durum: 'Aktif', vasif_bitis: { $lt: altiAy, $gt: bugun } }),
+      Mera.countDocuments({ durum: 'Aktif', tahsis_durumu_bitis: { $lt: birYil, $gt: bugun } }),
     ]);
 
-    const vasifUyarilar = await Mera.find({ vasif_bitis: { $lt: altıAy, $gt: bugun } })
+    // Toplam hektar ve otlatma kapasitesi (sadece aktif meralar)
+    const aktifMeralar = await Mera.find({ durum: 'Aktif' }).select('tapu_alani_da otlatma');
+    const toplamHektar = aktifMeralar.reduce((sum, m) => sum + (m.tapu_alani_da || 0), 0) / 10; // da → ha
+    const toplamBbhb = aktifMeralar.reduce((sum, m) => sum + (m.otlatma?.otlatma_kapasitesi_bbhb || 0), 0);
+
+    const vasifUyarilar = await Mera.find({ durum: 'Aktif', vasif_bitis: { $lt: altiAy, $gt: bugun } })
       .select('il_ad ilce_ad mahalle_ad ada parsel vasif vasif_bitis').limit(10);
-    const tahsisUyarilar = await Mera.find({ tahsis_durumu_bitis: { $lt: birYil, $gt: bugun } })
+    const tahsisUyarilar = await Mera.find({ durum: 'Aktif', tahsis_durumu_bitis: { $lt: birYil, $gt: bugun } })
       .select('il_ad ilce_ad mahalle_ad ada parsel tahsis_durumu tahsis_durumu_bitis').limit(10);
 
-    res.json({ success: true, data: { toplam, aktif, pasif: toplam - aktif, vasif_uyari: vasifUyari, tahsis_uyari: tahsisUyari, vasif_uyarilar, tahsis_uyarilar } });
+    res.json({ success: true, data: {
+      toplam, aktif, pasif: 0,
+      toplam_hektar: parseFloat(toplamHektar.toFixed(2)),
+      toplam_bbhb: parseFloat(toplamBbhb.toFixed(2)),
+      vasif_uyari: vasifUyari, tahsis_uyari: tahsisUyari,
+      vasif_uyarilar, tahsis_uyarilar
+    }});
   } catch (err) { next(err); }
 };
 

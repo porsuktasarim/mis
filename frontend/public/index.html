@@ -8,12 +8,16 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
   <link rel="stylesheet" href="/css/main.css"/>
   <style>
-    .stat-kart{background:#fff;border:1px solid #e2e8e4;border-radius:12px;padding:1.25rem;text-align:center;}
-    .stat-deger{font-size:2rem;font-weight:700;color:#0F6E56;line-height:1;}
-    .stat-etiket{font-size:12px;color:#4a6358;margin-top:4px;}
+    .stat-kart{background:#fff;border:1px solid #e2e8e4;border-radius:12px;padding:1.25rem;text-align:center;cursor:pointer;transition:box-shadow .15s;}
+    .stat-kart:hover{box-shadow:0 4px 16px rgba(15,110,86,.12);}
+    .stat-deger{font-size:1.9rem;font-weight:700;color:#0F6E56;line-height:1.1;}
+    .stat-alt{font-size:11px;color:#888;margin-top:2px;}
+    .stat-etiket{font-size:12px;color:#4a6358;margin-top:4px;font-weight:500;}
     .uyari-kart{border-radius:10px;padding:.85rem 1rem;margin-bottom:.5rem;border-left:4px solid;}
     .uyari-vasif{background:#fff3cd;border-left-color:#ffc107;}
     .uyari-tahsis{background:#f8d7da;border-left-color:#dc3545;}
+    .hizli-kart{background:#fff;border:1px solid #e2e8e4;border-radius:12px;padding:1.25rem;display:flex;align-items:center;gap:1rem;text-decoration:none;color:inherit;transition:box-shadow .15s;}
+    .hizli-kart:hover{box-shadow:0 4px 16px rgba(15,110,86,.12);color:inherit;}
   </style>
 </head>
 <body>
@@ -28,10 +32,34 @@
 
       <!-- İstatistikler -->
       <div class="row g-3 mb-4" id="stat-satiri">
-        <div class="col-6 col-md-3"><div class="stat-kart"><div class="stat-deger" id="st-toplam">-</div><div class="stat-etiket">Toplam Mera</div></div></div>
-        <div class="col-6 col-md-3"><div class="stat-kart"><div class="stat-deger text-success" id="st-aktif">-</div><div class="stat-etiket">Aktif</div></div></div>
-        <div class="col-6 col-md-3"><div class="stat-kart"><div class="stat-deger text-warning" id="st-vasif-uyari">-</div><div class="stat-etiket">Vasıf Uyarısı</div></div></div>
-        <div class="col-6 col-md-3"><div class="stat-kart"><div class="stat-deger text-danger" id="st-tahsis-uyari">-</div><div class="stat-etiket">Tahsis Uyarısı</div></div></div>
+        <div class="col-6 col-md-3">
+          <div class="stat-kart" onclick="window.location='/mera/'">
+            <div class="stat-deger" id="st-toplam">-</div>
+            <div class="stat-alt" id="st-hektar"></div>
+            <div class="stat-etiket">Toplam Aktif Mera</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-kart" onclick="window.location='/mera/'">
+            <div class="stat-deger text-success" id="st-bbhb">-</div>
+            <div class="stat-alt">BBHB / dönem</div>
+            <div class="stat-etiket">Otlatma Kapasitesi</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-kart" onclick="window.location='/mera/'">
+            <div class="stat-deger text-warning" id="st-vasif-uyari">-</div>
+            <div class="stat-alt">6 ay içinde bitiyor</div>
+            <div class="stat-etiket">Vasıf Uyarısı</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-kart" onclick="window.location='/mera/'">
+            <div class="stat-deger text-danger" id="st-tahsis-uyari">-</div>
+            <div class="stat-alt">1 yıl içinde bitiyor</div>
+            <div class="stat-etiket">Tahsis Uyarısı</div>
+          </div>
+        </div>
       </div>
 
       <!-- Uyarılar -->
@@ -45,27 +73,21 @@
       <!-- Hızlı erişim -->
       <div class="row g-3">
         <div class="col-md-4">
-          <a href="/mera/" class="text-decoration-none">
-            <div class="mis-card d-flex align-items-center gap-3 p-3">
-              <i class="bi bi-geo-alt fs-2 text-success"></i>
-              <div><div class="fw-semibold">Mera Modülü</div><div class="small text-muted">Parsel kayıtları, harita, notlar</div></div>
-            </div>
+          <a href="/mera/" class="hizli-kart">
+            <i class="bi bi-geo-alt fs-2 text-success"></i>
+            <div><div class="fw-semibold">Mera Modülü</div><div class="small text-muted">Parsel kayıtları, harita, notlar</div></div>
           </a>
         </div>
         <div class="col-md-4">
-          <a href="/bbhb/" class="text-decoration-none">
-            <div class="mis-card d-flex align-items-center gap-3 p-3">
-              <i class="bi bi-calculator fs-2 text-success"></i>
-              <div><div class="fw-semibold">BBHB Hesaplayıcı</div><div class="small text-muted">Büyükbaş hayvan birimi hesaplama</div></div>
-            </div>
+          <a href="/bbhb/" class="hizli-kart">
+            <i class="bi bi-calculator fs-2 text-success"></i>
+            <div><div class="fw-semibold">BBHB Hesaplayıcı</div><div class="small text-muted">Büyükbaş hayvan birimi hesaplama</div></div>
           </a>
         </div>
         <div class="col-md-4">
-          <a href="/ayarlar/" class="text-decoration-none">
-            <div class="mis-card d-flex align-items-center gap-3 p-3">
-              <i class="bi bi-gear fs-2 text-success"></i>
-              <div><div class="fw-semibold">Ayarlar</div><div class="small text-muted">Drive, kategoriler, tablolar</div></div>
-            </div>
+          <a href="/ayarlar/" class="hizli-kart">
+            <i class="bi bi-gear fs-2 text-success"></i>
+            <div><div class="fw-semibold">Ayarlar</div><div class="small text-muted">Drive, kategoriler, tablolar</div></div>
           </a>
         </div>
       </div>
@@ -76,7 +98,25 @@
 <script src="/js/sidebar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-(d.tahsis_uyarilar||[]).forEach(m => {
+const fmt = n => n != null ? Number(n).toLocaleString('tr-TR') : '-';
+
+const loadIstatistik = async () => {
+  try {
+    const r = await fetch('/api/mera/istatistik');
+    const j = await r.json();
+    const d = j.data;
+    document.getElementById('st-toplam').textContent = fmt(d.toplam);
+    document.getElementById('st-hektar').textContent = fmt(d.toplam_hektar) + ' ha';
+    document.getElementById('st-bbhb').textContent = fmt(d.toplam_bbhb);
+    document.getElementById('st-vasif-uyari').textContent = fmt(d.vasif_uyari);
+    document.getElementById('st-tahsis-uyari').textContent = fmt(d.tahsis_uyari);
+
+    const uyarilar = [];
+    (d.vasif_uyarilar||[]).forEach(m => {
+      const kalan = Math.ceil((new Date(m.vasif_bitis) - new Date()) / 86400000);
+      uyarilar.push(`<div class="uyari-kart uyari-vasif"><strong><a href="/mera/detay.html?id=${m._id}" class="text-decoration-none">${m.il_ad}/${m.mahalle_ad} Ada:${m.ada||'-'} Parsel:${m.parsel}</a></strong> — Vasıf belgesi <strong>${kalan} gün</strong> sonra sona eriyor</div>`);
+    });
+    (d.tahsis_uyarilar||[]).forEach(m => {
       const kalan = Math.ceil((new Date(m.tahsis_durumu_bitis) - new Date()) / 86400000);
       uyarilar.push(`<div class="uyari-kart uyari-tahsis"><strong><a href="/mera/detay.html?id=${m._id}" class="text-decoration-none">${m.il_ad}/${m.mahalle_ad} Ada:${m.ada||'-'} Parsel:${m.parsel}</a></strong> — Tahsis belgesi <strong>${kalan} gün</strong> sonra sona eriyor</div>`);
     });
@@ -84,7 +124,7 @@
       document.getElementById('uyari-bolumu').classList.remove('d-none');
       document.getElementById('uyari-listesi').innerHTML = uyarilar.join('');
     }
-  } catch {}
+  } catch(e) { console.error(e); }
 };
 loadIstatistik();
 </script>

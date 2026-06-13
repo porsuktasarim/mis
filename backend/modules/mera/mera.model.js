@@ -90,6 +90,20 @@ const MeraSchema = new mongoose.Schema({
   kml_alan_m2: { type: Number },
   kml_koordinatlar: { type: mongoose.Schema.Types.Mixed },
 
+  // Kadastral alan (mera kayıt yüzölçümü)
+  kadastral_alan_da: { type: Number },
+
+  // Mülkiyet bilgileri (tapu kaydı)
+  mulkiyet: {
+    cilt_no: { type: String },
+    sayfa_no: { type: String },
+    kayit_durum: { type: String },
+    malik: { type: String },
+    pay: { type: String },
+    payda: { type: String },
+    serhler: { type: String },
+  },
+
   // Otlatma kapasitesi
   otlatma: { type: OtlatmaSchema },
 

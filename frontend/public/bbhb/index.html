@@ -623,7 +623,7 @@ const loadRaporlar = async () => {
   } catch { document.getElementById('rapor-tablo').innerHTML='<div class="alert alert-danger">Veriler alınamadı.</div>'; }
 };
 
-loadTurler();
+document.addEventListener('DOMContentLoaded', () => { loadTurler(); });
 </script>
 <style>
 .bbhb-dropzone{border:2px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:2rem;text-align:center;transition:background .2s,border-color .2s;cursor:pointer;}
