@@ -7,7 +7,7 @@ const path = require('path');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
-// ── Drive yardımcı ────────────────────────────────────────
+// ── Drive ─────────────────────────────────────────────────
 const getDriveClient = async () => {
   const ayarlar = await Ayarlar.findOne();
   const hesap = ayarlar?.drive_hesaplari?.find(h => h.aktif);
@@ -17,8 +17,7 @@ const getDriveClient = async () => {
     const oauth2 = new google.auth.OAuth2(client_id, client_secret, 'urn:ietf:wg:oauth:2.0:oob');
     oauth2.setCredentials(hesap.oauth_token);
     oauth2.on('tokens', async (tokens) => {
-      const guncellenen = { ...hesap.oauth_token, ...tokens };
-      await Ayarlar.updateOne({ 'drive_hesaplari._id': hesap._id }, { $set: { 'drive_hesaplari.$.oauth_token': guncellenen } });
+      await Ayarlar.updateOne({ 'drive_hesaplari._id': hesap._id }, { $set: { 'drive_hesaplari.$.oauth_token': { ...hesap.oauth_token, ...tokens } } });
     });
     return google.drive({ version: 'v3', auth: oauth2 });
   }
@@ -32,47 +31,60 @@ const getMisDriveFolder = async (drive, altKlasor) => {
   let parentId = misRes.data.files[0].id;
   for (const klasor of altKlasor) {
     const res = await drive.files.list({ q: `name='${klasor}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, fields: 'files(id)' });
-    if (res.data.files.length) { parentId = res.data.files[0].id; }
-    else {
-      const yeni = await drive.files.create({ requestBody: { name: klasor, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] }, fields: 'id' });
-      parentId = yeni.data.id;
-    }
+    if (res.data.files.length) parentId = res.data.files[0].id;
+    else { const y = await drive.files.create({ requestBody: { name: klasor, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] }, fields: 'id' }); parentId = y.data.id; }
   }
   return parentId;
 };
 
 const driveYukle = async (drive, folderId, dosyaAdi, mimeType, buffer) => {
   const { Readable } = require('stream');
-  const stream = new Readable(); stream.push(buffer); stream.push(null);
-  const res = await drive.files.create({
-    requestBody: { name: dosyaAdi, parents: [folderId] },
-    media: { mimeType, body: stream },
-    fields: 'id,webViewLink,webContentLink',
-  });
+  const s = new Readable(); s.push(buffer); s.push(null);
+  const res = await drive.files.create({ requestBody: { name: dosyaAdi, parents: [folderId] }, media: { mimeType, body: s }, fields: 'id,webViewLink' });
   await drive.permissions.create({ fileId: res.data.id, requestBody: { role: 'reader', type: 'anyone' } });
   return res.data;
 };
 
-// ── Otomatik isgal_no üret ────────────────────────────────
-const isgalNoUret = async (mera_id) => {
-  const meraIsgaller = await Isgal.countDocuments({ mera_id });
-  return `ISG-${Date.now().toString(36).toUpperCase()}-${meraIsgaller + 1}`;
+// ── İşgal No Üret ────────────────────────────────────────
+const isgalNoUret = async () => {
+  const count = await Isgal.countDocuments();
+  const yil = new Date().getFullYear().toString().slice(2);
+  const sira = String(count + 1).padStart(4, '0');
+  return `ISG-${yil}-${sira}`;
+};
+
+// ── Adım TİP Etiketleri ───────────────────────────────────
+const TIP_ETIKET = {
+  tespit_tutanak: 'Tespit Tutanağı',
+  komisyon_intikal: 'Komisyona İntikal',
+  komisyon_karar: 'Komisyon Kararı',
+  ucuncu_yol_3091: '3091 - Kaymakamlık/Valilik',
+  uc_bin_doksan_bir_sonuc: '3091 Sonucu',
+  iki_bin_sekiz_yuz_seksen_alti: '2886/75 - Jandarma/Kaymakamlık',
+  dava_men_mudahale: 'Men-i Müdahale ve Kal Davası',
+  suc_duyurusu: 'Suç Duyurusu',
+  eski_hale_getirme: 'Eski Hale Getirme',
+  tazminat_davasi: 'Tazminat Davası',
+  sonuc: 'Sonuç/Kapatma',
+  diger: 'Diğer',
 };
 
 // ── CRUD ──────────────────────────────────────────────────
 const listele = async (req, res, next) => {
   try {
-    const { mera_id, durum, ara, sayfa = 1, limit = 20 } = req.query;
+    const { mera_id, durum, aktif_adim, ara, sayfa = 1, limit = 20 } = req.query;
     const filtre = {};
     if (mera_id) filtre.mera_id = mera_id;
     if (durum) filtre.durum = durum;
+    if (aktif_adim) filtre.aktif_adim = aktif_adim;
     if (ara) filtre.$or = [
       { isgal_no: new RegExp(ara, 'i') },
+      { kullanici_no: new RegExp(ara, 'i') },
       { isgalci_ad_soyad: new RegExp(ara, 'i') },
       { mera_parsel: new RegExp(ara, 'i') },
+      { mera_mahalle_ad: new RegExp(ara, 'i') },
     ];
 
-    const bugun = new Date();
     const toplam = await Isgal.countDocuments(filtre);
     const isgaller = await Isgal.find(filtre)
       .sort({ createdAt: -1 })
@@ -80,16 +92,15 @@ const listele = async (req, res, next) => {
       .limit(parseInt(limit))
       .select('-adimlar.dosyalar -kml_katmanlar');
 
-    // 15 gün uyarısı için 3091 adımlarını kontrol et
+    // 3091 süre uyarıları
+    const bugun = new Date();
     const uyarilar = [];
-    const aktifIsgaller = await Isgal.find({ durum: 'aktif' }).select('isgal_no mera_parsel mera_ad adimlar');
-    aktifIsgaller.forEach(isgal => {
-      isgal.adimlar.forEach(adim => {
-        if (adim.tip === 'ucuncu_yol_3091' && adim.sure_bitis) {
-          const kalan = Math.ceil((new Date(adim.sure_bitis) - bugun) / 86400000);
-          if (kalan <= 3 && kalan >= 0) {
-            uyarilar.push({ isgal_id: isgal._id, isgal_no: isgal.isgal_no, kalan_gun: kalan, tip: '3091_sure' });
-          }
+    const aktifler = await Isgal.find({ durum: 'aktif' }).select('isgal_no kullanici_no mera_parsel mera_il_ad mera_mahalle_ad adimlar');
+    aktifler.forEach(ig => {
+      ig.adimlar.forEach(a => {
+        if (a.tip === 'ucuncu_yol_3091' && a.sure_bitis) {
+          const kalan = Math.ceil((new Date(a.sure_bitis) - bugun) / 86400000);
+          if (kalan <= 3) uyarilar.push({ isgal_id: ig._id, isgal_no: ig.kullanici_no || ig.isgal_no, mera: `${ig.mera_il_ad}/${ig.mera_mahalle_ad} P:${ig.mera_parsel}`, kalan_gun: kalan });
         }
       });
     });
@@ -111,12 +122,9 @@ const olustur = async (req, res, next) => {
     const { mera_id, tespit_sekli, tespit_tarihi, tespit_eden, isgal_tarihi,
       isgal_turu, isgal_turu_aciklama, isgal_alani_m2,
       isgalci_ad_soyad, isgalci_tc, isgalci_adres, aciklama } = req.body;
-
     const mera = await Mera.findById(mera_id).select('il_ad ilce_ad mahalle_ad ada parsel nitelik');
     if (!mera) return res.status(404).json({ success: false, message: 'Mera bulunamadı' });
-
-    const isgal_no = await isgalNoUret(mera_id);
-
+    const isgal_no = await isgalNoUret();
     const isgal = await Isgal.create({
       mera_id, isgal_no,
       mera_il_ad: mera.il_ad, mera_ilce_ad: mera.ilce_ad,
@@ -125,8 +133,8 @@ const olustur = async (req, res, next) => {
       tespit_sekli, tespit_tarihi, tespit_eden, isgal_tarihi,
       isgal_turu, isgal_turu_aciklama, isgal_alani_m2,
       isgalci_ad_soyad, isgalci_tc, isgalci_adres, aciklama,
+      aktif_adim: 'tespit_tutanak',
     });
-
     res.status(201).json({ success: true, data: isgal });
   } catch (err) { next(err); }
 };
@@ -137,7 +145,7 @@ const guncelle = async (req, res, next) => {
     if (!isgal) return res.status(404).json({ success: false, message: 'İşgal bulunamadı' });
     const alanlar = ['tespit_sekli','tespit_tarihi','tespit_eden','isgal_tarihi','isgal_turu',
       'isgal_turu_aciklama','isgal_alani_m2','isgalci_ad_soyad','isgalci_tc','isgalci_adres',
-      'durum','komisyon_karar_tipi','aciklama'];
+      'durum','komisyon_karar_tipi','aciklama','kullanici_no'];
     alanlar.forEach(alan => { if (req.body[alan] !== undefined) isgal[alan] = req.body[alan]; });
     await isgal.save();
     res.json({ success: true, data: isgal });
@@ -147,35 +155,46 @@ const guncelle = async (req, res, next) => {
 const sil = async (req, res, next) => {
   try {
     await Isgal.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'İşgal silindi' });
+    res.json({ success: true });
   } catch (err) { next(err); }
 };
 
-// ── Adım ekle ─────────────────────────────────────────────
+// ── Adım Ekle ─────────────────────────────────────────────
+const ADIM_SIRASI = [
+  'tespit_tutanak','komisyon_intikal','komisyon_karar',
+  'ucuncu_yol_3091','uc_bin_doksan_bir_sonuc',
+  'iki_bin_sekiz_yuz_seksen_alti','dava_men_mudahale',
+  'suc_duyurusu','eski_hale_getirme','tazminat_davasi','sonuc','diger'
+];
+
 const adimEkle = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'Belge yüklemek zorunludur' });
-
     const isgal = await Isgal.findById(req.params.id);
     if (!isgal) return res.status(404).json({ success: false, message: 'İşgal bulunamadı' });
 
     const { tip, aciklama, sorumlu, sure_gun } = req.body;
+    const gorunurNo = isgal.kullanici_no || isgal.isgal_no;
 
-    // Drive'a yükle
+    // Drive'a yükle - dosya adı formatı
     const drive = await getDriveClient();
-    const tarihStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
-    const surum = Math.random().toString(36).slice(2,5).toUpperCase();
-    const dosyaAdi = `${tarihStr}-${tip}-${surum}${path.extname(req.file.originalname)}`;
+    const evrakTarihi = new Date().toISOString().slice(0,10).split('-').reverse().join('');
+    const adimSira = isgal.adimlar.filter(a => a.tip === tip).length + 1;
+    const tipKisa = tip.replace(/_/g,'-').slice(0,20);
+    const dosyaAdi = `ISGAL-${isgal.isgal_no}-${evrakTarihi}-${tipKisa}-${adimSira}${path.extname(req.file.originalname)}`;
+
     const folderId = await getMisDriveFolder(drive, [
       isgal.mera_il_ad, isgal.mera_ilce_ad, isgal.mera_mahalle_ad,
-      `${isgal.mera_ada||'0'}-${isgal.mera_parsel}`, 'İşgal', isgal.isgal_no
+      `${isgal.mera_ada||'0'}-${isgal.mera_parsel}`, 'Isgal', isgal.isgal_no
     ]);
     const driveData = await driveYukle(drive, folderId, dosyaAdi, req.file.mimetype, req.file.buffer);
 
-    const adim = {
-      tip, aciklama, sorumlu,
+    const adimVerisi = {
+      sira: isgal.adimlar.length + 1,
+      tip, aciklama, sorumlu, tamamlandi: true,
       dosyalar: [{
         ad: dosyaAdi,
+        adim_tip: tip,
         drive_file_id: driveData.id,
         drive_web_link: driveData.webViewLink,
         drive_download_link: `https://drive.google.com/uc?export=download&id=${driveData.id}`,
@@ -184,49 +203,50 @@ const adimEkle = async (req, res, next) => {
       }],
     };
 
-    // 3091 için 15 gün sayacı
     if (tip === 'ucuncu_yol_3091') {
       const sure = parseInt(sure_gun) || 15;
-      const bitis = new Date();
-      bitis.setDate(bitis.getDate() + sure);
-      adim.sure_bitis = bitis;
+      const bitis = new Date(); bitis.setDate(bitis.getDate() + sure);
+      adimVerisi.sure_bitis = bitis;
     }
 
-    isgal.adimlar.push(adim);
+    isgal.adimlar.push(adimVerisi);
 
-    // Durum güncelle
+    // Sonraki aktif adımı belirle
+    const siradakiIdx = ADIM_SIRASI.indexOf(tip) + 1;
+    if (siradakiIdx < ADIM_SIRASI.length) isgal.aktif_adim = ADIM_SIRASI[siradakiIdx];
+
     if (tip === 'sonuc') isgal.durum = 'cozuldu';
     if (tip === 'dava_men_mudahale') isgal.durum = 'mahkemede';
 
     await isgal.save();
-    res.json({ success: true, data: isgal.adimlar[isgal.adimlar.length - 1] });
+    res.json({ success: true, data: isgal });
   } catch (err) { next(err); }
 };
 
-// ── KML yükle ─────────────────────────────────────────────
+// ── KML ───────────────────────────────────────────────────
 const kmlYukle = async (req, res, next) => {
   try {
     const isgal = await Isgal.findById(req.params.id);
     if (!isgal) return res.status(404).json({ success: false, message: 'İşgal bulunamadı' });
-    if (!req.file) return res.status(400).json({ success: false, message: 'KML dosyası seçin' });
+    if (!req.file) return res.status(400).json({ success: false, message: 'KML seçin' });
 
     let buffer = req.file.buffer;
     if (req.file.originalname.toLowerCase().endsWith('.kmz')) {
       const JSZip = require('jszip');
       const zip = await JSZip.loadAsync(buffer);
-      const kmlFile = Object.keys(zip.files).find(f => f.endsWith('.kml'));
-      if (!kmlFile) return res.status(400).json({ success: false, message: 'KMZ içinde KML bulunamadı' });
-      buffer = Buffer.from(await zip.files[kmlFile].async('arraybuffer'));
+      const kf = Object.keys(zip.files).find(f => f.endsWith('.kml'));
+      if (!kf) return res.status(400).json({ success: false, message: 'KMZ içinde KML yok' });
+      buffer = Buffer.from(await zip.files[kf].async('arraybuffer'));
     }
 
     const { renk } = req.body;
     const drive = await getDriveClient();
-    const tarihStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const tarihStr = new Date().toISOString().slice(0,10).split('-').reverse().join('');
     const surum = Math.random().toString(36).slice(2,5).toUpperCase();
-    const dosyaAdi = `${isgal.mera_il_ad}-${isgal.mera_ilce_ad}-${isgal.mera_mahalle_ad}-${isgal.mera_ada||'0'}-${isgal.mera_parsel}-isgal-${tarihStr}-${surum}.kml`;
+    const dosyaAdi = `ISGAL-${isgal.isgal_no}-${tarihStr}-KML-${surum}.kml`;
     const folderId = await getMisDriveFolder(drive, [
       isgal.mera_il_ad, isgal.mera_ilce_ad, isgal.mera_mahalle_ad,
-      `${isgal.mera_ada||'0'}-${isgal.mera_parsel}`, 'İşgal', isgal.isgal_no, 'KML'
+      `${isgal.mera_ada||'0'}-${isgal.mera_parsel}`, 'Isgal', isgal.isgal_no, 'KML'
     ]);
     const driveData = await driveYukle(drive, folderId, dosyaAdi, 'application/vnd.google-earth.kml+xml', buffer);
 
@@ -242,7 +262,6 @@ const kmlYukle = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// ── KML getir (backend proxy) ─────────────────────────────
 const kmlGetir = async (req, res, next) => {
   try {
     const isgal = await Isgal.findById(req.params.id);
@@ -256,6 +275,139 @@ const kmlGetir = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ── Rapor ─────────────────────────────────────────────────
+const raporHtml = (isgal) => {
+  const gorunurNo = isgal.kullanici_no ? `${isgal.kullanici_no} (${isgal.isgal_no})` : isgal.isgal_no;
+  const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+  const TESPIT_ETIKET = { teknik_ekip:'Teknik Ekip', sikayet:'Şikayet', ihbar:'İhbar' };
+  const DURUM_ETIKET = { aktif:'Aktif', mahkemede:'Mahkemede', cozuldu:'Çözüldü', arsiv:'Arşiv' };
+
+  const baslik = `İŞGAL KAYIT RAPORU — ${gorunurNo}`;
+  const altBaslik = `${isgal.mera_il_ad} / ${isgal.mera_mahalle_ad} — Ada:${isgal.mera_ada||'-'} Parsel:${isgal.mera_parsel}`;
+
+  const header = `<div class="sayfa-baslik"><strong>${baslik}</strong><span class="kucuk">${altBaslik}</span></div>`;
+
+  const adimlarHtml = isgal.adimlar.map(a => `
+    <tr>
+      <td style="font-size:8.5pt;white-space:nowrap">${new Date(a.createdAt).toLocaleDateString('tr-TR')}</td>
+      <td style="font-size:8.5pt"><strong>${TIP_ETIKET[a.tip]||a.tip}</strong>${a.sorumlu?'<br><span style="color:#666">'+a.sorumlu+'</span>':''}</td>
+      <td style="font-size:8.5pt">${a.aciklama}</td>
+      <td style="font-size:8pt;color:#0F6E56">${a.dosyalar?.map(d=>d.ad).join('<br>')||'-'}</td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${baslik}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Noto Sans',Arial,sans-serif;font-size:10pt;color:#222;padding:12mm 15mm;}
+    .sayfa-baslik{border-bottom:2px solid #0F6E56;padding-bottom:3mm;margin-bottom:4mm;display:flex;justify-content:space-between;align-items:flex-end;}
+    .sayfa-baslik strong{font-size:12pt;color:#0F6E56;}
+    .sayfa-baslik .kucuk{font-size:8.5pt;color:#666;}
+    h2{font-size:10.5pt;color:#0F6E56;margin:4mm 0 2mm;border-bottom:1px solid #9FE1CB;padding-bottom:1mm;}
+    table{width:100%;border-collapse:collapse;margin-bottom:3mm;font-size:9.5pt;}
+    th{background:#0F6E56;color:#fff;padding:3pt 6pt;text-align:left;font-size:8.5pt;}
+    td{padding:3pt 6pt;border-bottom:1px solid #eee;vertical-align:top;}
+    .label{color:#555;width:30%;}
+    .footer{margin-top:6mm;font-size:8pt;color:#aaa;text-align:center;border-top:1px solid #ddd;padding-top:2mm;}
+    .print-btn{text-align:center;margin-bottom:5mm;}
+    @media print{.print-btn{display:none;}.sayfa-kirici{page-break-before:always;}.sayfa-baslik{display:flex!important;}}
+  </style>
+</head>
+<body>
+  <div class="print-btn"><button onclick="window.print()" style="background:#0F6E56;color:#fff;border:none;padding:6px 20px;border-radius:6px;cursor:pointer;">PDF / Yazdır</button></div>
+  ${header}
+  <h2>İşgal Bilgileri</h2>
+  <table><tbody>
+    <tr><td class="label">İşgal No</td><td><strong>${gorunurNo}</strong></td><td class="label">Durum</td><td>${DURUM_ETIKET[isgal.durum]||'-'}</td></tr>
+    <tr><td class="label">Mera</td><td>${isgal.mera_il_ad} / ${isgal.mera_ilce_ad} / ${isgal.mera_mahalle_ad}</td><td class="label">Ada / Parsel</td><td>${isgal.mera_ada||'-'} / ${isgal.mera_parsel}</td></tr>
+    <tr><td class="label">İşgal Türü</td><td>${TUR_ETIKET[isgal.isgal_turu]||'-'}</td><td class="label">Alan</td><td>${isgal.isgal_alani_m2?Number(isgal.isgal_alani_m2).toLocaleString('tr-TR')+' m²':'-'}</td></tr>
+    <tr><td class="label">Açıklama</td><td colspan="3">${isgal.isgal_turu_aciklama||'-'}</td></tr>
+    <tr><td class="label">Tespit Şekli</td><td>${TESPIT_ETIKET[isgal.tespit_sekli]||'-'}</td><td class="label">Tespit Tarihi</td><td>${isgal.tespit_tarihi?new Date(isgal.tespit_tarihi).toLocaleDateString('tr-TR'):'-'}</td></tr>
+    <tr><td class="label">Tespit Eden</td><td>${isgal.tespit_eden||'-'}</td><td class="label">İşgal Başlangıcı</td><td>${isgal.isgal_tarihi?new Date(isgal.isgal_tarihi).toLocaleDateString('tr-TR'):'-'}</td></tr>
+  </tbody></table>
+  <h2>İşgalci Bilgileri</h2>
+  <table><tbody>
+    <tr><td class="label">Ad Soyad</td><td>${isgal.isgalci_ad_soyad||'-'}</td><td class="label">TC</td><td>${isgal.isgalci_tc||'-'}</td></tr>
+    <tr><td class="label">Adres</td><td colspan="3">${isgal.isgalci_adres||'-'}</td></tr>
+  </tbody></table>
+  ${isgal.adimlar?.length ? `
+  <div class="sayfa-kirici"></div>
+  ${header}
+  <h2>Süreç Adımları</h2>
+  <table>
+    <thead><tr><th style="width:12%">Tarih</th><th style="width:25%">Adım</th><th>Açıklama</th><th style="width:20%">Belge</th></tr></thead>
+    <tbody>${adimlarHtml}</tbody>
+  </table>` : ''}
+  <div class="footer">MİS — İşgal Kayıt Raporu — ${gorunurNo} — ${new Date().toLocaleString('tr-TR')}</div>
+</body></html>`;
+};
+
+const tekRapor = async (req, res, next) => {
+  try {
+    const isgal = await Isgal.findById(req.params.id);
+    if (!isgal) return res.status(404).json({ success: false, message: 'İşgal bulunamadı' });
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(raporHtml(isgal));
+  } catch (err) { next(err); }
+};
+
+const tumRapor = async (req, res, next) => {
+  try {
+    const { durum } = req.query;
+    const filtre = durum ? { durum } : {};
+    const isgaller = await Isgal.find(filtre).sort({ createdAt: -1 });
+    if (!isgaller.length) return res.status(404).json({ success: false, message: 'Kayıt yok' });
+
+    const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+    const DURUM_ETIKET = { aktif:'Aktif', mahkemede:'Mahkemede', cozuldu:'Çözüldü', arsiv:'Arşiv' };
+
+    const satirlar = isgaller.map(ig => {
+      const no = ig.kullanici_no ? `${ig.kullanici_no} (${ig.isgal_no})` : ig.isgal_no;
+      return `<tr>
+        <td style="font-size:8.5pt"><strong>${no}</strong></td>
+        <td style="font-size:8.5pt">${ig.mera_il_ad}/${ig.mera_mahalle_ad}<br><small>${ig.mera_ada||'-'}/${ig.mera_parsel}</small></td>
+        <td style="font-size:8.5pt">${TUR_ETIKET[ig.isgal_turu]||'-'}</td>
+        <td style="font-size:8.5pt">${ig.isgalci_ad_soyad||'-'}</td>
+        <td style="font-size:8.5pt;text-align:right">${ig.isgal_alani_m2?Number(ig.isgal_alani_m2).toLocaleString('tr-TR'):'-'}</td>
+        <td style="font-size:8.5pt">${ig.tespit_tarihi?new Date(ig.tespit_tarihi).toLocaleDateString('tr-TR'):'-'}</td>
+        <td style="font-size:8.5pt">${DURUM_ETIKET[ig.durum]||'-'}</td>
+        <td style="font-size:8pt;color:#0F6E56">${ig.aktif_adim?.replace(/_/g,' ')||'-'}</td>
+      </tr>`;
+    }).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="tr"><head><meta charset="UTF-8"/><title>Tüm İşgaller Raporu</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Noto Sans',Arial,sans-serif;font-size:9pt;padding:10mm 12mm;}
+  h1{font-size:13pt;color:#0F6E56;margin-bottom:3mm;border-bottom:2px solid #0F6E56;padding-bottom:2mm;}
+  table{width:100%;border-collapse:collapse;font-size:8.5pt;}
+  th{background:#0F6E56;color:#fff;padding:3pt 5pt;text-align:left;font-size:8pt;}
+  td{padding:3pt 5pt;border-bottom:1px solid #eee;vertical-align:top;}
+  .footer{margin-top:5mm;font-size:8pt;color:#aaa;text-align:center;}
+  .print-btn{text-align:center;margin-bottom:4mm;}
+  @media print{.print-btn{display:none;}}
+</style></head>
+<body>
+  <div class="print-btn"><button onclick="window.print()" style="background:#0F6E56;color:#fff;border:none;padding:6px 20px;border-radius:6px;cursor:pointer;">PDF / Yazdır</button></div>
+  <h1>TÜM İŞGAL KAYITLARI — ${new Date().toLocaleDateString('tr-TR')} — ${isgaller.length} kayıt</h1>
+  <table>
+    <thead><tr><th>İşgal No</th><th>Mera</th><th>Tür</th><th>İşgalci</th><th>Alan (m²)</th><th>Tespit</th><th>Durum</th><th>Aktif Adım</th></tr></thead>
+    <tbody>${satirlar}</tbody>
+  </table>
+  <div class="footer">MİS — İşgal Raporu — ${new Date().toLocaleString('tr-TR')}</div>
+</body></html>`;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) { next(err); }
+};
+
 // ── İstatistik ────────────────────────────────────────────
 const istatistik = async (req, res, next) => {
   try {
@@ -266,24 +418,16 @@ const istatistik = async (req, res, next) => {
       Isgal.countDocuments({ durum: 'mahkemede' }),
       Isgal.countDocuments({ durum: 'cozuldu' }),
     ]);
-
-    // 3091 süresi dolan/dolmak üzere olan işgaller
     const sure_uyarilari = [];
-    const aktifIsgaller = await Isgal.find({ durum: 'aktif' })
-      .select('isgal_no mera_parsel mera_il_ad mera_mahalle_ad adimlar');
-    aktifIsgaller.forEach(isgal => {
-      isgal.adimlar.forEach(adim => {
-        if (adim.tip === 'ucuncu_yol_3091' && adim.sure_bitis) {
-          const kalan = Math.ceil((new Date(adim.sure_bitis) - bugun) / 86400000);
-          if (kalan <= 3) sure_uyarilari.push({
-            isgal_id: isgal._id, isgal_no: isgal.isgal_no,
-            mera: `${isgal.mera_il_ad} / ${isgal.mera_mahalle_ad} Parsel: ${isgal.mera_parsel}`,
-            kalan_gun: kalan, sure_bitis: adim.sure_bitis,
-          });
+    const aktifler = await Isgal.find({ durum: 'aktif' }).select('isgal_no kullanici_no mera_parsel mera_il_ad mera_mahalle_ad adimlar');
+    aktifler.forEach(ig => {
+      ig.adimlar.forEach(a => {
+        if (a.tip === 'ucuncu_yol_3091' && a.sure_bitis) {
+          const kalan = Math.ceil((new Date(a.sure_bitis) - bugun) / 86400000);
+          if (kalan <= 3) sure_uyarilari.push({ isgal_id: ig._id, isgal_no: ig.kullanici_no||ig.isgal_no, mera: `${ig.mera_il_ad}/${ig.mera_mahalle_ad} P:${ig.mera_parsel}`, kalan_gun: kalan });
         }
       });
     });
-
     res.json({ success: true, data: { toplam, aktif, mahkemede, cozuldu, sure_uyarilari } });
   } catch (err) { next(err); }
 };
@@ -292,6 +436,5 @@ module.exports = {
   listele, getById, olustur, guncelle, sil,
   adimEkle: [upload.single('belge'), adimEkle],
   kmlYukle: [upload.single('kml'), kmlYukle],
-  kmlGetir,
-  istatistik,
+  kmlGetir, tekRapor, tumRapor, istatistik,
 };
