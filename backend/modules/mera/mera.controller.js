@@ -286,7 +286,7 @@ const kmlGetir = async (req, res, next) => {
     const drive = await getDriveClient();
     const response = await drive.files.get({ fileId: mera.kml_drive_file_id, alt: 'media' }, { responseType: 'arraybuffer' });
     res.setHeader('Content-Type', 'application/vnd.google-earth.kml+xml');
-    res.setHeader('Content-Disposition', 'attachment; filename="parsel.kml"');
+    res.setHeader('Content-Disposition', 'inline; filename="parsel.kml"');
     res.send(Buffer.from(response.data));
   } catch (err) { next(err); }
 };
