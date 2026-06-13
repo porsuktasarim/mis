@@ -5,6 +5,7 @@ const MIS_MENU = [
     items: [
       { href: '/bbhb/', icon: 'bi-calculator', label: 'BBHB Hesaplayıcı' },
       { href: '/mera/', icon: 'bi-geo-alt', label: 'Mera' },
+      { href: '/isgal/', icon: 'bi-exclamation-triangle', label: 'İşgal' },
     ]
   },
   {

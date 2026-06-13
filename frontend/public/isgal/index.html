@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>İşgal Modülü - MİS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+  <style>
+    .durum-aktif{background:#fff3cd;color:#856404;}
+    .durum-mahkemede{background:#cfe2ff;color:#084298;}
+    .durum-cozuldu{background:#d1e7dd;color:#0a3622;}
+    .durum-arsiv{background:#e2e3e5;color:#41464b;}
+    .tur-tarla{border-left:4px solid #fd7e14;}
+    .tur-yapilasma{border-left:4px solid #dc3545;}
+    .tur-yol{border-left:4px solid #6f42c1;}
+    .uyari-sure{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:.6rem 1rem;margin-bottom:.5rem;}
+    .uyari-suc{background:#f8d7da;border:1px solid #dc3545;border-radius:8px;padding:.6rem 1rem;margin-bottom:.5rem;}
+  </style>
+</head>
+<body>
+<div class="d-flex" id="wrapper">
+  <div id="mis-sidebar-mount"></div>
+  <div id="page-content" class="flex-grow-1">
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
+      <span class="mis-topbar-title">İşgal Modülü</span>
+      <div class="ms-auto">
+        <button class="btn btn-sm btn-mis" onclick="yeniIsgalAc()"><i class="bi bi-plus-lg me-1"></i>Yeni İşgal Kaydı</button>
+      </div>
+    </nav>
+
+    <main class="mis-main p-4">
+
+      <!-- Uyarılar -->
+      <div id="uyari-bolumu" class="d-none mb-3"></div>
+
+      <!-- Filtreler -->
+      <div class="mis-card mb-4">
+        <div class="row g-2 align-items-end">
+          <div class="col-sm-3">
+            <label class="form-label small fw-semibold mb-1">Durum</label>
+            <select class="form-select form-select-sm" id="f-durum">
+              <option value="">Tümü</option>
+              <option value="aktif">Aktif</option>
+              <option value="mahkemede">Mahkemede</option>
+              <option value="cozuldu">Çözüldü</option>
+              <option value="arsiv">Arşiv</option>
+            </select>
+          </div>
+          <div class="col-sm-5">
+            <label class="form-label small fw-semibold mb-1">Arama</label>
+            <input type="text" class="form-control form-control-sm" id="f-ara" placeholder="İşgal no, işgalci adı, parsel..."/>
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-sm btn-mis" onclick="loadIsgaller()"><i class="bi bi-search"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Liste -->
+      <div class="mis-card">
+        <div class="mis-card-header">
+          <i class="bi bi-exclamation-triangle"></i><span class="title">İşgal Kayıtları</span>
+          <span class="badge bg-secondary ms-2" id="toplam-badge">0</span>
+        </div>
+        <div id="isgal-tablo"><div class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-success"></div><span class="ms-2">Yükleniyor...</span></div></div>
+        <div id="sayfalama" class="d-flex justify-content-center mt-3 gap-2 flex-wrap"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Yeni İşgal Modal -->
+<div class="modal fade" id="isgalModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Yeni İşgal Kaydı</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <!-- Mera seçimi -->
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Mera Parseli *</label>
+            <div class="input-group input-group-sm">
+              <input type="text" class="form-control" id="m-mera-ara" placeholder="Parsel no veya mahalle ara..."/>
+              <button class="btn btn-outline-secondary" onclick="meraAra()"><i class="bi bi-search"></i></button>
+            </div>
+            <div id="mera-sonuclar" class="mt-1" style="max-height:150px;overflow-y:auto;"></div>
+            <input type="hidden" id="m-mera-id"/>
+            <div id="m-mera-secili" class="mt-1 small text-success fw-semibold"></div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Tespit Şekli *</label>
+            <select class="form-select form-select-sm" id="m-tespit-sekli">
+              <option value="teknik_ekip">Teknik Ekip Tespiti</option>
+              <option value="sikayet">Şikayet</option>
+              <option value="ihbar">İhbar</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Tespit Tarihi *</label>
+            <input type="date" class="form-control form-control-sm" id="m-tespit-tarihi"/>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Tespit Eden</label>
+            <input type="text" class="form-control form-control-sm" id="m-tespit-eden"/>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">İşgal Başlangıç Tarihi</label>
+            <input type="date" class="form-control form-control-sm" id="m-isgal-tarihi"/>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">İşgal Türü *</label>
+            <select class="form-select form-select-sm" id="m-isgal-turu" onchange="isgalTuruDegisti()">
+              <option value="tarla_isgali">Tarla İşgali / Yapılaşmasız</option>
+              <option value="yapilasma">Yapılaşma İşgali</option>
+              <option value="yol_hafriyat">Yol / Hafriyat Dökme</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">İşgal Alanı (m²)</label>
+            <input type="number" class="form-control form-control-sm" id="m-isgal-alani"/>
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold">İşgal Türü Açıklaması *</label>
+            <textarea class="form-control form-control-sm" id="m-isgal-aciklama" rows="2" placeholder="İşgalin detaylı açıklaması..."></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">İşgalci Adı Soyadı</label>
+            <input type="text" class="form-control form-control-sm" id="m-isgalci-ad"/>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">TC Kimlik No</label>
+            <input type="text" class="form-control form-control-sm" id="m-isgalci-tc" maxlength="11"/>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Adresi</label>
+            <input type="text" class="form-control form-control-sm" id="m-isgalci-adres"/>
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Açıklama</label>
+            <textarea class="form-control form-control-sm" id="m-aciklama" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-sm btn-mis" onclick="isgalKaydet()">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+  <div id="mis-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex"><div class="toast-body fw-semibold" id="toast-msg"></div>
+    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button></div>
+  </div>
+</div>
+
+<script src="/js/sidebar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '/api/isgal';
+const API_MERA = '/api/mera';
+
+const showToast = (msg, type='success') => {
+  const el = document.getElementById('mis-toast');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+};
+
+const TESPIT_ETIKET = { teknik_ekip:'Teknik Ekip', sikayet:'Şikayet', ihbar:'İhbar' };
+const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+const TUR_RENK = { tarla_isgali:'tur-tarla', yapilasma:'tur-yapilasma', yol_hafriyat:'tur-yol' };
+const DURUM_ETIKET = { aktif:'Aktif', mahkemede:'Mahkemede', cozuldu:'Çözüldü', arsiv:'Arşiv' };
+const DURUM_CLS = { aktif:'durum-aktif', mahkemede:'durum-mahkemede', cozuldu:'durum-cozuldu', arsiv:'durum-arsiv' };
+
+const loadIstatistik = async () => {
+  const r = await fetch(`${API}/istatistik`);
+  const j = await r.json();
+  const d = j.data;
+  const uyariBolumu = document.getElementById('uyari-bolumu');
+  const uyarilar = [];
+
+  d.sure_uyarilari?.forEach(u => {
+    const cls = u.kalan_gun < 0 ? 'danger' : (u.kalan_gun === 0 ? 'danger' : 'warning');
+    const metin = u.kalan_gun < 0 ? `${Math.abs(u.kalan_gun)} gün geçti!` : u.kalan_gun === 0 ? 'BUGÜN sona eriyor!' : `${u.kalan_gun} gün kaldı`;
+    uyarilar.push(`<div class="uyari-sure"><i class="bi bi-clock-history me-2"></i><strong>3091 Süresi:</strong> <a href="/isgal/detay.html?id=${u.isgal_id}" class="text-decoration-none">${u.mera}</a> — ${u.isgal_no} — <strong class="text-${cls}">${metin}</strong></div>`);
+  });
+
+  if (uyarilar.length) {
+    uyariBolumu.innerHTML = uyarilar.join('');
+    uyariBolumu.classList.remove('d-none');
+  }
+};
+
+const loadIsgaller = async (sayfa=1) => {
+  const durum = document.getElementById('f-durum').value;
+  const ara = document.getElementById('f-ara').value;
+  const params = new URLSearchParams({ sayfa, limit: 20 });
+  if (durum) params.set('durum', durum);
+  if (ara) params.set('ara', ara);
+
+  try {
+    const r = await fetch(`${API}?${params}`);
+    const j = await r.json();
+    document.getElementById('toplam-badge').textContent = j.toplam || 0;
+    const isgaller = j.data || [];
+
+    if (!isgaller.length) {
+      document.getElementById('isgal-tablo').innerHTML = '<p class="text-muted text-center py-4 small">Kayıt bulunamadı.</p>';
+      document.getElementById('sayfalama').innerHTML = '';
+      return;
+    }
+
+    document.getElementById('isgal-tablo').innerHTML = `
+      <div class="table-responsive">
+        <table class="table table-sm mis-table mb-0">
+          <thead><tr><th>İşgal No</th><th>Mera</th><th>Tür</th><th>İşgalci</th><th>Alan (m²)</th><th>Tespit</th><th>Durum</th><th>İşlemler</th></tr></thead>
+          <tbody>${isgaller.map(i=>`<tr class="${TUR_RENK[i.isgal_turu]||''}">
+            <td class="fw-semibold small">${i.isgal_no||'-'}</td>
+            <td><strong>${i.mera_il_ad}</strong><br><small class="text-muted">${i.mera_mahalle_ad} Ada:${i.mera_ada||'-'} P:${i.mera_parsel}</small></td>
+            <td><span class="grup-badge">${TUR_ETIKET[i.isgal_turu]||'-'}</span></td>
+            <td class="small">${i.isgalci_ad_soyad||'-'}</td>
+            <td class="text-end small">${i.isgal_alani_m2?Number(i.isgal_alani_m2).toLocaleString('tr-TR'):'-'}</td>
+            <td class="small">${i.tespit_tarihi?new Date(i.tespit_tarihi).toLocaleDateString('tr-TR'):'-'}</td>
+            <td><span class="px-2 py-1 rounded-pill small fw-semibold ${DURUM_CLS[i.durum]||''}">${DURUM_ETIKET[i.durum]||'-'}</span></td>
+            <td><div class="d-flex gap-1">
+              <a href="/isgal/detay.html?id=${i._id}" class="btn btn-xs btn-mis"><i class="bi bi-eye"></i></a>
+              <button class="btn btn-xs btn-outline-danger" onclick="isgalSil('${i._id}')"><i class="bi bi-trash"></i></button>
+            </div></td>
+          </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    const toplamSayfa = Math.ceil(j.toplam / 20);
+    document.getElementById('sayfalama').innerHTML = toplamSayfa > 1
+      ? Array.from({length:toplamSayfa},(_,i)=>`<button class="btn btn-sm ${i+1===sayfa?'btn-mis':'btn-outline-secondary'}" onclick="loadIsgaller(${i+1})">${i+1}</button>`).join('')
+      : '';
+  } catch { showToast('Veriler alınamadı.','danger'); }
+};
+
+// Mera arama
+window.meraAra = async () => {
+  const ara = document.getElementById('m-mera-ara').value.trim();
+  if (!ara) return;
+  const r = await fetch(`${API_MERA}?ara=${encodeURIComponent(ara)}&limit=10`);
+  const j = await r.json();
+  const el = document.getElementById('mera-sonuclar');
+  el.innerHTML = (j.data||[]).map(m=>`
+    <div class="border rounded p-2 mb-1 small cursor-pointer hover:bg-light" style="cursor:pointer" onclick="meraSec('${m._id}','${m.il_ad}','${m.ilce_ad}','${m.mahalle_ad}','${m.ada||''}','${m.parsel}','${m.nitelik||''}')">
+      <strong>${m.il_ad} / ${m.mahalle_ad}</strong> — Ada:${m.ada||'-'} Parsel:${m.parsel} <span class="text-muted">${m.nitelik||''}</span>
+    </div>`).join('') || '<p class="text-muted small">Sonuç yok.</p>';
+};
+
+window.meraSec = (id, il, ilce, mahalle, ada, parsel, nitelik) => {
+  document.getElementById('m-mera-id').value = id;
+  document.getElementById('m-mera-secili').textContent = `✓ ${il} / ${ilce} / ${mahalle} — Ada:${ada||'-'} Parsel:${parsel}`;
+  document.getElementById('mera-sonuclar').innerHTML = '';
+  document.getElementById('m-mera-ara').value = '';
+
+  // Harman/sıvat/eğrek uyarısı
+  const suc_nitelikler = ['Harman yeri','Panayır yeri','Sıvat yeri','Eyrek yeri'];
+  if (suc_nitelikler.some(n => nitelik.includes(n))) {
+    showToast(`⚠️ Bu parsel "${nitelik}" niteliğinde — işgal kaydedilince suç duyurusu adımı otomatik önerilecek.`, 'warning');
+  }
+};
+
+window.isgalTuruDegisti = () => {};
+
+window.yeniIsgalAc = () => {
+  document.getElementById('m-mera-id').value = '';
+  document.getElementById('m-mera-secili').textContent = '';
+  document.getElementById('mera-sonuclar').innerHTML = '';
+  document.getElementById('m-mera-ara').value = '';
+  document.getElementById('m-tespit-tarihi').value = new Date().toISOString().slice(0,10);
+  new bootstrap.Modal(document.getElementById('isgalModal')).show();
+};
+
+window.isgalKaydet = async () => {
+  const mera_id = document.getElementById('m-mera-id').value;
+  if (!mera_id) { showToast('Mera parseli seçin.','warning'); return; }
+  const aciklama = document.getElementById('m-isgal-aciklama').value.trim();
+  if (!aciklama) { showToast('İşgal türü açıklaması zorunlu.','warning'); return; }
+
+  const veri = {
+    mera_id,
+    tespit_sekli: document.getElementById('m-tespit-sekli').value,
+    tespit_tarihi: document.getElementById('m-tespit-tarihi').value,
+    tespit_eden: document.getElementById('m-tespit-eden').value,
+    isgal_tarihi: document.getElementById('m-isgal-tarihi').value || null,
+    isgal_turu: document.getElementById('m-isgal-turu').value,
+    isgal_turu_aciklama: aciklama,
+    isgal_alani_m2: document.getElementById('m-isgal-alani').value || null,
+    isgalci_ad_soyad: document.getElementById('m-isgalci-ad').value,
+    isgalci_tc: document.getElementById('m-isgalci-tc').value,
+    isgalci_adres: document.getElementById('m-isgalci-adres').value,
+    aciklama: document.getElementById('m-aciklama').value,
+  };
+
+  try {
+    const r = await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(veri) });
+    const j = await r.json();
+    if (j.success) {
+      showToast('İşgal kaydı oluşturuldu.');
+      bootstrap.Modal.getInstance(document.getElementById('isgalModal')).hide();
+      window.location.href = `/isgal/detay.html?id=${j.data._id}`;
+    } else showToast(j.message||'Hata.','danger');
+  } catch { showToast('Sunucuya ulaşılamadı.','danger'); }
+};
+
+window.isgalSil = async (id) => {
+  if (!confirm('Bu işgal kaydı silinecek?')) return;
+  const r = await fetch(`${API}/${id}`, { method:'DELETE' });
+  const j = await r.json();
+  if (j.success) { showToast('Silindi.'); loadIsgaller(); }
+};
+
+document.getElementById('f-ara').addEventListener('keydown', e => { if(e.key==='Enter') loadIsgaller(); });
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadIstatistik();
+  loadIsgaller();
+});
+</script>
+<style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
+</body>
+</html>
