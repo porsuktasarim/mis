@@ -265,6 +265,12 @@ const loadIsgal = async () => {
   renderSurec();
   renderDosyalar();
   renderKml();
+  // Aktif adımı otomatik aç
+  if (isgal.aktif_adim) {
+    setTimeout(() => {
+      document.getElementById(`detay-${isgal.aktif_adim}`)?.classList.add('acik');
+    }, 100);
+  }
   document.getElementById('btn-rapor-pdf').href = `${API}/${id}/rapor`;
   document.getElementById('btn-rapor-word').href = `${API}/${id}/rapor/word`;
   const no = isgal.kullanici_no ? `${isgal.kullanici_no} (${isgal.isgal_no})` : isgal.isgal_no;
@@ -326,7 +332,7 @@ const renderSurec = () => {
       </div>`).join('');
 
     return `<div class="surec-adim ${cls}" id="adim-${a.tip}">
-      <div class="d-flex align-items-center gap-2" onclick="toggleDetay('${a.tip}')" style="cursor:pointer">
+      <div class="d-flex align-items-center gap-2" onclick="toggleDetay('${a.tip}')" style="cursor:${tamamlandi||aktif?'pointer':'default'}">
         <div class="surec-adim-no">${tamamlandi ? '<i class="bi bi-check"></i>' : idx + 1}</div>
         <div class="flex-grow-1">
           <div class="fw-semibold small">${a.etiket}</div>
@@ -334,20 +340,26 @@ const renderSurec = () => {
         </div>
         ${aktif ? '<span class="badge bg-success me-1">Sıradaki</span>' : ''}
         ${tamamlandi ? `<span class="badge bg-secondary">${kayitlar.length} kayıt${belgeSayisi ? ', ' + belgeSayisi + ' belge' : ''}</span>` : ''}
-        ${aktif ? `<button class="btn btn-xs btn-mis" onclick="event.stopPropagation(); adimAc('${a.tip}', '${a.etiket.replace(/'/g, "\\'")}')">Tamamla</button>` : ''}
-        ${tamamlandi ? `<button class="btn btn-xs btn-outline-secondary" onclick="event.stopPropagation(); adimAc('${a.tip}', '${a.etiket.replace(/'/g, "\\'")}')" title="Ek kayıt ekle"><i class="bi bi-plus"></i></button>` : ''}
       </div>
-      ${sureBilgisi}
       <div class="adim-detay" id="detay-${a.tip}">
         ${kayitHtml || '<p class="text-muted small mb-0">Henüz kayıt yok.</p>'}
-        ${tamamlandi ? `<button class="btn btn-xs btn-outline-success mt-1" onclick="dosyaSekmesineGit('${a.tip}')"><i class="bi bi-upload me-1"></i>Belge Ekle</button>` : ''}
+        <div class="d-flex gap-2 mt-2">
+          ${aktif || tamamlandi ? `<button class="btn btn-xs btn-mis" onclick="adimAc('${a.tip}', '${a.etiket.replace(/'/g, "\\'")}')"><i class="bi bi-check2 me-1"></i>${tamamlandi ? 'Ek Kayıt' : 'Tamamla'}</button>` : ''}
+          ${tamamlandi ? `<button class="btn btn-xs btn-outline-success" onclick="dosyaSekmesineGit('${a.tip}')"><i class="bi bi-upload me-1"></i>Belge Ekle</button>` : ''}
+        </div>
       </div>
+      ${sureBilgisi}
     </div>`;
   }).join('');
 };
 
 window.toggleDetay = (tip) => {
-  document.getElementById(`detay-${tip}`)?.classList.toggle('acik');
+  const el = document.getElementById(`detay-${tip}`);
+  if (!el) return;
+  // Devre dışı adımlar açılmasın
+  const adimEl = document.getElementById(`adim-${tip}`);
+  if (adimEl?.classList.contains('devre-disi')) return;
+  el.classList.toggle('acik');
 };
 
 window.adimAc = (tip, etiket) => {
