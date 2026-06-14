@@ -120,7 +120,10 @@
           <label class="form-label small fw-semibold">mevzuat.gov.tr URL *</label>
           <input type="url" class="form-control form-control-sm" id="e-mevzuat-url"
             placeholder="https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=4342&MevzuatTur=1&MevzuatTertip=5"/>
-          <div class="form-text">İçerik otomatik çekilecek. Ad, Resmi Gazete bilgileri de doldurulabilir.</div>
+          <div class="form-text">
+            mevzuat.gov.tr'de mevzuatı açıp tarayıcı adres çubuğundaki URL'yi yapıştırın.
+            İçerik, başlık ve Resmi Gazete bilgileri otomatik doldurulacak.
+          </div>
         </div>
       </div>
     </div>
@@ -238,7 +241,9 @@ const loadMevzuatlar = async () => {
 window.icerikTipiDegisti = () => {
   const tip = document.querySelector('input[name="icerik-tipi"]:checked').value;
   ['pdf','metin','link','mevzuat'].forEach(t => document.getElementById(`alan-${t}`)?.classList.add('d-none'));
-  document.getElementById(`alan-${tip}`)?.classList.remove('d-none');
+  // mevzuat_gov → alan-mevzuat
+  const alanId = tip === 'mevzuat_gov' ? 'alan-mevzuat' : `alan-${tip}`;
+  document.getElementById(alanId)?.classList.remove('d-none');
 };
 
 window.yeniMevzuatAc = () => {

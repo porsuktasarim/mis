@@ -3,9 +3,14 @@ const MIS_MENU = [
   {
     baslik: 'Modüller',
     items: [
-      { href: '/bbhb/', icon: 'bi-calculator', label: 'BBHB Hesaplayıcı' },
       { href: '/mera/', icon: 'bi-geo-alt', label: 'Mera' },
       { href: '/isgal/', icon: 'bi-exclamation-triangle', label: 'İşgal' },
+    ]
+  },
+  {
+    baslik: 'Araçlar',
+    items: [
+      { href: '/bbhb/', icon: 'bi-calculator', label: 'BBHB Hesaplayıcı' },
       { href: '/mevzuat/', icon: 'bi-journal-text', label: 'Mevzuat' },
     ]
   },
@@ -17,7 +22,7 @@ const MIS_MENU = [
   }
 ];
 
-const MIS_VERSION = 'v1.5.1';
+const MIS_VERSION = 'v1.7.0';
 
 (function() {
   const mevcutYol = window.location.pathname;
