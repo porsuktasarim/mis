@@ -175,7 +175,7 @@ const adimEkle = async (req, res, next) => {
     const { tip, aciklama, sorumlu, sure_gun } = req.body;
     if (!aciklama?.trim()) return res.status(400).json({ success: false, message: 'Açıklama zorunludur' });
 
-    const evrakTarihi = new Date().toISOString().slice(0,10).split('-').reverse().join('');
+    const evrakTarihi = new Date().toISOString().slice(0,10).replace(/-/g,'');
     const adimSira = isgal.adimlar.filter(a => a.tip === tip).length + 1;
 
     const adimVerisi = {
@@ -240,7 +240,7 @@ const kmlYukle = async (req, res, next) => {
 
     const { renk } = req.body;
     const drive = await getDriveClient();
-    const tarihStr = new Date().toISOString().slice(0,10).split('-').reverse().join('');
+    const tarihStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
     const surum = Math.random().toString(36).slice(2,5).toUpperCase();
     const dosyaAdi = `ISGAL-${isgal.isgal_no}-${tarihStr}-KML-${surum}.kml`;
     const folderId = await getMisDriveFolder(drive, [
@@ -444,7 +444,7 @@ const adimDosyaEkle = async (req, res, next) => {
     if (!adim.tamamlandi) return res.status(400).json({ success: false, message: 'Adım henüz işaretlenmemiş. Önce adımı tamamlayın.' });
 
     const drive = await getDriveClient();
-    const evrakTarihi = new Date().toISOString().slice(0,10).split('-').reverse().join('');
+    const evrakTarihi = new Date().toISOString().slice(0,10).replace(/-/g,'');
     const adimSira = adim.dosyalar.length + 1;
     const tipKisa = adim.tip.replace(/_/g,'-').slice(0,20);
     const dosyaAdi = `ISGAL-${isgal.isgal_no}-${evrakTarihi}-${tipKisa}-${adimSira}${path.extname(req.file.originalname)}`;
