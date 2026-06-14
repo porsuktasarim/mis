@@ -55,6 +55,7 @@
       <button class="ayar-sekme" data-tab="yagis"><i class="bi bi-cloud-rain me-1"></i>Yağış Kuşakları</button>
       <button class="ayar-sekme" data-tab="verim"><i class="bi bi-table me-1"></i>Verim Tabloları</button>
       <button class="ayar-sekme" data-tab="idari"><i class="bi bi-map me-1"></i>İdari Yönetim</button>
+      <button class="ayar-sekme" data-tab="personel"><i class="bi bi-people me-1"></i>Personel</button>
       <button class="ayar-sekme" data-tab="guvenlik"><i class="bi bi-shield-lock me-1"></i>Güvenlik</button>
     </div>
 
@@ -211,13 +212,59 @@
         <div class="row justify-content-center">
           <div class="col-lg-5">
             <div class="mis-card">
-              <div class="mis-card-header"><i class="bi bi-shield-lock"></i><span class="title">Ayarlar Şifresi</span></div>
+              <div class="mis-card-header"><i class="bi bi-shield-lock"></i><span class="title">Ayarlar Şifresi (Admin)</span></div>
               <div class="mb-3"><label class="form-label small fw-semibold">Mevcut Şifre</label><input type="password" class="form-control form-control-sm" id="eski-sifre"/></div>
               <div class="mb-3"><label class="form-label small fw-semibold">Yeni Şifre</label><input type="password" class="form-control form-control-sm" id="yeni-sifre"/></div>
               <div class="mb-3"><label class="form-label small fw-semibold">Yeni Şifre (Tekrar)</label><input type="password" class="form-control form-control-sm" id="yeni-sifre2"/></div>
               <button class="btn btn-mis w-100" id="btnSifreDegistir"><i class="bi bi-key me-2"></i>Şifreyi Değiştir</button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- PERSONEL -->
+      <div class="ayar-tab" id="tab-personel">
+        <div class="row g-4">
+
+          <!-- Teknik Ekip -->
+          <div class="col-12">
+            <div class="mis-card">
+              <div class="mis-card-header">
+                <i class="bi bi-tools"></i>
+                <span class="title">Teknik Ekip</span>
+                <div class="ms-auto d-flex gap-2 align-items-center">
+                  <input type="text" class="form-control form-control-sm" id="teknik-ekip-ad" placeholder="Ekip adı" style="width:200px" oninput="ayarlar.teknik_ekip_ad=this.value"/>
+                  <button class="btn btn-sm btn-mis" onclick="teknikUyeEkle()"><i class="bi bi-plus-lg me-1"></i>Üye Ekle</button>
+                </div>
+              </div>
+              <div id="teknik-ekip-listesi">
+                <p class="text-muted small text-center py-2">Henüz üye yok.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- İl Mera Komisyonu -->
+          <div class="col-12">
+            <div class="mis-card">
+              <div class="mis-card-header">
+                <i class="bi bi-person-badge"></i>
+                <span class="title">İl Mera Komisyonu</span>
+                <button class="btn btn-sm btn-mis ms-auto" onclick="komisyonUyeEkle()"><i class="bi bi-plus-lg me-1"></i>Üye Ekle</button>
+              </div>
+              <div id="komisyon-listesi">
+                <p class="text-muted small text-center py-2">Henüz üye yok.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kullanıcılar -->
+          <div class="col-12">
+            <div class="mis-card" style="border:1px dashed #ccc;opacity:.7">
+              <div class="mis-card-header"><i class="bi bi-person-lock"></i><span class="title">Kullanıcılar</span><span class="badge bg-secondary ms-2">Yakında</span></div>
+              <p class="text-muted small p-3 mb-0">Kullanıcı yönetimi (e-posta/şifre girişi, Drive bağlantısı) geliştirme aşamasındadır. Şu an sistem tek admin şifresiyle çalışmaktadır.</p>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -326,6 +373,7 @@ const loadAyarlar = async () => {
   const j = await r.json();
   ayarlar = j.data;
   renderDrive(); renderKategoriler(); renderRenkler(); renderToprak(); renderYagis();
+  renderPersonel();
   renderVerim('tablo1','yararlanilabilir_yesil_ot');
   renderVerim('tablo2','uretilen_yesil_ot');
   renderVerim('tablo3','uretilen_kuru_ot');
@@ -464,6 +512,56 @@ window.ikonAra = () => {
   document.getElementById('ikon-grid').innerHTML = filtrelenmis.map(ikon=>`
     <button class="btn btn-sm ${ikon===mevcut?'btn-mis':'btn-outline-secondary'}" style="width:44px;height:44px;padding:6px"
       onclick="ikonSec('${ikon}')" title="${ikon}"><i class="bi ${ikon}"></i></button>`).join('');
+};
+
+// ── Personel ──────────────────────────────────────────────
+const uyeSatiri = (liste, listeAdi, i) => {
+  const u = liste[i];
+  return `<div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap" id="${listeAdi}-${i}">
+    <input type="text" class="form-control form-control-sm" style="min-width:140px;flex:2" placeholder="Ad Soyad *" value="${u.ad||''}" oninput="ayarlar.${listeAdi}[${i}].ad=this.value"/>
+    <input type="text" class="form-control form-control-sm" style="min-width:130px;flex:2" placeholder="Kurum" value="${u.kurum||''}" oninput="ayarlar.${listeAdi}[${i}].kurum=this.value"/>
+    <input type="text" class="form-control form-control-sm" style="min-width:120px;flex:1.5" placeholder="Ünvan" value="${u.unvan||''}" oninput="ayarlar.${listeAdi}[${i}].unvan=this.value"/>
+    <select class="form-select form-select-sm" style="width:90px;flex:none" onchange="ayarlar.${listeAdi}[${i}].asil_yedek=this.value">
+      <option value="asil" ${u.asil_yedek==='asil'?'selected':''}>Asıl</option>
+      <option value="yedek" ${u.asil_yedek==='yedek'?'selected':''}>Yedek</option>
+    </select>
+    <div class="form-check mb-0" title="Aktif">
+      <input class="form-check-input" type="checkbox" ${u.aktif!==false?'checked':''} onchange="ayarlar.${listeAdi}[${i}].aktif=this.checked"/>
+    </div>
+    <button class="btn btn-xs btn-outline-danger" onclick="uyeSil('${listeAdi}',${i})"><i class="bi bi-trash"></i></button>
+  </div>`;
+};
+
+const renderPersonel = () => {
+  // Teknik ekip adı
+  document.getElementById('teknik-ekip-ad').value = ayarlar.teknik_ekip_ad || 'Teknik Ekip';
+  // Teknik ekip listesi
+  const teknik = ayarlar.teknik_ekip || [];
+  document.getElementById('teknik-ekip-listesi').innerHTML = teknik.length
+    ? teknik.map((_,i) => uyeSatiri(teknik, 'teknik_ekip', i)).join('')
+    : '<p class="text-muted small text-center py-2">Henüz üye yok.</p>';
+  // Komisyon listesi
+  const komisyon = ayarlar.komisyon_uyeleri || [];
+  document.getElementById('komisyon-listesi').innerHTML = komisyon.length
+    ? komisyon.map((_,i) => uyeSatiri(komisyon, 'komisyon_uyeleri', i)).join('')
+    : '<p class="text-muted small text-center py-2">Henüz üye yok.</p>';
+};
+
+window.teknikUyeEkle = () => {
+  if (!ayarlar.teknik_ekip) ayarlar.teknik_ekip = [];
+  ayarlar.teknik_ekip.push({ ad: '', kurum: '', unvan: '', asil_yedek: 'asil', aktif: true });
+  renderPersonel();
+};
+
+window.komisyonUyeEkle = () => {
+  if (!ayarlar.komisyon_uyeleri) ayarlar.komisyon_uyeleri = [];
+  ayarlar.komisyon_uyeleri.push({ ad: '', kurum: '', unvan: '', asil_yedek: 'asil', aktif: true });
+  renderPersonel();
+};
+
+window.uyeSil = (listeAdi, i) => {
+  ayarlar[listeAdi].splice(i, 1);
+  renderPersonel();
 };
 
 // Renkler

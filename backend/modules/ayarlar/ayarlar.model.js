@@ -61,6 +61,35 @@ const IdariOncelikSchema = new mongoose.Schema({
   il_ad: { type: String, required: true },
 });
 
+// Teknik ekip üyesi
+const TeknikEkipUyeSchema = new mongoose.Schema({
+  ad: { type: String, required: true },
+  kurum: { type: String },
+  unvan: { type: String },
+  asil_yedek: { type: String, enum: ['asil', 'yedek'], default: 'asil' },
+  aktif: { type: Boolean, default: true },
+  sira: { type: Number, default: 0 },
+});
+
+// İl mera komisyonu üyesi
+const KomisyonUyeSchema = new mongoose.Schema({
+  ad: { type: String, required: true },
+  kurum: { type: String },
+  unvan: { type: String },
+  asil_yedek: { type: String, enum: ['asil', 'yedek'], default: 'asil' },
+  aktif: { type: Boolean, default: true },
+  sira: { type: Number, default: 0 },
+});
+
+// Kullanıcı (ileride aktifleştirilecek)
+const KullaniciSchema = new mongoose.Schema({
+  ad: { type: String },
+  eposta: { type: String },
+  sifre_hash: { type: String },
+  rol: { type: String, enum: ['admin', 'kullanici'], default: 'kullanici' },
+  aktif: { type: Boolean, default: false },
+}, { timestamps: true });
+
 const AyarlarSchema = new mongoose.Schema({
   drive_hesaplari: [DriveHesapSchema],
   dosya_kategorileri: [DosyaKategoriSchema],
@@ -71,6 +100,11 @@ const AyarlarSchema = new mongoose.Schema({
   uretilen_yesil_ot: [VerimSatirSchema],
   uretilen_kuru_ot: [VerimSatirSchema],
   idari_oncelikler: [IdariOncelikSchema],
+  // Personel
+  teknik_ekip_ad: { type: String, default: 'Teknik Ekip' },
+  teknik_ekip: [TeknikEkipUyeSchema],
+  komisyon_uyeleri: [KomisyonUyeSchema],
+  kullanicilar: [KullaniciSchema],
 }, { timestamps: true });
 
 module.exports = mongoose.model('Ayarlar', AyarlarSchema);
