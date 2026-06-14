@@ -72,22 +72,28 @@
 
       <!-- Hızlı erişim -->
       <div class="row g-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <a href="/mera/" class="hizli-kart">
             <i class="bi bi-geo-alt fs-2 text-success"></i>
             <div><div class="fw-semibold">Mera Modülü</div><div class="small text-muted">Parsel kayıtları, harita, notlar</div></div>
           </a>
         </div>
-        <div class="col-md-4">
-          <a href="/bbhb/" class="hizli-kart">
-            <i class="bi bi-calculator fs-2 text-success"></i>
-            <div><div class="fw-semibold">BBHB Hesaplayıcı</div><div class="small text-muted">Büyükbaş hayvan birimi hesaplama</div></div>
+        <div class="col-md-3">
+          <a href="/isgal/" class="hizli-kart">
+            <i class="bi bi-exclamation-triangle fs-2 text-danger"></i>
+            <div><div class="fw-semibold">İşgal Modülü</div><div class="small text-muted">Süreç takibi, belgeler</div></div>
           </a>
         </div>
-        <div class="col-md-4">
-          <a href="/ayarlar/" class="hizli-kart">
-            <i class="bi bi-gear fs-2 text-success"></i>
-            <div><div class="fw-semibold">Ayarlar</div><div class="small text-muted">Drive, kategoriler, tablolar</div></div>
+        <div class="col-md-3">
+          <a href="/mevzuat/" class="hizli-kart">
+            <i class="bi bi-journal-text fs-2 text-primary"></i>
+            <div><div class="fw-semibold">Mevzuat</div><div class="small text-muted">Kanun, yönetmelik, tebliğ</div></div>
+          </a>
+        </div>
+        <div class="col-md-3">
+          <a href="/bbhb/" class="hizli-kart">
+            <i class="bi bi-calculator fs-2 text-success"></i>
+            <div><div class="fw-semibold">BBHB Hesaplayıcı</div><div class="small text-muted">Büyükbaş hayvan birimi</div></div>
           </a>
         </div>
       </div>
@@ -126,7 +132,25 @@ const loadIstatistik = async () => {
     }
   } catch(e) { console.error(e); }
 };
+
+const loadMevzuatUyari = async () => {
+  try {
+    const r = await fetch('/api/mevzuat/istatistik');
+    const j = await r.json();
+    if (j.data?.bekleyen > 0) {
+      document.getElementById('uyari-bolumu').classList.remove('d-none');
+      const mevzuatUyari = j.data.guncellemeler.map(g =>
+        `<div class="uyari-kart" style="background:#e8f4fd;border-left-color:#0d6efd">
+          <i class="bi bi-journal-text me-2 text-primary"></i>
+          <strong><a href="/mevzuat/detay.html?id=${g._id}" class="text-decoration-none">${g.ad}</a></strong>
+          — <span class="text-muted">Mevzuat güncellendi, inceleme bekliyor</span>
+        </div>`).join('');
+      document.getElementById('uyari-listesi').innerHTML += mevzuatUyari;
+    }
+  } catch {}
+};
 loadIstatistik();
+loadMevzuatUyari();
 </script>
 </body>
 </html>

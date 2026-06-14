@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mevzuat - MİS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+  <style>
+    .tur-sekme{border:none;background:none;padding:8px 14px;font-size:13px;color:#4a6358;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;}
+    .tur-sekme.active{color:#0F6E56;border-bottom-color:#0F6E56;font-weight:500;}
+    .tur-bar{background:#fff;border-bottom:1px solid #e2e8e4;display:flex;overflow-x:auto;padding:0 1rem;}
+    .mevzuat-kart{border:1px solid #e2e8e4;border-radius:10px;padding:1rem;margin-bottom:.65rem;transition:box-shadow .15s;cursor:pointer;}
+    .mevzuat-kart:hover{box-shadow:0 2px 12px rgba(15,110,86,.1);}
+    .guncelleme-badge{background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:6px;padding:2px 8px;font-size:11px;}
+    .tur-badge-kanun{background:#cfe2ff;color:#084298;}
+    .tur-badge-yonetmelik{background:#d1e7dd;color:#0a3622;}
+    .tur-badge-teblig{background:#fff3cd;color:#856404;}
+    .tur-badge-genelge{background:#f8d7da;color:#721c24;}
+    .tur-badge-diger{background:#e2e3e5;color:#41464b;}
+  </style>
+</head>
+<body>
+<div class="d-flex" id="wrapper">
+  <div id="mis-sidebar-mount"></div>
+  <div id="page-content" class="flex-grow-1">
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
+      <span class="mis-topbar-title">Mevzuat</span>
+      <div class="ms-auto d-flex gap-2">
+        <input type="text" class="form-control form-control-sm" id="arama" placeholder="Mevzuat ara..." style="width:200px"/>
+        <button class="btn btn-sm btn-mis" onclick="yeniMevzuatAc()"><i class="bi bi-plus-lg me-1"></i>Ekle</button>
+      </div>
+    </nav>
+
+    <div class="tur-bar">
+      <button class="tur-sekme active" data-tur="">Tümü</button>
+      <button class="tur-sekme" data-tur="Kanun">Kanun</button>
+      <button class="tur-sekme" data-tur="Yönetmelik">Yönetmelik</button>
+      <button class="tur-sekme" data-tur="Tebliğ">Tebliğ</button>
+      <button class="tur-sekme" data-tur="Genelge">Genelge</button>
+      <button class="tur-sekme" data-tur="Yönerge">Yönerge</button>
+      <button class="tur-sekme" data-tur="Karar">Karar</button>
+      <button class="tur-sekme" data-tur="Diğer">Diğer</button>
+    </div>
+
+    <main class="mis-main p-4">
+      <div id="guncelleme-uyari" class="d-none mb-3"></div>
+      <div id="mevzuat-listesi">
+        <div class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm text-success"></div><span class="ms-2">Yükleniyor...</span></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Ekle Modal -->
+<div class="modal fade" id="ekleModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Mevzuat Ekle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-3">
+        <div class="col-md-8">
+          <label class="form-label small fw-semibold">Adı *</label>
+          <input type="text" class="form-control form-control-sm" id="e-ad" placeholder="4342 Sayılı Mera Kanunu"/>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Türü *</label>
+          <select class="form-select form-select-sm" id="e-tur">
+            <option>Kanun</option><option>Yönetmelik</option><option>Tebliğ</option>
+            <option>Genelge</option><option>Yönerge</option><option>Karar</option><option>Diğer</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">Mevzuat No</label>
+          <input type="text" class="form-control form-control-sm" id="e-no" placeholder="4342"/>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">R.G. Tarihi</label>
+          <input type="date" class="form-control form-control-sm" id="e-rg-tarih"/>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">R.G. Sayısı</label>
+          <input type="text" class="form-control form-control-sm" id="e-rg-sayi"/>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">Etiketler</label>
+          <input type="text" class="form-control form-control-sm" id="e-etiketler" placeholder="mera, tahsis (virgülle)"/>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">Konu / Özet</label>
+          <textarea class="form-control form-control-sm" id="e-konu" rows="2"></textarea>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold">İçerik Tipi *</label>
+          <div class="d-flex gap-3">
+            <div class="form-check"><input class="form-check-input" type="radio" name="icerik-tipi" id="tip-pdf" value="pdf" checked onchange="icerikTipiDegisti()"/><label class="form-check-label small" for="tip-pdf">PDF Yükle</label></div>
+            <div class="form-check"><input class="form-check-input" type="radio" name="icerik-tipi" id="tip-metin" value="metin" onchange="icerikTipiDegisti()"/><label class="form-check-label small" for="tip-metin">Metin Yapıştır</label></div>
+            <div class="form-check"><input class="form-check-input" type="radio" name="icerik-tipi" id="tip-link" value="link" onchange="icerikTipiDegisti()"/><label class="form-check-label small" for="tip-link">Harici Bağlantı</label></div>
+            <div class="form-check"><input class="form-check-input" type="radio" name="icerik-tipi" id="tip-mevzuat" value="mevzuat_gov" onchange="icerikTipiDegisti()"/><label class="form-check-label small" for="tip-mevzuat">mevzuat.gov.tr</label></div>
+          </div>
+        </div>
+        <!-- PDF -->
+        <div class="col-12" id="alan-pdf">
+          <label class="form-label small fw-semibold">PDF Dosyası *</label>
+          <input type="file" class="form-control form-control-sm" id="e-pdf" accept=".pdf"/>
+        </div>
+        <!-- Metin -->
+        <div class="col-12 d-none" id="alan-metin">
+          <label class="form-label small fw-semibold">Metin İçeriği *</label>
+          <textarea class="form-control form-control-sm" id="e-metin" rows="8" placeholder="Mevzuat metnini buraya yapıştırın..."></textarea>
+        </div>
+        <!-- Link -->
+        <div class="col-12 d-none" id="alan-link">
+          <label class="form-label small fw-semibold">Bağlantı URL *</label>
+          <input type="url" class="form-control form-control-sm" id="e-link" placeholder="https://..."/>
+        </div>
+        <!-- mevzuat.gov.tr -->
+        <div class="col-12 d-none" id="alan-mevzuat">
+          <label class="form-label small fw-semibold">mevzuat.gov.tr URL *</label>
+          <input type="url" class="form-control form-control-sm" id="e-mevzuat-url"
+            placeholder="https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=4342&MevzuatTur=1&MevzuatTertip=5"/>
+          <div class="form-text">İçerik otomatik çekilecek. Ad, Resmi Gazete bilgileri de doldurulabilir.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
+      <button class="btn btn-sm btn-mis" onclick="mevzuatKaydet()" id="btn-kaydet">Kaydet</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+  <div id="mis-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex"><div class="toast-body fw-semibold" id="toast-msg"></div>
+    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button></div>
+  </div>
+</div>
+
+<script src="/js/sidebar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '/api/mevzuat';
+let aktifTur = '';
+
+const showToast = (msg, type='success') => {
+  const el = document.getElementById('mis-toast');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+};
+
+const TUR_CLS = { Kanun:'tur-badge-kanun', Yönetmelik:'tur-badge-yonetmelik', Tebliğ:'tur-badge-teblig', Genelge:'tur-badge-genelge' };
+const ICERIK_IKON = { pdf:'bi-file-earmark-pdf text-danger', metin:'bi-file-earmark-text text-primary', link:'bi-link-45deg text-secondary', mevzuat_gov:'bi-globe text-success' };
+
+// Türe göre sekme
+document.querySelectorAll('.tur-sekme').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tur-sekme').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  aktifTur = b.dataset.tur;
+  loadMevzuatlar();
+}));
+
+let aramaTimer;
+document.getElementById('arama').addEventListener('input', () => {
+  clearTimeout(aramaTimer);
+  aramaTimer = setTimeout(loadMevzuatlar, 400);
+});
+
+const loadIstatistik = async () => {
+  try {
+    const r = await fetch(`${API}/istatistik`);
+    const j = await r.json();
+    const d = j.data;
+    if (d.bekleyen > 0) {
+      document.getElementById('guncelleme-uyari').classList.remove('d-none');
+      document.getElementById('guncelleme-uyari').innerHTML = `
+        <div class="mis-card" style="border-left:4px solid #ffc107;background:#fff8e1">
+          <div class="mis-card-header"><i class="bi bi-arrow-repeat text-warning"></i><span class="title">${d.bekleyen} Mevzuatta Güncelleme Var</span></div>
+          ${d.guncellemeler.map(g=>`
+            <div class="d-flex align-items-center justify-content-between p-2 border-bottom">
+              <span class="small"><strong>${g.ad}</strong> <span class="text-muted">${g.tur}</span></span>
+              <div class="d-flex gap-2">
+                <span class="small text-muted">${new Date(g.guncelleme_tarihi).toLocaleDateString('tr-TR')}</span>
+                <a href="/mevzuat/detay.html?id=${g._id}" class="btn btn-xs btn-outline-secondary">İncele</a>
+              </div>
+            </div>`).join('')}
+        </div>`;
+    }
+  } catch {}
+};
+
+const loadMevzuatlar = async () => {
+  const ara = document.getElementById('arama').value;
+  const params = new URLSearchParams();
+  if (aktifTur) params.set('tur', aktifTur);
+  if (ara) params.set('ara', ara);
+
+  try {
+    const r = await fetch(`${API}?${params}`);
+    const j = await r.json();
+    const mevzuatlar = j.data || [];
+
+    if (!mevzuatlar.length) {
+      document.getElementById('mevzuat-listesi').innerHTML = '<p class="text-muted text-center py-4 small">Kayıt bulunamadı.</p>';
+      return;
+    }
+
+    document.getElementById('mevzuat-listesi').innerHTML = mevzuatlar.map(m => `
+      <div class="mevzuat-kart" onclick="window.location='/mevzuat/detay.html?id=${m._id}'">
+        <div class="d-flex align-items-start gap-3">
+          <i class="bi ${ICERIK_IKON[m.icerik_tipi]||'bi-file-earmark'} fs-3 mt-1"></i>
+          <div class="flex-grow-1">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="px-2 py-0 rounded-pill small fw-semibold ${TUR_CLS[m.tur]||'tur-badge-diger'}">${m.tur}</span>
+              ${m.mevzuat_no ? `<span class="text-muted small">No: ${m.mevzuat_no}</span>` : ''}
+              ${m.guncelleme_bekleniyor ? '<span class="guncelleme-badge"><i class="bi bi-arrow-repeat me-1"></i>Güncelleme var</span>' : ''}
+            </div>
+            <div class="fw-semibold">${m.ad}</div>
+            ${m.konu ? `<div class="small text-muted mt-1">${m.konu}</div>` : ''}
+            <div class="d-flex gap-3 mt-1">
+              ${m.resmi_gazete_tarihi ? `<span class="small text-muted"><i class="bi bi-calendar3 me-1"></i>${new Date(m.resmi_gazete_tarihi).toLocaleDateString('tr-TR')}</span>` : ''}
+              ${m.resmi_gazete_sayisi ? `<span class="small text-muted">R.G. ${m.resmi_gazete_sayisi}</span>` : ''}
+              ${m.son_kontrol ? `<span class="small text-muted"><i class="bi bi-clock me-1"></i>Kontrol: ${new Date(m.son_kontrol).toLocaleDateString('tr-TR')}</span>` : ''}
+              ${(m.etiketler||[]).map(e=>`<span class="badge bg-secondary" style="font-size:10px">${e}</span>`).join('')}
+            </div>
+          </div>
+          <div class="text-end">
+            <button class="btn btn-xs btn-outline-danger" onclick="event.stopPropagation();mevzuatSil('${m._id}')" title="Sil"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch { showToast('Veriler alınamadı.','danger'); }
+};
+
+window.icerikTipiDegisti = () => {
+  const tip = document.querySelector('input[name="icerik-tipi"]:checked').value;
+  ['pdf','metin','link','mevzuat'].forEach(t => document.getElementById(`alan-${t}`)?.classList.add('d-none'));
+  document.getElementById(`alan-${tip}`)?.classList.remove('d-none');
+};
+
+window.yeniMevzuatAc = () => {
+  document.getElementById('e-ad').value='';
+  document.getElementById('e-no').value='';
+  document.getElementById('e-rg-tarih').value='';
+  document.getElementById('e-rg-sayi').value='';
+  document.getElementById('e-konu').value='';
+  document.getElementById('e-etiketler').value='';
+  document.getElementById('e-metin').value='';
+  document.getElementById('e-link').value='';
+  document.getElementById('e-mevzuat-url').value='';
+  document.getElementById('tip-pdf').checked=true;
+  icerikTipiDegisti();
+  new bootstrap.Modal(document.getElementById('ekleModal')).show();
+};
+
+window.mevzuatKaydet = async () => {
+  const tip = document.querySelector('input[name="icerik-tipi"]:checked').value;
+  const ad = document.getElementById('e-ad').value.trim();
+  if (!ad && tip !== 'mevzuat_gov') { showToast('Ad zorunlu.','warning'); return; }
+
+  const btn = document.getElementById('btn-kaydet');
+  btn.disabled = true; btn.textContent = 'Kaydediliyor...';
+
+  try {
+    const form = new FormData();
+    form.append('tur', document.getElementById('e-tur').value);
+    form.append('icerik_tipi', tip);
+    if (ad) form.append('ad', ad);
+    if (document.getElementById('e-no').value) form.append('mevzuat_no', document.getElementById('e-no').value);
+    if (document.getElementById('e-rg-tarih').value) form.append('resmi_gazete_tarihi', document.getElementById('e-rg-tarih').value);
+    if (document.getElementById('e-rg-sayi').value) form.append('resmi_gazete_sayisi', document.getElementById('e-rg-sayi').value);
+    if (document.getElementById('e-konu').value) form.append('konu', document.getElementById('e-konu').value);
+    const etiketler = document.getElementById('e-etiketler').value.split(',').map(e=>e.trim()).filter(Boolean);
+    if (etiketler.length) form.append('etiketler', JSON.stringify(etiketler));
+
+    if (tip === 'pdf') {
+      const pdf = document.getElementById('e-pdf').files[0];
+      if (!pdf) { showToast('PDF seçin.','warning'); btn.disabled=false; btn.textContent='Kaydet'; return; }
+      form.append('pdf', pdf);
+    } else if (tip === 'metin') {
+      form.append('icerik', document.getElementById('e-metin').value);
+    } else if (tip === 'link') {
+      form.append('harici_link', document.getElementById('e-link').value);
+    } else if (tip === 'mevzuat_gov') {
+      form.append('mevzuat_gov_url', document.getElementById('e-mevzuat-url').value);
+    }
+
+    const r = await fetch(API, { method:'POST', body:form });
+    const j = await r.json();
+    if (j.success) {
+      bootstrap.Modal.getInstance(document.getElementById('ekleModal')).hide();
+      showToast('Mevzuat eklendi.');
+      loadMevzuatlar();
+    } else showToast(j.message||'Hata.','danger');
+  } catch(e) { showToast('Hata: '+e.message,'danger'); }
+  finally { btn.disabled=false; btn.textContent='Kaydet'; }
+};
+
+window.mevzuatSil = async (id) => {
+  if (!confirm('Silinecek?')) return;
+  const r = await fetch(`${API}/${id}`, { method:'DELETE' });
+  if ((await r.json()).success) { showToast('Silindi.'); loadMevzuatlar(); }
+};
+
+document.addEventListener('DOMContentLoaded', () => { loadIstatistik(); loadMevzuatlar(); });
+</script>
+<style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
+</body>
+</html>

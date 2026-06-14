@@ -12,6 +12,7 @@ const bbhbYukleRoutes = require('./modules/bbhb-yukle/bbhbYukle.routes');
 const ayarlarRoutes = require('./modules/ayarlar/ayarlar.routes');
 const meraRoutes = require('./modules/mera/mera.routes');
 const isgalRoutes = require('./modules/isgal/isgal.routes');
+const mevzuatRoutes = require('./modules/mevzuat/mevzuat.routes');
 const fs = require('fs');
 
 const app = express();
@@ -72,6 +73,13 @@ app.use('/api/bbhb-yukle', bbhbYukleRoutes);
 app.use('/api/ayarlar', ayarlarRoutes);
 app.use('/api/mera', meraRoutes);
 app.use('/api/isgal', isgalRoutes);
+app.use('/api/mevzuat', mevzuatRoutes);
+
+// Günlük mevzuat kontrolü - her gün 04:00'da
+const cron = require('node-cron');
+const { gunlukKontrol } = require('./modules/mevzuat/mevzuat.controller');
+cron.schedule('0 4 * * *', gunlukKontrol, { timezone: 'Europe/Istanbul' });
+console.log('[Cron] Mevzuat günlük kontrol zamanlandı (her gün 04:00)');
 
 app.use(notFound);
 app.use(errorHandler);

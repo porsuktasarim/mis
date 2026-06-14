@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mevzuat Detay - MİS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+  <style>
+    .detay-sekme{border:none;background:none;padding:9px 15px;font-size:13px;color:#4a6358;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;}
+    .detay-sekme.active{color:#0F6E56;border-bottom-color:#0F6E56;font-weight:500;}
+    .detay-tab{display:none;}.detay-tab.active{display:block;}
+    .detay-topbar{background:#fff;border-bottom:1px solid #e2e8e4;display:flex;align-items:center;overflow-x:auto;padding:0 1rem;}
+    #pdf-viewer{width:100%;height:80vh;border:none;border-radius:8px;}
+    .metin-icerik{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.8;padding:1rem;background:#f8faf8;border-radius:8px;max-height:75vh;overflow-y:auto;}
+    .html-icerik{font-size:13px;line-height:1.8;padding:1rem;background:#f8faf8;border-radius:8px;max-height:75vh;overflow-y:auto;}
+    .surum-kart{border:1px solid #e2e8e4;border-radius:8px;padding:.85rem 1rem;margin-bottom:.65rem;}
+    .guncelleme-banner{background:#fff8e1;border:1px solid #ffc107;border-radius:10px;padding:1rem;margin-bottom:1rem;}
+  </style>
+</head>
+<body>
+<div class="d-flex" id="wrapper">
+  <div id="mis-sidebar-mount"></div>
+  <div id="page-content" class="flex-grow-1 d-flex flex-column">
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
+      <span class="mis-topbar-title" id="page-baslik">Mevzuat</span>
+      <div class="ms-auto d-flex gap-2">
+        <a href="/mevzuat/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Liste</a>
+        <button class="btn btn-sm btn-outline-secondary" onclick="duzenleAc()"><i class="bi bi-pencil me-1"></i>Düzenle</button>
+        <button id="btn-yenile" class="btn btn-sm btn-outline-success d-none" onclick="manuelYenile()"><i class="bi bi-arrow-repeat me-1"></i>Yenile</button>
+      </div>
+    </nav>
+    <div class="detay-topbar">
+      <button class="detay-sekme active" data-tab="icerik"><i class="bi bi-file-earmark-text me-1"></i>İçerik</button>
+      <button class="detay-sekme" data-tab="bilgi"><i class="bi bi-info-circle me-1"></i>Bilgiler</button>
+      <button class="detay-sekme" data-tab="surumler"><i class="bi bi-clock-history me-1"></i>Eski Sürümler <span class="badge bg-secondary ms-1" id="surum-sayisi">0</span></button>
+    </div>
+
+    <main class="mis-main p-4">
+
+      <!-- Güncelleme bildirimi -->
+      <div id="guncelleme-banner" class="d-none guncelleme-banner">
+        <div class="d-flex align-items-center justify-content-between">
+          <div><i class="bi bi-arrow-repeat text-warning me-2"></i><strong>Bu mevzuatta güncelleme tespit edildi.</strong> <span class="text-muted small" id="guncelleme-tarihi"></span></div>
+          <button class="btn btn-sm btn-warning" onclick="guncellemeyiOnayla()">Onayla / Kapat</button>
+        </div>
+      </div>
+
+      <!-- İÇERİK -->
+      <div class="detay-tab active" id="tab-icerik">
+        <div id="icerik-alani"><div class="text-center py-5"><div class="spinner-border text-success"></div></div></div>
+      </div>
+
+      <!-- BİLGİLER -->
+      <div class="detay-tab" id="tab-bilgi">
+        <div class="row g-4">
+          <div class="col-lg-6">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-info-circle"></i><span class="title">Mevzuat Bilgileri</span></div>
+              <table class="table table-sm mb-0">
+                <tr><td class="text-muted small" style="width:35%">Adı</td><td id="b-ad" class="fw-semibold">-</td></tr>
+                <tr><td class="text-muted small">Türü</td><td id="b-tur">-</td></tr>
+                <tr><td class="text-muted small">Mevzuat No</td><td id="b-no">-</td></tr>
+                <tr><td class="text-muted small">R.G. Tarihi</td><td id="b-rg-tarih">-</td></tr>
+                <tr><td class="text-muted small">R.G. Sayısı</td><td id="b-rg-sayi">-</td></tr>
+                <tr><td class="text-muted small">İçerik Tipi</td><td id="b-tip">-</td></tr>
+                <tr><td class="text-muted small">Kaynak</td><td id="b-kaynak">-</td></tr>
+                <tr><td class="text-muted small">Son Kontrol</td><td id="b-kontrol">-</td></tr>
+                <tr><td class="text-muted small">Etiketler</td><td id="b-etiketler">-</td></tr>
+              </table>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-card-text"></i><span class="title">Konu / Özet</span></div>
+              <p id="b-konu" class="p-3 small mb-0">-</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESKİ SÜRÜMLER -->
+      <div class="detay-tab" id="tab-surumler">
+        <div id="surum-listesi">
+          <p class="text-muted text-center py-4 small">Henüz eski sürüm yok.</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Düzenle Modal -->
+<div class="modal fade" id="duzenleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Mevzuat Düzenle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-3">
+        <div class="col-md-8"><label class="form-label small fw-semibold">Adı *</label><input type="text" class="form-control form-control-sm" id="d-ad"/></div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Türü</label>
+          <select class="form-select form-select-sm" id="d-tur">
+            <option>Kanun</option><option>Yönetmelik</option><option>Tebliğ</option>
+            <option>Genelge</option><option>Yönerge</option><option>Karar</option><option>Diğer</option>
+          </select>
+        </div>
+        <div class="col-md-3"><label class="form-label small fw-semibold">Mevzuat No</label><input type="text" class="form-control form-control-sm" id="d-no"/></div>
+        <div class="col-md-3"><label class="form-label small fw-semibold">R.G. Tarihi</label><input type="date" class="form-control form-control-sm" id="d-rg-tarih"/></div>
+        <div class="col-md-3"><label class="form-label small fw-semibold">R.G. Sayısı</label><input type="text" class="form-control form-control-sm" id="d-rg-sayi"/></div>
+        <div class="col-md-3"><label class="form-label small fw-semibold">Etiketler</label><input type="text" class="form-control form-control-sm" id="d-etiketler" placeholder="mera, tahsis"/></div>
+        <div class="col-12"><label class="form-label small fw-semibold">Konu</label><textarea class="form-control form-control-sm" id="d-konu" rows="3"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button><button class="btn btn-sm btn-mis" onclick="duzenleKaydet()">Kaydet</button></div>
+  </div></div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+  <div id="mis-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex"><div class="toast-body fw-semibold" id="toast-msg"></div>
+    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button></div>
+  </div>
+</div>
+
+<script src="/js/sidebar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '/api/mevzuat';
+const id = new URLSearchParams(location.search).get('id');
+let mevzuat = null;
+
+const showToast = (msg, type='success') => {
+  const el = document.getElementById('mis-toast');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+};
+
+const TUR_ETIKET = { pdf:'PDF', metin:'Metin', link:'Harici Bağlantı', mevzuat_gov:'mevzuat.gov.tr' };
+
+document.querySelectorAll('.detay-sekme').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.detay-sekme').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.detay-tab').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+}));
+
+const loadMevzuat = async () => {
+  const r = await fetch(`${API}/${id}`);
+  const j = await r.json();
+  mevzuat = j.data;
+  document.getElementById('page-baslik').textContent = mevzuat.ad;
+  renderIcerik();
+  renderBilgiler();
+  renderSurumler();
+
+  if (mevzuat.icerik_tipi === 'mevzuat_gov')
+    document.getElementById('btn-yenile').classList.remove('d-none');
+
+  if (mevzuat.guncelleme_bekleniyor) {
+    document.getElementById('guncelleme-banner').classList.remove('d-none');
+    document.getElementById('guncelleme-tarihi').textContent =
+      mevzuat.guncelleme_tarihi ? new Date(mevzuat.guncelleme_tarihi).toLocaleString('tr-TR') : '';
+  }
+};
+
+const renderIcerik = () => {
+  const el = document.getElementById('icerik-alani');
+
+  if (mevzuat.icerik_tipi === 'pdf' && mevzuat.drive_file_id) {
+    el.innerHTML = `<iframe id="pdf-viewer" src="/api/mevzuat/${id}/pdf" title="${mevzuat.ad}"></iframe>`;
+  } else if (mevzuat.icerik_tipi === 'link' && mevzuat.harici_link) {
+    el.innerHTML = `
+      <div class="text-center py-4">
+        <i class="bi bi-link-45deg fs-1 text-secondary d-block mb-2"></i>
+        <p class="fw-semibold">${mevzuat.ad}</p>
+        <a href="${mevzuat.harici_link}" target="_blank" class="btn btn-mis">
+          <i class="bi bi-box-arrow-up-right me-2"></i>Bağlantıyı Aç
+        </a>
+        <p class="small text-muted mt-2">${mevzuat.harici_link}</p>
+      </div>`;
+  } else if (mevzuat.html_icerik) {
+    el.innerHTML = `<div class="html-icerik">${mevzuat.html_icerik}</div>`;
+  } else if (mevzuat.icerik) {
+    el.innerHTML = `<pre class="metin-icerik">${mevzuat.icerik}</pre>`;
+  } else {
+    el.innerHTML = '<p class="text-muted text-center py-4 small">İçerik bulunamadı.</p>';
+  }
+};
+
+const renderBilgiler = () => {
+  document.getElementById('b-ad').textContent = mevzuat.ad;
+  document.getElementById('b-tur').innerHTML = `<span class="badge bg-secondary">${mevzuat.tur}</span>`;
+  document.getElementById('b-no').textContent = mevzuat.mevzuat_no || '-';
+  document.getElementById('b-rg-tarih').textContent = mevzuat.resmi_gazete_tarihi ? new Date(mevzuat.resmi_gazete_tarihi).toLocaleDateString('tr-TR') : '-';
+  document.getElementById('b-rg-sayi').textContent = mevzuat.resmi_gazete_sayisi || '-';
+  document.getElementById('b-tip').textContent = TUR_ETIKET[mevzuat.icerik_tipi] || mevzuat.icerik_tipi;
+  document.getElementById('b-kaynak').innerHTML = mevzuat.mevzuat_gov_url
+    ? `<a href="${mevzuat.mevzuat_gov_url}" target="_blank" class="small">${mevzuat.mevzuat_gov_url}</a>`
+    : mevzuat.harici_link ? `<a href="${mevzuat.harici_link}" target="_blank" class="small">${mevzuat.harici_link}</a>` : '-';
+  document.getElementById('b-kontrol').textContent = mevzuat.son_kontrol ? new Date(mevzuat.son_kontrol).toLocaleString('tr-TR') : '-';
+  document.getElementById('b-etiketler').innerHTML = (mevzuat.etiketler||[]).map(e=>`<span class="badge bg-secondary me-1">${e}</span>`).join('') || '-';
+  document.getElementById('b-konu').textContent = mevzuat.konu || '-';
+};
+
+const renderSurumler = () => {
+  const surumler = mevzuat.surumler || [];
+  document.getElementById('surum-sayisi').textContent = surumler.length;
+  if (!surumler.length) return;
+
+  document.getElementById('surum-listesi').innerHTML = [...surumler].reverse().map((s, idx) => `
+    <div class="surum-kart">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+          <strong class="small">Sürüm ${surumler.length - idx}</strong>
+          <span class="text-muted small ms-2">${new Date(s.createdAt).toLocaleString('tr-TR')}</span>
+        </div>
+        <button class="btn btn-xs btn-outline-secondary" onclick="surumuGoster(${surumler.length - 1 - idx})">
+          <i class="bi bi-eye me-1"></i>Görüntüle
+        </button>
+      </div>
+      ${s.degisiklik_notu ? `<div class="small text-muted"><i class="bi bi-info-circle me-1"></i>${s.degisiklik_notu}</div>` : ''}
+    </div>`).join('');
+};
+
+window.surumuGoster = (idx) => {
+  const s = mevzuat.surumler[idx];
+  if (!s) return;
+  const el = document.getElementById('icerik-alani');
+  const icerik = s.html_icerik
+    ? `<div class="html-icerik">${s.html_icerik}</div>`
+    : s.icerik ? `<pre class="metin-icerik">${s.icerik}</pre>` : '<p class="text-muted small">İçerik yok.</p>';
+  el.innerHTML = `
+    <div class="alert alert-warning py-2 small mb-2">
+      <i class="bi bi-clock-history me-1"></i>Eski sürüm görüntüleniyor — ${new Date(s.createdAt).toLocaleString('tr-TR')}
+      <button class="btn btn-xs btn-outline-secondary ms-2" onclick="renderIcerik()">Güncel Sürüme Dön</button>
+    </div>
+    ${icerik}`;
+  document.querySelectorAll('.detay-sekme').forEach(b => b.classList.toggle('active', b.dataset.tab === 'icerik'));
+  document.querySelectorAll('.detay-tab').forEach(p => p.classList.toggle('active', p.id === 'tab-icerik'));
+};
+
+window.manuelYenile = async () => {
+  showToast('Yenileniyor...', 'secondary');
+  try {
+    const r = await fetch(`${API}/${id}/yenile`, { method:'POST' });
+    const j = await r.json();
+    if (j.success) {
+      showToast(j.degisiklik ? 'Değişiklik tespit edildi, güncellendi.' : 'Değişiklik yok.');
+      await loadMevzuat();
+    } else showToast(j.message,'danger');
+  } catch { showToast('Hata.','danger'); }
+};
+
+window.guncellemeyiOnayla = async () => {
+  const r = await fetch(`${API}/${id}/onayla`, { method:'POST' });
+  const j = await r.json();
+  if (j.success) { document.getElementById('guncelleme-banner').classList.add('d-none'); showToast('Güncelleme onaylandı.'); }
+};
+
+window.duzenleAc = () => {
+  document.getElementById('d-ad').value = mevzuat.ad;
+  document.getElementById('d-tur').value = mevzuat.tur;
+  document.getElementById('d-no').value = mevzuat.mevzuat_no || '';
+  document.getElementById('d-rg-tarih').value = mevzuat.resmi_gazete_tarihi ? new Date(mevzuat.resmi_gazete_tarihi).toISOString().slice(0,10) : '';
+  document.getElementById('d-rg-sayi').value = mevzuat.resmi_gazete_sayisi || '';
+  document.getElementById('d-konu').value = mevzuat.konu || '';
+  document.getElementById('d-etiketler').value = (mevzuat.etiketler||[]).join(', ');
+  new bootstrap.Modal(document.getElementById('duzenleModal')).show();
+};
+
+window.duzenleKaydet = async () => {
+  const veri = {
+    ad: document.getElementById('d-ad').value,
+    tur: document.getElementById('d-tur').value,
+    mevzuat_no: document.getElementById('d-no').value,
+    resmi_gazete_tarihi: document.getElementById('d-rg-tarih').value || null,
+    resmi_gazete_sayisi: document.getElementById('d-rg-sayi').value,
+    konu: document.getElementById('d-konu').value,
+    etiketler: document.getElementById('d-etiketler').value.split(',').map(e=>e.trim()).filter(Boolean),
+  };
+  const r = await fetch(`${API}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(veri) });
+  const j = await r.json();
+  if (j.success) { bootstrap.Modal.getInstance(document.getElementById('duzenleModal')).hide(); await loadMevzuat(); showToast('Güncellendi.'); }
+  else showToast(j.message,'danger');
+};
+
+document.addEventListener('DOMContentLoaded', loadMevzuat);
+</script>
+<style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
+</body>
+</html>
