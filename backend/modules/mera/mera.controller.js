@@ -690,7 +690,7 @@ const istatistik = async (req, res, next) => {
       vasif_uyari: vasifUyari, tahsis_uyari: tahsisUyari,
       vasif_uyarilar, tahsis_uyarilar
     }});
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[Mera İstatistik Hatası]', err.message); next(err); }
 };
 
 module.exports = {

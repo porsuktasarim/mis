@@ -49,61 +49,84 @@ const driveYukle = async (drive, folderId, dosyaAdi, mimeType, buffer) => {
 const mevzuatGovCek = async (url) => {
   const axios = require('axios');
 
-  // URL'den mevzuat no ve tür çıkar
   const urlObj = new URL(url);
   const mevzuatNo = urlObj.searchParams.get('MevzuatNo');
   const mevzuatTur = urlObj.searchParams.get('MevzuatTur');
   const mevzuatTertip = urlObj.searchParams.get('MevzuatTertip') || '5';
 
-  if (!mevzuatNo || !mevzuatTur) throw new Error('Geçersiz mevzuat.gov.tr URL\'i. MevzuatNo ve MevzuatTur parametreleri gerekli.');
+  if (!mevzuatNo || !mevzuatTur) throw new Error('Geçersiz URL. MevzuatNo ve MevzuatTur parametreleri gerekli.');
 
-  // Önce mevzuat detayını çek
-  let ad = '', htmlIcerik = '', metinIcerik = '', resmGazTarih = null, resmGazSayi = '';
+  let ad = '', htmlIcerik = '', metinIcerik = '', resmGazTarih = null, resmGazSayi = '', mevzuatNoSonuc = mevzuatNo;
 
-  try {
-    // Mevzuat bilgileri API
-    const detayRes = await axios.get(
-      `https://www.mevzuat.gov.tr/anasayfa/MevzuatMetinById/${mevzuatTertip}.${mevzuatNo}.${mevzuatTur}`,
-      { timeout: 30000, headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' } }
-    );
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/html, */*',
+    'Accept-Language': 'tr-TR,tr;q=0.9',
+    'Referer': 'https://www.mevzuat.gov.tr/',
+  };
 
-    if (detayRes.data) {
-      const data = detayRes.data;
-      ad = data.mevzuatAdi || data.ad || '';
-      htmlIcerik = data.mevzuatMetin || data.icerik || data.htmlIcerik || '';
-      resmGazSayi = data.resmGazSayisi || data.resmiGazeteSayisi || '';
-      if (data.resmGazTarihi) resmGazTarih = new Date(data.resmGazTarihi);
-    }
-  } catch (e1) {
-    // API başarısız, HTML sayfayı parse et
+  // mevzuat.gov.tr'nin gerçek API endpoint'leri
+  const apiEndpoints = [
+    `https://www.mevzuat.gov.tr/anasayfa/MevzuatMetinById/${mevzuatTertip}.${mevzuatNo}.${mevzuatTur}`,
+    `https://www.mevzuat.gov.tr/MevzuatMetin/${mevzuatTertip}.${mevzuatNo}.${mevzuatTur}`,
+  ];
+
+  let basari = false;
+  for (const endpoint of apiEndpoints) {
     try {
-      const htmlRes = await axios.get(url, {
-        timeout: 30000,
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-      });
-      const html = htmlRes.data;
-      // Başlığı çek
-      const baslikMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i) || html.match(/<title>([^<]+)<\/title>/i);
-      if (baslikMatch) ad = baslikMatch[1].trim();
-      // İçeriği çek
-      const icerikMatch = html.match(/<div[^>]*id="icerik"[^>]*>([\s\S]*?)<\/div>/i) ||
-                          html.match(/<div[^>]*class="mevzuat-metin"[^>]*>([\s\S]*?)<\/div>/i);
-      if (icerikMatch) htmlIcerik = icerikMatch[1];
-      else htmlIcerik = html; // Tüm HTML'i sakla
-    } catch (e2) {
-      throw new Error(`mevzuat.gov.tr'den içerik çekilemedi: ${e2.message}`);
+      console.log(`[Mevzuat] API deneniyor: ${endpoint}`);
+      const res = await axios.get(endpoint, { timeout: 20000, headers });
+      const data = res.data;
+      console.log(`[Mevzuat] API yanıtı tipi: ${typeof data}, keys: ${typeof data === 'object' ? Object.keys(data).slice(0,5).join(',') : 'string'}`);
+
+      if (typeof data === 'object' && data !== null) {
+        ad = data.mevzuatAdi || data.ad || data.baslik || data.MevzuatAdi || '';
+        htmlIcerik = data.mevzuatMetin || data.icerik || data.metin || data.HtmlMetin || data.htmlMetin || '';
+        resmGazSayi = data.resmGazSayisi || data.resmiGazeteSayisi || data.RGSayisi || '';
+        const rgTarihStr = data.resmGazTarihi || data.resmiGazeteTarihi || data.RGTarihi || '';
+        if (rgTarihStr) resmGazTarih = new Date(rgTarihStr);
+        basari = true;
+        break;
+      } else if (typeof data === 'string' && data.length > 100) {
+        htmlIcerik = data;
+        const baslikMatch = data.match(/<title>([^<]+)<\/title>/i) || data.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+        if (baslikMatch) ad = baslikMatch[1].replace(/\s+/g,' ').trim();
+        basari = true;
+        break;
+      }
+    } catch (e) {
+      console.log(`[Mevzuat] API hatası (${endpoint}): ${e.message}`);
     }
   }
 
-  // Metin içeriği HTML'den çıkar
-  if (htmlIcerik) {
-    metinIcerik = htmlIcerik.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  // API çalışmadıysa HTML sayfasını çek
+  if (!basari) {
+    try {
+      console.log(`[Mevzuat] HTML sayfası çekiliyor: ${url}`);
+      const res = await axios.get(url, { timeout: 20000, headers });
+      htmlIcerik = res.data || '';
+      const baslikMatch = htmlIcerik.match(/<title>([^<]+)<\/title>/i);
+      if (baslikMatch) ad = baslikMatch[1].replace(/\s+/g,' ').trim().replace(' - mevzuat.gov.tr','');
+      console.log(`[Mevzuat] HTML çekildi, boyut: ${htmlIcerik.length} karakter, başlık: ${ad}`);
+    } catch (e) {
+      throw new Error(`mevzuat.gov.tr'den içerik çekilemedi: ${e.message}`);
+    }
   }
 
-  // Hash hesapla
-  const hash = crypto.createHash('md5').update(metinIcerik || htmlIcerik || '').digest('hex');
+  // HTML'den metin çıkar
+  if (htmlIcerik) {
+    metinIcerik = htmlIcerik.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 50000); // Maks 50KB metin
+  }
 
-  return { ad, htmlIcerik, metinIcerik, hash, resmGazTarih, resmGazSayi, mevzuatNo };
+  const hash = crypto.createHash('md5').update(metinIcerik || htmlIcerik.slice(0,10000) || '').digest('hex');
+  console.log(`[Mevzuat] Çekildi — ad: "${ad}", metin uzunluğu: ${metinIcerik.length}, hash: ${hash}`);
+
+  return { ad, htmlIcerik: htmlIcerik.slice(0, 500000), metinIcerik, hash, resmGazTarih, resmGazSayi, mevzuatNo: mevzuatNoSonuc };
 };
 
 // ── CRUD ──────────────────────────────────────────────────
