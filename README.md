@@ -13,6 +13,7 @@ Tarım ve Orman Bakanlığı İl/İlçe Müdürlükleri için geliştirilmiş me
 | Altyapı | Docker Compose, Coolify |
 | Zamanlama | node-cron |
 | HTTP İstemci | axios |
+| Raporlama | ExcelJS, docx |
 
 ## Canlı URL
 
@@ -62,6 +63,23 @@ mis-app/
 
 ---
 
+## Sidebar Yapısı
+
+```
+Modüller
+  └─ Mera
+  └─ İşgal
+
+Araçlar
+  └─ BBHB Hesaplayıcı
+  └─ Mevzuat
+
+Sistem
+  └─ Ayarlar
+```
+
+---
+
 ## Modüller
 
 ### Mera (`/mera/`)
@@ -71,11 +89,11 @@ Mera parsellerinin kayıt ve takip modülü.
 - İl/ilçe/mahalle filtreli liste (47.649 mahalle, plaka sırasına göre)
 - Parsel detayları: nitelik, vasıf, toprak sınıfı, tapu alanı, kadastral alan
 - Mülkiyet bilgileri: cilt/sayfa/kayıt durumu, malik, pay/payda, şerhler
-- KML/KMZ yükleme → Google Drive'a kaydedilir, haritada Leaflet+OpenStreetMap ile gösterim
+- KML/KMZ yükleme → Google Drive'a kaydedilir, Leaflet+OpenStreetMap ile harita
 - Vasıf belgesi (1 yıl) ve tahsis belgesi (5 yıl) takibi → süresi yaklaşınca uyarı
 - Otlatma kapasitesi: EK-1 tabloları üzerinden BBHB hesaplama
 - Renkli notlar, dosya yükleme, dosya-not ilişkilendirme
-- PDF raporu (Noto Sans, çok sayfalı, her sayfada başlık)
+- PDF raporu (çok sayfalı, her sayfada başlık)
 - Ana sayfada: toplam aktif mera (adet, hektar, BBHB), uyarı sayaçları
 
 **API:**
@@ -87,7 +105,7 @@ GET    /api/mera/:id
 PUT    /api/mera/:id
 DELETE /api/mera/:id
 POST   /api/mera/:id/kml
-GET    /api/mera/:id/kml          # inline KML (Google Earth Web için)
+GET    /api/mera/:id/kml
 POST   /api/mera/:id/notlar
 PUT    /api/mera/:id/notlar/:notId
 DELETE /api/mera/:id/notlar/:notId
@@ -101,17 +119,16 @@ GET    /api/mera/:id/rapor/pdf
 ---
 
 ### İşgal (`/isgal/`)
-Mera parseline yapılan tecavüz/işgal kayıt ve takip modülü. 4342 sayılı Mera Kanunu, 3091 ve 2886 sayılı kanunlar kapsamında süreç yönetimi.
+Mera parseline yapılan tecavüz/işgal kayıt ve takip modülü. 4342, 3091 ve 2886 sayılı kanunlar kapsamında süreç yönetimi.
 
 **Özellikler:**
 - İşgal no: `ISG-YY-NNNN` formatı (sistem), kullanıcı no eklenebilir
 - İşgal türü: Tarla İşgali / Yapılaşma / Yol-Hafriyat (açıklama zorunlu)
-- İşgal alanı: m² cinsinden
-- Tıklamalı süreç takibi (sıralı):
+- Tıklamalı süreç takibi:
   1. Tespit Tutanağı
   2. Komisyona İntikal
   3. Komisyon Kararı
-  4. 3091 — Kaymakamlık/Valilik (15 gün sayacı, progress bar)
+  4. 3091 — Kaymakamlık/Valilik (15 gün sayacı)
   5. 3091 Sonucu
   6. 2886/75 — Jandarma/Kaymakamlık
   7. Men-i Müdahale ve Kal Davası
@@ -120,29 +137,28 @@ Mera parseline yapılan tecavüz/işgal kayıt ve takip modülü. 4342 sayılı 
   10. Tazminat Davası
   11. Sonuç/Kapatma
 - Her adımda belge yükleme (opsiyonel), açıklama zorunlu
-- Dosyalar sekmesi: tüm belgeler listelenir, tamamlanan adımlara ek belge yüklenebilir
+- `aktif_adim` yoksa → ilk tamamlanmamış adım otomatik aktif
+- Dosyalar sekmesi: tamamlanan adımlara ek belge yüklenebilir
 - KML: işgal + mera sınırı üst üste, farklı renkler
-- Harman/sıvat/eğrek niteliğinde mera → suç duyurusu otomatik uyarısı
-- Dosya adı formatı: `ISGAL-[sistem_no]-[DDMMYYYY]-[adim-tipi]-[sira].uzanti`
-- Raporlar:
-  - Tekil işgal: HTML/PDF + Word
-  - Tüm işgaller: HTML/PDF + Excel
-- Liste: süreç adımına ve duruma göre filtreleme, 3091 süre uyarıları
+- Harman/sıvat/eğrek → suç duyurusu otomatik uyarısı
+- Dosya adı: `ISGAL-[sistem_no]-[DDMMYYYY]-[adim-tipi]-[sira].uzanti`
+- Raporlar: tekil HTML/PDF + Word, tüm liste HTML/PDF + Excel
+- Süreç adımı ve duruma göre filtreleme, 3091 süre uyarıları
 
 **API:**
 ```
 GET    /api/isgal/istatistik
-GET    /api/isgal/rapor             # HTML/PDF tüm liste
-GET    /api/isgal/rapor/excel       # Excel tüm liste
+GET    /api/isgal/rapor
+GET    /api/isgal/rapor/excel
 GET    /api/isgal
 POST   /api/isgal
 GET    /api/isgal/:id
 PUT    /api/isgal/:id
 DELETE /api/isgal/:id
-GET    /api/isgal/:id/rapor         # HTML/PDF tekil
-GET    /api/isgal/:id/rapor/word    # Word tekil
-POST   /api/isgal/:id/adim          # Süreç adımı tamamla (belge opsiyonel)
-POST   /api/isgal/:id/adim-dosya    # Tamamlanan adıma ek dosya
+GET    /api/isgal/:id/rapor
+GET    /api/isgal/:id/rapor/word
+POST   /api/isgal/:id/adim
+POST   /api/isgal/:id/adim-dosya
 POST   /api/isgal/:id/kml
 GET    /api/isgal/:id/kml/:kmlId
 ```
@@ -164,28 +180,40 @@ Büyükbaş Hayvan Birimi hesaplama aracı.
 Kanun, yönetmelik, tebliğ ve diğer mevzuatların kayıt ve takip modülü.
 
 **Özellikler:**
-- Türe göre sekmeli liste: Kanun / Yönetmelik / Tebliğ / Genelge / Yönerge / Karar / Diğer
+- Türe göre sekmeli liste: Kanun / Yönetmelik / Tebliğ / Genelge / Yönerge / Karar / Diğer / 📝 Notlar
 - 4 ekleme yöntemi:
-  1. **PDF yükle** → Drive'a kaydedilir, sayfa içinde iframe ile görüntülenir
-  2. **Metin yapıştır** → doğrudan metin girişi
-  3. **Harici bağlantı** → URL kaydedilir
-  4. **mevzuat.gov.tr** → URL girilir, içerik otomatik çekilir
-- Günlük 04:00 cron job: mevzuat.gov.tr bağlantılı mevzuatlar kontrol edilir, değişiklik varsa arşivlenir
-- Sürüm geçmişi: her değişiklik arşivlenir, eski sürümler görüntülenebilir
-- Manuel yenile: anlık güncelleme kontrolü
+  1. PDF yükle → Drive'a kaydedilir, sayfa içinde iframe ile görüntülenir
+  2. Metin yapıştır
+  3. Harici bağlantı
+  4. mevzuat.gov.tr URL → `bedesten.adalet.gov.tr` API ile içerik otomatik çekilir
+- İçinde kelime/kelime grubu arama (metin ve notlarda)
+- Not ekleme: renkli, madde referanslı notlar; tüm notlar "Notlar" sekmesinde
+- Günlük 04:00 cron: mevzuat.gov.tr bağlantılı mevzuatlar kontrol, değişiklik arşivlenir
+- Sürüm geçmişi, manuel yenile, güncelleme onaylama
 - Ana sayfada güncelleme uyarısı
+
+**mevzuat.gov.tr URL formatı:**
+```
+https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=4342&MevzuatTur=1&MevzuatTertip=5
+```
+Parametreler: `MevzuatNo`=kanun no, `MevzuatTur`=1(Kanun) 4(Yönetmelik) 7(Tebliğ)
 
 **API:**
 ```
 GET    /api/mevzuat/istatistik
+GET    /api/mevzuat/notlar
 GET    /api/mevzuat
 POST   /api/mevzuat
 GET    /api/mevzuat/:id
 PUT    /api/mevzuat/:id
 DELETE /api/mevzuat/:id
-GET    /api/mevzuat/:id/pdf         # PDF proxy (Drive'dan)
-POST   /api/mevzuat/:id/yenile      # Manuel güncelleme kontrolü
-POST   /api/mevzuat/:id/onayla      # Güncelleme bildirimini onayla
+GET    /api/mevzuat/:id/pdf
+GET    /api/mevzuat/:id/ara?kelime=...
+POST   /api/mevzuat/:id/yenile
+POST   /api/mevzuat/:id/onayla
+POST   /api/mevzuat/:id/notlar
+PUT    /api/mevzuat/:id/notlar/:notId
+DELETE /api/mevzuat/:id/notlar/:notId
 ```
 
 ---
@@ -195,7 +223,7 @@ POST   /api/mevzuat/:id/onayla      # Güncelleme bildirimini onayla
 
 **Sekmeler:**
 - **Google Drive:** OAuth2 veya Service Account bağlantısı
-- **Dosya Kategorileri:** özelleştirilebilir kategori listesi
+- **Dosya Kategorileri:** özelleştirilebilir kategori ve ikon listesi
 - **Not Renkleri:** not renk tanımları
 - **Toprak Sınıfları:** I-VIII, tanımlarıyla
 - **Yağış Kuşakları:** 81 il, EK-2
@@ -204,20 +232,20 @@ POST   /api/mevzuat/:id/onayla      # Güncelleme bildirimini onayla
 
 ---
 
-## Sidebar Yapısı
+## Google Drive Kurulumu (OAuth2)
 
-```
-Modüller
-  └─ Mera
-  └─ İşgal
+1. [Google Cloud Console](https://console.cloud.google.com/) → Yeni proje oluştur
+2. **APIs & Services → OAuth consent screen** → External → App adı gir → Kaydet
+3. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
+   - Application type: **Desktop app**
+   - İndir: `client_secret_xxx.json`
+4. **APIs & Services → Library → Google Drive API → Enable**
+5. MİS Ayarlar → Drive → **JSON Yükle** → indirilen dosyayı seç
+6. **Yetkilendir** butonuna tıkla → Google sayfası açılır
+7. Hesabı seç → İzin ver → Gösterilen kodu kopyala
+8. MİS'e yapıştır → **Kaydet**
 
-Araçlar
-  └─ BBHB Hesaplayıcı
-  └─ Mevzuat
-
-Sistem
-  └─ Ayarlar
-```
+> **Not:** Service Account ile normal Drive'da "storage quota" hatası alınır. Shared Drive gerektirir. OAuth2 önerilir.
 
 ---
 
@@ -240,29 +268,14 @@ NODE_ENV=production
 | backend | 5000 (internal) | Node.js API |
 | frontend | 80 | Nginx static + /api/ proxy |
 
-### Nginx Proxy
-`/api/` → `backend:5000` olarak yönlendirilir.
-
-### İdari Veri
-İlk başlangıçta `data/Il-ilce-Semt-Mahalle-PostaKodu.xml` otomatik yüklenir (~30-60 sn, 47.649 mahalle).
-
 ### Frontend Yeniden Başlatma
 ```bash
 # Coolify terminal (frontend container)
 nginx -s reload
 ```
 
----
-
-## Google Drive Kurulumu
-
-**OAuth2 (önerilen):**
-1. Google Cloud Console → OAuth 2.0 Desktop App JSON indir
-2. Ayarlar → Drive → JSON Yükle → Yetkilendir
-3. Google sayfasında onay ver → kodu kopyala → yapıştır
-
-**Service Account:**
-- Shared Drive gerektirir (normal Drive'da kota hatası)
+### İdari Veri
+İlk başlangıçta `data/Il-ilce-Semt-Mahalle-PostaKodu.xml` otomatik yüklenir (~30-60 sn, 47.649 mahalle).
 
 ---
 
@@ -274,6 +287,15 @@ nginx -s reload
 
 ---
 
-## Versiyon
+## Versiyon Geçmişi
 
-**v1.7.0** — Mevzuat modülü, sidebar yeniden yapılandırma, işgal rapor (Excel/Word), mülkiyet bilgileri
+| Versiyon | Değişiklik |
+|---|---|
+| v1.7.1 | Mevzuat: not ekleme, içinde arama, notlar sekmesi |
+| v1.7.0 | Mevzuat modülü, sidebar yeniden yapılandırma |
+| v1.6.2 | İşgal: süreç düzeltme, belge yükleme, Excel/Word rapor |
+| v1.6.0 | İşgal modülü |
+| v1.5.3 | Mülkiyet bilgileri, istatistik, PDF rapor |
+| v1.0.0 | İlk yayın: Mera, BBHB, Ayarlar |
+
+**Güncel: v1.7.1**

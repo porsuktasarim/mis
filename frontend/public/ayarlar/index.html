@@ -65,30 +65,34 @@
         <div class="row g-4">
           <div class="col-lg-5">
             <div class="mis-card mb-3">
-              <div class="mis-card-header"><i class="bi bi-info-circle text-success"></i><span class="title">Google Drive Nasıl Kurulur?</span></div>
+              <div class="mis-card-header"><i class="bi bi-info-circle text-success"></i><span class="title">Google Drive Kurulumu (OAuth2 — Önerilen)</span></div>
               <div class="adim-kutu d-flex gap-3">
                 <span class="adim-no">1</span>
                 <div class="small"><strong>Google Cloud Console'a gidin</strong><br><a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> → Yeni proje oluşturun (ör: <code>mis-app</code>)</div>
               </div>
               <div class="adim-kutu d-flex gap-3">
                 <span class="adim-no">2</span>
-                <div class="small"><strong>Drive API'yi etkinleştirin</strong><br>APIs & Services → Library → <em>Google Drive API</em> aratın → Enable</div>
+                <div class="small"><strong>Drive API'yi etkinleştirin</strong><br>APIs & Services → Library → <em>Google Drive API</em> aratın → <strong>Enable</strong></div>
               </div>
               <div class="adim-kutu d-flex gap-3">
                 <span class="adim-no">3</span>
-                <div class="small"><strong>Servis hesabı oluşturun</strong><br>APIs & Services → Credentials → + Create Credentials → Service Account → İsim: <code>mis-drive</code> → Role: Editor → Done</div>
+                <div class="small"><strong>OAuth onay ekranı</strong><br>APIs & Services → OAuth consent screen → <strong>External</strong> → Uygulama adı girin → Kaydet</div>
               </div>
               <div class="adim-kutu d-flex gap-3">
                 <span class="adim-no">4</span>
-                <div class="small"><strong>JSON key indirin</strong><br>Oluşturduğunuz servis hesabına tıklayın → Keys → Add Key → Create new key → <strong>JSON</strong> → Create<br>Dosya bilgisayarınıza inecek.</div>
+                <div class="small"><strong>OAuth istemcisi oluşturun</strong><br>APIs & Services → Credentials → <strong>+ Create Credentials → OAuth client ID</strong><br>Application type: <strong>Desktop app</strong> → Ad: <code>MIS</code> → Create<br>Açılan pencereden <strong>JSON İndir</strong> butonuna tıklayın</div>
               </div>
               <div class="adim-kutu d-flex gap-3">
                 <span class="adim-no">5</span>
-                <div class="small"><strong>Drive'da MİS klasörü oluşturun</strong><br><a href="https://drive.google.com" target="_blank">drive.google.com</a> → Yeni klasör: <code>MİS</code> → Klasöre sağ tıkla → Share → JSON'daki <code>client_email</code> adresini ekleyin → Yetki: <strong>Editor</strong> → Send</div>
+                <div class="small"><strong>MİS'e ekleyin</strong><br>Sağdaki "Hesap Ekle" → Tip: <strong>OAuth2</strong> → İndirilen JSON'ı not defteri ile açıp yapıştırın → Kaydet</div>
               </div>
               <div class="adim-kutu d-flex gap-3">
                 <span class="adim-no">6</span>
-                <div class="small"><strong>MİS'e ekleyin</strong><br>Sağdaki "Hesap Ekle" butonuna tıklayın → JSON dosyasını not defteri ile açıp içeriği yapıştırın → Test butonuyla doğrulayın.</div>
+                <div class="small"><strong>Yetkilendirin</strong><br>Kayıtlı hesabın yanındaki <strong>Yetkilendir</strong> butonuna tıklayın → Açılan Google sayfasında hesabı seçin → İzin verin → Kodu kopyalayın → MİS'e yapıştırın</div>
+              </div>
+              <div class="adim-kutu d-flex gap-3" style="border-left:3px solid #ffc107;background:#fffde7">
+                <span class="adim-no" style="background:#ffc107">!</span>
+                <div class="small"><strong>Servis Hesabı Notu:</strong> Service Account yalnızca <em>Shared Drive</em> ile çalışır. Normal Drive'da "storage quota" hatası verir. OAuth2 kullanmanız önerilir.</div>
               </div>
             </div>
           </div>
@@ -219,6 +223,17 @@
 
     </main>
   </div>
+</div>
+
+<!-- İkon Seçici Modal -->
+<div class="modal fade" id="ikonModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">İkon Seç</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="text" class="form-control form-control-sm mb-3" id="ikon-ara" placeholder="İkon adı ara... (örn: file, map, person)" oninput="ikonAra()"/>
+      <div id="ikon-grid" class="d-flex flex-wrap gap-1"></div>
+    </div>
+  </div></div>
 </div>
 
 <!-- Drive Modal -->
@@ -407,7 +422,9 @@ window.driveSil = async (id) => {
 const renderKategoriler = () => {
   document.getElementById('kategoriler-listesi').innerHTML = (ayarlar.dosya_kategorileri||[]).map((k,i)=>`
     <div class="d-flex align-items-center gap-2 p-2 border-bottom">
-      <i class="bi ${k.ikon} text-success"></i>
+      <button class="btn btn-sm btn-outline-secondary" onclick="ikonSeciciAc(${i})" title="İkon seç" style="width:36px;padding:4px">
+        <i class="bi ${k.ikon} text-success"></i>
+      </button>
       <input type="text" class="form-control form-control-sm flex-grow-1" value="${k.ad}" onchange="ayarlar.dosya_kategorileri[${i}].ad=this.value"/>
       <div class="form-check mb-0"><input class="form-check-input" type="checkbox" title="Aktif" ${k.aktif?'checked':''} onchange="ayarlar.dosya_kategorileri[${i}].aktif=this.checked"/></div>
       <button class="btn btn-xs btn-outline-danger" onclick="kategoriSil(${i})"><i class="bi bi-trash"></i></button>
@@ -415,6 +432,39 @@ const renderKategoriler = () => {
 };
 window.kategoriEkle = () => { (ayarlar.dosya_kategorileri=ayarlar.dosya_kategorileri||[]).push({ad:'Yeni Kategori',ikon:'bi-paperclip',sira:99,aktif:true}); renderKategoriler(); };
 window.kategoriSil = (i) => { ayarlar.dosya_kategorileri.splice(i,1); renderKategoriler(); };
+
+// İkon seçici
+const IKONLAR = [
+  'bi-paperclip','bi-file-earmark','bi-file-earmark-pdf','bi-file-earmark-word','bi-file-earmark-excel',
+  'bi-file-earmark-image','bi-file-earmark-text','bi-file-earmark-zip','bi-folder','bi-camera',
+  'bi-map','bi-geo-alt','bi-house','bi-building','bi-tree','bi-clipboard','bi-clipboard-check',
+  'bi-journal','bi-journal-text','bi-book','bi-archive','bi-card-list','bi-layout-text-window',
+  'bi-hammer','bi-tools','bi-wrench','bi-gear','bi-shield','bi-flag','bi-bookmark',
+  'bi-star','bi-heart','bi-check-circle','bi-exclamation-triangle','bi-info-circle',
+  'bi-person','bi-people','bi-truck','bi-car-front','bi-signpost','bi-signpost-2',
+];
+let _ikonIdx = -1;
+window.ikonSeciciAc = (i) => {
+  _ikonIdx = i;
+  const mevcut = ayarlar.dosya_kategorileri[i].ikon;
+  document.getElementById('ikon-grid').innerHTML = IKONLAR.map(ikon=>`
+    <button class="btn btn-sm ${ikon===mevcut?'btn-mis':'btn-outline-secondary'}" style="width:44px;height:44px;padding:6px"
+      onclick="ikonSec('${ikon}')"><i class="bi ${ikon}"></i></button>`).join('');
+  document.getElementById('ikon-ara').value = '';
+  new bootstrap.Modal(document.getElementById('ikonModal')).show();
+};
+window.ikonSec = (ikon) => {
+  if (_ikonIdx >= 0) { ayarlar.dosya_kategorileri[_ikonIdx].ikon = ikon; renderKategoriler(); }
+  bootstrap.Modal.getInstance(document.getElementById('ikonModal')).hide();
+};
+window.ikonAra = () => {
+  const ara = document.getElementById('ikon-ara').value.toLowerCase();
+  const mevcut = _ikonIdx >= 0 ? ayarlar.dosya_kategorileri[_ikonIdx].ikon : '';
+  const filtrelenmis = ara ? IKONLAR.filter(i => i.includes(ara)) : IKONLAR;
+  document.getElementById('ikon-grid').innerHTML = filtrelenmis.map(ikon=>`
+    <button class="btn btn-sm ${ikon===mevcut?'btn-mis':'btn-outline-secondary'}" style="width:44px;height:44px;padding:6px"
+      onclick="ikonSec('${ikon}')" title="${ikon}"><i class="bi ${ikon}"></i></button>`).join('');
+};
 
 // Renkler
 const renderRenkler = () => {
