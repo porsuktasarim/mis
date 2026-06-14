@@ -226,33 +226,28 @@
       <div class="ayar-tab" id="tab-personel">
         <div class="row g-4">
 
-          <!-- Teknik Ekip -->
+          <!-- Teknik Ekipler -->
           <div class="col-12">
             <div class="mis-card">
               <div class="mis-card-header">
-                <i class="bi bi-tools"></i>
-                <span class="title">Teknik Ekip</span>
-                <div class="ms-auto d-flex gap-2 align-items-center">
-                  <input type="text" class="form-control form-control-sm" id="teknik-ekip-ad" placeholder="Ekip adı" style="width:200px" oninput="ayarlar.teknik_ekip_ad=this.value"/>
-                  <button class="btn btn-sm btn-mis" onclick="teknikUyeEkle()"><i class="bi bi-plus-lg me-1"></i>Üye Ekle</button>
-                </div>
+                <i class="bi bi-tools"></i><span class="title">Teknik Ekipler</span>
+                <button class="btn btn-sm btn-mis ms-auto" onclick="teknikEkipEkle()"><i class="bi bi-plus-lg me-1"></i>Yeni Ekip</button>
               </div>
-              <div id="teknik-ekip-listesi">
-                <p class="text-muted small text-center py-2">Henüz üye yok.</p>
+              <div id="teknik-ekipler-listesi">
+                <p class="text-muted small text-center py-2">Henüz ekip yok.</p>
               </div>
             </div>
           </div>
 
-          <!-- İl Mera Komisyonu -->
+          <!-- İl Mera Komisyonları -->
           <div class="col-12">
             <div class="mis-card">
               <div class="mis-card-header">
-                <i class="bi bi-person-badge"></i>
-                <span class="title">İl Mera Komisyonu</span>
-                <button class="btn btn-sm btn-mis ms-auto" onclick="komisyonUyeEkle()"><i class="bi bi-plus-lg me-1"></i>Üye Ekle</button>
+                <i class="bi bi-person-badge"></i><span class="title">İl Mera Komisyonları</span>
+                <button class="btn btn-sm btn-mis ms-auto" onclick="komisyonEkle()"><i class="bi bi-plus-lg me-1"></i>Yeni Komisyon</button>
               </div>
-              <div id="komisyon-listesi">
-                <p class="text-muted small text-center py-2">Henüz üye yok.</p>
+              <div id="komisyonlar-listesi">
+                <p class="text-muted small text-center py-2">Henüz komisyon yok.</p>
               </div>
             </div>
           </div>
@@ -515,52 +510,87 @@ window.ikonAra = () => {
 };
 
 // ── Personel ──────────────────────────────────────────────
-const uyeSatiri = (liste, listeAdi, i) => {
-  const u = liste[i];
-  return `<div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap" id="${listeAdi}-${i}">
-    <input type="text" class="form-control form-control-sm" style="min-width:140px;flex:2" placeholder="Ad Soyad *" value="${u.ad||''}" oninput="ayarlar.${listeAdi}[${i}].ad=this.value"/>
-    <input type="text" class="form-control form-control-sm" style="min-width:130px;flex:2" placeholder="Kurum" value="${u.kurum||''}" oninput="ayarlar.${listeAdi}[${i}].kurum=this.value"/>
-    <input type="text" class="form-control form-control-sm" style="min-width:120px;flex:1.5" placeholder="Ünvan" value="${u.unvan||''}" oninput="ayarlar.${listeAdi}[${i}].unvan=this.value"/>
-    <select class="form-select form-select-sm" style="width:90px;flex:none" onchange="ayarlar.${listeAdi}[${i}].asil_yedek=this.value">
-      <option value="asil" ${u.asil_yedek==='asil'?'selected':''}>Asıl</option>
+const uyeSatiriPersonel = (uyeler, listeAdi, ekipIdx, uyeIdx) => {
+  const u = uyeler[uyeIdx];
+  const path = ekipIdx !== null ? `${listeAdi}[${ekipIdx}].uyeler` : listeAdi;
+  return `<div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap">
+    <input type="text" class="form-control form-control-sm" style="min-width:140px;flex:2" placeholder="Ad Soyad *" value="${u.ad||''}" oninput="ayarlar.${path}[${uyeIdx}].ad=this.value"/>
+    <input type="text" class="form-control form-control-sm" style="min-width:130px;flex:2" placeholder="Kurum" value="${u.kurum||''}" oninput="ayarlar.${path}[${uyeIdx}].kurum=this.value"/>
+    <input type="text" class="form-control form-control-sm" style="min-width:110px;flex:1.5" placeholder="Ünvan" value="${u.unvan||''}" oninput="ayarlar.${path}[${uyeIdx}].unvan=this.value"/>
+    <select class="form-select form-select-sm" style="width:88px;flex:none" onchange="ayarlar.${path}[${uyeIdx}].asil_yedek=this.value">
+      <option value="asil" ${u.asil_yedek!=='yedek'?'selected':''}>Asıl</option>
       <option value="yedek" ${u.asil_yedek==='yedek'?'selected':''}>Yedek</option>
     </select>
-    <div class="form-check mb-0" title="Aktif">
-      <input class="form-check-input" type="checkbox" ${u.aktif!==false?'checked':''} onchange="ayarlar.${listeAdi}[${i}].aktif=this.checked"/>
-    </div>
-    <button class="btn btn-xs btn-outline-danger" onclick="uyeSil('${listeAdi}',${i})"><i class="bi bi-trash"></i></button>
+    <div class="form-check mb-0" title="Aktif"><input class="form-check-input" type="checkbox" ${u.aktif!==false?'checked':''} onchange="ayarlar.${path}[${uyeIdx}].aktif=this.checked"/></div>
+    <button class="btn btn-xs btn-outline-danger" onclick="uyeSilPersonel('${listeAdi}',${ekipIdx},${uyeIdx})"><i class="bi bi-trash"></i></button>
   </div>`;
 };
 
 const renderPersonel = () => {
-  // Teknik ekip adı
-  document.getElementById('teknik-ekip-ad').value = ayarlar.teknik_ekip_ad || 'Teknik Ekip';
-  // Teknik ekip listesi
-  const teknik = ayarlar.teknik_ekip || [];
-  document.getElementById('teknik-ekip-listesi').innerHTML = teknik.length
-    ? teknik.map((_,i) => uyeSatiri(teknik, 'teknik_ekip', i)).join('')
-    : '<p class="text-muted small text-center py-2">Henüz üye yok.</p>';
-  // Komisyon listesi
-  const komisyon = ayarlar.komisyon_uyeleri || [];
-  document.getElementById('komisyon-listesi').innerHTML = komisyon.length
-    ? komisyon.map((_,i) => uyeSatiri(komisyon, 'komisyon_uyeleri', i)).join('')
-    : '<p class="text-muted small text-center py-2">Henüz üye yok.</p>';
+  // Teknik Ekipler
+  const ekipler = ayarlar.teknik_ekipler || [];
+  document.getElementById('teknik-ekipler-listesi').innerHTML = ekipler.length
+    ? ekipler.map((ekip, ei) => `
+      <div class="border rounded mb-3 overflow-hidden">
+        <div class="d-flex align-items-center gap-2 p-2" style="background:#f8faf8">
+          <input type="text" class="form-control form-control-sm fw-semibold" style="max-width:220px" placeholder="Ekip Adı *" value="${ekip.ad||''}" oninput="ayarlar.teknik_ekipler[${ei}].ad=this.value"/>
+          <input type="text" class="form-control form-control-sm" style="max-width:100px" placeholder="Yıl" value="${ekip.yil||''}" oninput="ayarlar.teknik_ekipler[${ei}].yil=this.value"/>
+          <div class="ms-auto d-flex gap-1">
+            <button class="btn btn-xs btn-mis" onclick="teknikUyeEkle(${ei})"><i class="bi bi-plus me-1"></i>Üye</button>
+            <button class="btn btn-xs btn-outline-danger" onclick="teknikEkipSil(${ei})"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+        ${(ekip.uyeler||[]).length
+          ? (ekip.uyeler||[]).map((_,ui) => uyeSatiriPersonel(ekip.uyeler, 'teknik_ekipler', ei, ui)).join('')
+          : '<p class="text-muted small text-center py-2 mb-0">Henüz üye yok.</p>'}
+      </div>`).join('')
+    : '<p class="text-muted small text-center py-3">Henüz ekip yok.</p>';
+
+  // Komisyonlar
+  const komisyonlar = ayarlar.komisyonlar || [];
+  document.getElementById('komisyonlar-listesi').innerHTML = komisyonlar.length
+    ? komisyonlar.map((kom, ki) => `
+      <div class="border rounded mb-3 overflow-hidden">
+        <div class="d-flex align-items-center gap-2 p-2" style="background:#f8faf8">
+          <input type="text" class="form-control form-control-sm" style="max-width:100px" placeholder="Yıl" value="${kom.yil||''}" oninput="ayarlar.komisyonlar[${ki}].yil=this.value"/>
+          <span class="fw-semibold small text-muted">İl Mera Komisyonu</span>
+          <div class="ms-auto d-flex gap-1">
+            <button class="btn btn-xs btn-mis" onclick="komisyonUyeEkle(${ki})"><i class="bi bi-plus me-1"></i>Üye</button>
+            <button class="btn btn-xs btn-outline-danger" onclick="komisyonSil(${ki})"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+        ${(kom.uyeler||[]).length
+          ? (kom.uyeler||[]).map((_,ui) => uyeSatiriPersonel(kom.uyeler, 'komisyonlar', ki, ui)).join('')
+          : '<p class="text-muted small text-center py-2 mb-0">Henüz üye yok.</p>'}
+      </div>`).join('')
+    : '<p class="text-muted small text-center py-3">Henüz komisyon yok.</p>';
 };
 
-window.teknikUyeEkle = () => {
-  if (!ayarlar.teknik_ekip) ayarlar.teknik_ekip = [];
-  ayarlar.teknik_ekip.push({ ad: '', kurum: '', unvan: '', asil_yedek: 'asil', aktif: true });
+window.teknikEkipEkle = () => {
+  if (!ayarlar.teknik_ekipler) ayarlar.teknik_ekipler = [];
+  ayarlar.teknik_ekipler.push({ ad: '', yil: new Date().getFullYear().toString(), uyeler: [] });
   renderPersonel();
 };
-
-window.komisyonUyeEkle = () => {
-  if (!ayarlar.komisyon_uyeleri) ayarlar.komisyon_uyeleri = [];
-  ayarlar.komisyon_uyeleri.push({ ad: '', kurum: '', unvan: '', asil_yedek: 'asil', aktif: true });
+window.teknikEkipSil = (ei) => { ayarlar.teknik_ekipler.splice(ei,1); renderPersonel(); };
+window.teknikUyeEkle = (ei) => {
+  if (!ayarlar.teknik_ekipler[ei].uyeler) ayarlar.teknik_ekipler[ei].uyeler = [];
+  ayarlar.teknik_ekipler[ei].uyeler.push({ ad:'', kurum:'', unvan:'', asil_yedek:'asil', aktif:true });
   renderPersonel();
 };
-
-window.uyeSil = (listeAdi, i) => {
-  ayarlar[listeAdi].splice(i, 1);
+window.komisyonEkle = () => {
+  if (!ayarlar.komisyonlar) ayarlar.komisyonlar = [];
+  ayarlar.komisyonlar.push({ yil: new Date().getFullYear().toString(), uyeler: [] });
+  renderPersonel();
+};
+window.komisyonSil = (ki) => { ayarlar.komisyonlar.splice(ki,1); renderPersonel(); };
+window.komisyonUyeEkle = (ki) => {
+  if (!ayarlar.komisyonlar[ki].uyeler) ayarlar.komisyonlar[ki].uyeler = [];
+  ayarlar.komisyonlar[ki].uyeler.push({ ad:'', kurum:'', unvan:'', asil_yedek:'asil', aktif:true });
+  renderPersonel();
+};
+window.uyeSilPersonel = (listeAdi, ekipIdx, uyeIdx) => {
+  if (ekipIdx !== null) ayarlar[listeAdi][ekipIdx].uyeler.splice(uyeIdx,1);
+  else ayarlar[listeAdi].splice(uyeIdx,1);
   renderPersonel();
 };
 

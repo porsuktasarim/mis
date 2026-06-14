@@ -71,6 +71,13 @@ const TeknikEkipUyeSchema = new mongoose.Schema({
   sira: { type: Number, default: 0 },
 });
 
+// Teknik ekip (birden fazla olabilir)
+const TeknikEkipSchema = new mongoose.Schema({
+  ad: { type: String, required: true },
+  yil: { type: String },
+  uyeler: [TeknikEkipUyeSchema],
+});
+
 // İl mera komisyonu üyesi
 const KomisyonUyeSchema = new mongoose.Schema({
   ad: { type: String, required: true },
@@ -79,6 +86,12 @@ const KomisyonUyeSchema = new mongoose.Schema({
   asil_yedek: { type: String, enum: ['asil', 'yedek'], default: 'asil' },
   aktif: { type: Boolean, default: true },
   sira: { type: Number, default: 0 },
+});
+
+// İl mera komisyonu (yıllık)
+const KomisyonSchema = new mongoose.Schema({
+  yil: { type: String },
+  uyeler: [KomisyonUyeSchema],
 });
 
 // Kullanıcı (ileride aktifleştirilecek)
@@ -101,9 +114,8 @@ const AyarlarSchema = new mongoose.Schema({
   uretilen_kuru_ot: [VerimSatirSchema],
   idari_oncelikler: [IdariOncelikSchema],
   // Personel
-  teknik_ekip_ad: { type: String, default: 'Teknik Ekip' },
-  teknik_ekip: [TeknikEkipUyeSchema],
-  komisyon_uyeleri: [KomisyonUyeSchema],
+  teknik_ekipler: [TeknikEkipSchema],
+  komisyonlar: [KomisyonSchema],
   kullanicilar: [KullaniciSchema],
 }, { timestamps: true });
 
