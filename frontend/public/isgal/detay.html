@@ -298,7 +298,14 @@ const renderGenel = () => {
 
 const renderSurec = () => {
   const tamamlananTipler = new Set((isgal.adimlar || []).filter(a => a.tamamlandi).map(a => a.tip));
-  const aktifAdim = isgal.aktif_adim;
+  // aktif_adim yoksa veya null ise ilk tamamlanmamış adımı bul
+  let aktifAdim = isgal.aktif_adim;
+  if (!aktifAdim) {
+    const ilkTamamlanmamis = ADIMLAR.find(a => !tamamlananTipler.has(a.tip));
+    aktifAdim = ilkTamamlanmamis?.tip || 'tespit_tutanak';
+    // Backend'i de güncelle
+    fetch(`${API}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ aktif_adim: aktifAdim }) }).catch(()=>{});
+  }
   const bugun = new Date();
 
   document.getElementById('surec-listesi').innerHTML = ADIMLAR.map((a, idx) => {
@@ -321,7 +328,6 @@ const renderSurec = () => {
       }
     }
 
-    // Kayıt detayları
     const kayitHtml = kayitlar.map(k => `
       <div class="p-2 border rounded small mb-1" style="background:#f8f9fa">
         <div class="d-flex justify-content-between text-muted mb-1">
@@ -332,7 +338,7 @@ const renderSurec = () => {
       </div>`).join('');
 
     return `<div class="surec-adim ${cls}" id="adim-${a.tip}">
-      <div class="d-flex align-items-center gap-2" onclick="toggleDetay('${a.tip}')" style="cursor:${tamamlandi||aktif?'pointer':'default'}">
+      <div class="d-flex align-items-center gap-2" onclick="toggleDetay('${a.tip}')" style="cursor:pointer">
         <div class="surec-adim-no">${tamamlandi ? '<i class="bi bi-check"></i>' : idx + 1}</div>
         <div class="flex-grow-1">
           <div class="fw-semibold small">${a.etiket}</div>
@@ -354,12 +360,7 @@ const renderSurec = () => {
 };
 
 window.toggleDetay = (tip) => {
-  const el = document.getElementById(`detay-${tip}`);
-  if (!el) return;
-  // Devre dışı adımlar açılmasın
-  const adimEl = document.getElementById(`adim-${tip}`);
-  if (adimEl?.classList.contains('devre-disi')) return;
-  el.classList.toggle('acik');
+  document.getElementById(`detay-${tip}`)?.classList.toggle('acik');
 };
 
 window.adimAc = (tip, etiket) => {
