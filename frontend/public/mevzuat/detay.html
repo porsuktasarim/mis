@@ -34,6 +34,7 @@
     </nav>
     <div class="detay-topbar">
       <button class="detay-sekme active" data-tab="icerik"><i class="bi bi-file-earmark-text me-1"></i>İçerik</button>
+      <button class="detay-sekme" data-tab="notlar"><i class="bi bi-sticky me-1"></i>Notlar <span class="badge bg-secondary ms-1" id="not-sayisi">0</span></button>
       <button class="detay-sekme" data-tab="bilgi"><i class="bi bi-info-circle me-1"></i>Bilgiler</button>
       <button class="detay-sekme" data-tab="surumler"><i class="bi bi-clock-history me-1"></i>Eski Sürümler <span class="badge bg-secondary ms-1" id="surum-sayisi">0</span></button>
     </div>
@@ -50,7 +51,49 @@
 
       <!-- İÇERİK -->
       <div class="detay-tab active" id="tab-icerik">
+        <!-- İçinde ara -->
+        <div id="ara-bolumu" class="d-none mb-3">
+          <div class="d-flex gap-2">
+            <input type="text" class="form-control form-control-sm" id="ara-kelime" placeholder="Metin içinde ara..." style="max-width:300px"/>
+            <button class="btn btn-sm btn-mis" onclick="icindekiAra()"><i class="bi bi-search me-1"></i>Ara</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="aramayiTemizle()"><i class="bi bi-x"></i></button>
+          </div>
+          <div id="ara-sonuclar" class="mt-2"></div>
+        </div>
         <div id="icerik-alani"><div class="text-center py-5"><div class="spinner-border text-success"></div></div></div>
+      </div>
+
+      <!-- NOTLAR -->
+      <div class="detay-tab" id="tab-notlar">
+        <div class="row g-4">
+          <div class="col-lg-8">
+            <div id="notlar-listesi"><p class="text-muted text-center py-3 small">Henüz not yok.</p></div>
+          </div>
+          <div class="col-lg-4">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-plus"></i><span class="title">Not Ekle</span></div>
+              <div class="mb-2">
+                <label class="form-label small fw-semibold">Madde/Bölüm (opsiyonel)</label>
+                <input type="text" class="form-control form-control-sm" id="n-madde-ref" placeholder="Örn: Madde 5, Bölüm III"/>
+              </div>
+              <div class="mb-2">
+                <label class="form-label small fw-semibold">Renk</label>
+                <div class="d-flex gap-2">
+                  <button class="not-renk-btn active" data-renk="#FFF9C4" data-adi="Sarı" data-metin="#333333" style="background:#FFF9C4;width:28px;height:28px;border:2px solid #ccc;border-radius:4px;cursor:pointer" onclick="notRenkSec(this)"></button>
+                  <button class="not-renk-btn" data-renk="#C8E6C9" data-adi="Yeşil" data-metin="#1b5e20" style="background:#C8E6C9;width:28px;height:28px;border:2px solid transparent;border-radius:4px;cursor:pointer" onclick="notRenkSec(this)"></button>
+                  <button class="not-renk-btn" data-renk="#BBDEFB" data-adi="Mavi" data-metin="#0d47a1" style="background:#BBDEFB;width:28px;height:28px;border:2px solid transparent;border-radius:4px;cursor:pointer" onclick="notRenkSec(this)"></button>
+                  <button class="not-renk-btn" data-renk="#FFCCBC" data-adi="Turuncu" data-metin="#bf360c" style="background:#FFCCBC;width:28px;height:28px;border:2px solid transparent;border-radius:4px;cursor:pointer" onclick="notRenkSec(this)"></button>
+                  <button class="not-renk-btn" data-renk="#F3E5F5" data-adi="Mor" data-metin="#4a148c" style="background:#F3E5F5;width:28px;height:28px;border:2px solid transparent;border-radius:4px;cursor:pointer" onclick="notRenkSec(this)"></button>
+                </div>
+              </div>
+              <div class="mb-2">
+                <label class="form-label small fw-semibold">Not *</label>
+                <textarea class="form-control form-control-sm" id="n-icerik" rows="4" placeholder="Notunuzu yazın..."></textarea>
+              </div>
+              <button class="btn btn-mis w-100 btn-sm" onclick="notKaydet()"><i class="bi bi-plus me-1"></i>Not Ekle</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- BİLGİLER -->
@@ -154,16 +197,29 @@ const loadMevzuat = async () => {
   mevzuat = j.data;
   document.getElementById('page-baslik').textContent = mevzuat.ad;
   renderIcerik();
+  renderNotlar();
   renderBilgiler();
   renderSurumler();
 
+  // Arama kutusunu sadece metin içerikli mevzuatlarda göster
+  if (['metin','mevzuat_gov'].includes(mevzuat.icerik_tipi) && mevzuat.icerik) {
+    document.getElementById('ara-bolumu').classList.remove('d-none');
+  }
+
+  document.getElementById('btn-rapor-pdf').href = `${API}/${id}/rapor`;
+  document.getElementById('btn-rapor-word').href = `${API}/${id}/rapor/word`;
   if (mevzuat.icerik_tipi === 'mevzuat_gov')
     document.getElementById('btn-yenile').classList.remove('d-none');
-
   if (mevzuat.guncelleme_bekleniyor) {
     document.getElementById('guncelleme-banner').classList.remove('d-none');
     document.getElementById('guncelleme-tarihi').textContent =
       mevzuat.guncelleme_tarihi ? new Date(mevzuat.guncelleme_tarihi).toLocaleString('tr-TR') : '';
+  }
+
+  // Hash ile notlar sekmesine git
+  if (location.hash === '#notlar') {
+    document.querySelectorAll('.detay-sekme').forEach(b => b.classList.toggle('active', b.dataset.tab === 'notlar'));
+    document.querySelectorAll('.detay-tab').forEach(p => p.classList.toggle('active', p.id === 'tab-notlar'));
   }
 };
 
@@ -210,21 +266,103 @@ const renderSurumler = () => {
   const surumler = mevzuat.surumler || [];
   document.getElementById('surum-sayisi').textContent = surumler.length;
   if (!surumler.length) return;
-
   document.getElementById('surum-listesi').innerHTML = [...surumler].reverse().map((s, idx) => `
     <div class="surum-kart">
       <div class="d-flex justify-content-between align-items-start mb-2">
-        <div>
-          <strong class="small">Sürüm ${surumler.length - idx}</strong>
-          <span class="text-muted small ms-2">${new Date(s.createdAt).toLocaleString('tr-TR')}</span>
-        </div>
-        <button class="btn btn-xs btn-outline-secondary" onclick="surumuGoster(${surumler.length - 1 - idx})">
-          <i class="bi bi-eye me-1"></i>Görüntüle
-        </button>
+        <div><strong class="small">Sürüm ${surumler.length - idx}</strong><span class="text-muted small ms-2">${new Date(s.createdAt).toLocaleString('tr-TR')}</span></div>
+        <button class="btn btn-xs btn-outline-secondary" onclick="surumuGoster(${surumler.length - 1 - idx})"><i class="bi bi-eye me-1"></i>Görüntüle</button>
       </div>
       ${s.degisiklik_notu ? `<div class="small text-muted"><i class="bi bi-info-circle me-1"></i>${s.degisiklik_notu}</div>` : ''}
     </div>`).join('');
 };
+
+// ── Notlar ────────────────────────────────────────────────
+let secilenRenk = { renk: '#FFF9C4', adi: 'Sarı', metin: '#333333' };
+
+window.notRenkSec = (btn) => {
+  document.querySelectorAll('.not-renk-btn').forEach(b => b.style.border = '2px solid transparent');
+  btn.style.border = '2px solid #0F6E56';
+  secilenRenk = { renk: btn.dataset.renk, adi: btn.dataset.adi, metin: btn.dataset.metin };
+};
+
+const renderNotlar = () => {
+  const notlar = mevzuat.notlar || [];
+  document.getElementById('not-sayisi').textContent = notlar.length;
+  document.getElementById('notlar-listesi').innerHTML = notlar.length ? notlar.map(n => `
+    <div class="mis-card mb-2" style="border-left:4px solid ${n.renk};background:${n.renk}22">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1">
+          ${n.madde_ref ? `<div class="small fw-semibold text-muted mb-1"><i class="bi bi-bookmark me-1"></i>${n.madde_ref}</div>` : ''}
+          <div class="small">${n.icerik}</div>
+          <div class="text-muted mt-1" style="font-size:11px">${new Date(n.createdAt).toLocaleString('tr-TR')}</div>
+        </div>
+        <div class="d-flex gap-1 ms-2">
+          <button class="btn btn-xs btn-outline-danger" onclick="notSil('${n._id}')"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>
+    </div>`).join('')
+    : '<p class="text-muted text-center py-3 small">Henüz not yok.</p>';
+};
+
+window.notKaydet = async () => {
+  const icerik = document.getElementById('n-icerik').value.trim();
+  if (!icerik) { showToast('Not içeriği zorunlu.','warning'); return; }
+  const veri = {
+    icerik,
+    madde_ref: document.getElementById('n-madde-ref').value.trim(),
+    renk: secilenRenk.renk, renk_adi: secilenRenk.adi, metin_rengi: secilenRenk.metin,
+  };
+  const r = await fetch(`${API}/${id}/notlar`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(veri) });
+  const j = await r.json();
+  if (j.success) {
+    document.getElementById('n-icerik').value = '';
+    document.getElementById('n-madde-ref').value = '';
+    await loadMevzuat();
+    showToast('Not eklendi.');
+  } else showToast(j.message,'danger');
+};
+
+window.notSil = async (notId) => {
+  if (!confirm('Not silinecek?')) return;
+  const r = await fetch(`${API}/${id}/notlar/${notId}`, { method:'DELETE' });
+  if ((await r.json()).success) { await loadMevzuat(); showToast('Not silindi.'); }
+};
+
+// ── İçinde Ara ────────────────────────────────────────────
+window.icindekiAra = async () => {
+  const kelime = document.getElementById('ara-kelime').value.trim();
+  if (!kelime) return;
+  const r = await fetch(`${API}/${id}/ara?kelime=${encodeURIComponent(kelime)}`);
+  const j = await r.json();
+  const el = document.getElementById('ara-sonuclar');
+
+  if (!j.toplam) {
+    el.innerHTML = `<div class="alert alert-info py-2 small">«${kelime}» için sonuç bulunamadı.</div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="mb-2 small text-muted"><strong>${j.toplam}</strong> sonuç bulundu:</div>` +
+    j.data.map(s => {
+      const vurgu = (metin) => metin.replace(new RegExp(kelime.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), m => `<mark>${m}</mark>`);
+      if (s.tip === 'metin') return `
+        <div class="border rounded p-2 mb-1 small">
+          <div class="text-muted mb-1">Satır ${s.satir_no}</div>
+          <div>${s.oncesi ? `<span class="text-muted">...${s.oncesi}</span>` : ''}${vurgu(s.eslesme)}${s.sonrasi ? `<span class="text-muted">${s.sonrasi}...</span>` : ''}</div>
+        </div>`;
+      return `
+        <div class="border rounded p-2 mb-1 small" style="background:#fffde7">
+          <div class="text-muted mb-1"><i class="bi bi-sticky me-1"></i>Not${s.madde_ref?' — '+s.madde_ref:''}</div>
+          <div>${vurgu(s.eslesme)}</div>
+        </div>`;
+    }).join('');
+};
+
+window.aramayiTemizle = () => {
+  document.getElementById('ara-kelime').value = '';
+  document.getElementById('ara-sonuclar').innerHTML = '';
+};
+
+document.getElementById('ara-kelime')?.addEventListener('keydown', e => { if(e.key==='Enter') icindekiAra(); });
 
 window.surumuGoster = (idx) => {
   const s = mevzuat.surumler[idx];

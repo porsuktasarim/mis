@@ -43,6 +43,7 @@
       <button class="tur-sekme" data-tur="Yönerge">Yönerge</button>
       <button class="tur-sekme" data-tur="Karar">Karar</button>
       <button class="tur-sekme" data-tur="Diğer">Diğer</button>
+      <button class="tur-sekme" data-tur="__notlar__">📝 Notlar</button>
     </div>
 
     <main class="mis-main p-4">
@@ -195,7 +196,10 @@ const loadIstatistik = async () => {
   } catch {}
 };
 
-const loadMevzuatlar = async () => {
+const loadMevzuatlar = async (sayfa=1) => {
+  // Notlar sekmesi özel
+  if (aktifTur === '__notlar__') { await loadNotlar(); return; }
+
   const ara = document.getElementById('arama').value;
   const params = new URLSearchParams();
   if (aktifTur) params.set('tur', aktifTur);
@@ -220,13 +224,13 @@ const loadMevzuatlar = async () => {
               <span class="px-2 py-0 rounded-pill small fw-semibold ${TUR_CLS[m.tur]||'tur-badge-diger'}">${m.tur}</span>
               ${m.mevzuat_no ? `<span class="text-muted small">No: ${m.mevzuat_no}</span>` : ''}
               ${m.guncelleme_bekleniyor ? '<span class="guncelleme-badge"><i class="bi bi-arrow-repeat me-1"></i>Güncelleme var</span>' : ''}
+              ${(m.notlar?.length||0) > 0 ? `<span class="badge bg-warning text-dark" style="font-size:10px"><i class="bi bi-sticky me-1"></i>${m.notlar.length} not</span>` : ''}
             </div>
             <div class="fw-semibold">${m.ad}</div>
             ${m.konu ? `<div class="small text-muted mt-1">${m.konu}</div>` : ''}
             <div class="d-flex gap-3 mt-1">
               ${m.resmi_gazete_tarihi ? `<span class="small text-muted"><i class="bi bi-calendar3 me-1"></i>${new Date(m.resmi_gazete_tarihi).toLocaleDateString('tr-TR')}</span>` : ''}
               ${m.resmi_gazete_sayisi ? `<span class="small text-muted">R.G. ${m.resmi_gazete_sayisi}</span>` : ''}
-              ${m.son_kontrol ? `<span class="small text-muted"><i class="bi bi-clock me-1"></i>Kontrol: ${new Date(m.son_kontrol).toLocaleDateString('tr-TR')}</span>` : ''}
               ${(m.etiketler||[]).map(e=>`<span class="badge bg-secondary" style="font-size:10px">${e}</span>`).join('')}
             </div>
           </div>
@@ -236,6 +240,37 @@ const loadMevzuatlar = async () => {
         </div>
       </div>`).join('');
   } catch { showToast('Veriler alınamadı.','danger'); }
+};
+
+const loadNotlar = async () => {
+  try {
+    const r = await fetch(`${API}/notlar`);
+    const j = await r.json();
+    const notlar = j.data || [];
+
+    if (!notlar.length) {
+      document.getElementById('mevzuat-listesi').innerHTML = '<p class="text-muted text-center py-4 small">Henüz not yok.</p>';
+      return;
+    }
+
+    document.getElementById('mevzuat-listesi').innerHTML = notlar.map(n => `
+      <div class="mevzuat-kart" onclick="window.location='/mevzuat/detay.html?id=${n.mevzuat_id}#notlar'">
+        <div class="d-flex align-items-start gap-3">
+          <div class="rounded p-2" style="background:${n.renk};min-width:36px;text-align:center">
+            <i class="bi bi-sticky fs-5" style="color:${n.metin_rengi}"></i>
+          </div>
+          <div class="flex-grow-1">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="px-2 py-0 rounded-pill small fw-semibold ${TUR_CLS[n.mevzuat_tur]||'tur-badge-diger'}">${n.mevzuat_tur}</span>
+              <span class="fw-semibold small">${n.mevzuat_ad}</span>
+              ${n.madde_ref ? `<span class="text-muted small">${n.madde_ref}</span>` : ''}
+            </div>
+            <div class="small">${n.icerik}</div>
+            <div class="small text-muted mt-1">${new Date(n.tarih).toLocaleString('tr-TR')}</div>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch { showToast('Notlar alınamadı.','danger'); }
 };
 
 window.icerikTipiDegisti = () => {

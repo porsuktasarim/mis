@@ -142,14 +142,12 @@ const listele = async (req, res, next) => {
     const filtre = {};
     if (aktif !== 'all') filtre.aktif = aktif === 'true';
     if (tur) filtre.tur = tur;
-    if (ara) filtre.$or = [
-      { ad: new RegExp(ara, 'i') },
-      { mevzuat_no: new RegExp(ara, 'i') },
-      { konu: new RegExp(ara, 'i') },
-      { etiketler: new RegExp(ara, 'i') },
-    ];
+    if (ara) {
+      // Text index ile arama (başlık + içerik + notlar)
+      filtre.$text = { $search: ara };
+    }
     const mevzuatlar = await Mevzuat.find(filtre)
-      .sort({ tur: 1, ad: 1 })
+      .sort(ara ? { score: { $meta: 'textScore' } } : { tur: 1, ad: 1 })
       .select('-icerik -html_icerik -surumler');
     res.json({ success: true, data: mevzuatlar });
   } catch (err) { next(err); }
@@ -339,7 +337,110 @@ const istatistik = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ── Not CRUD ──────────────────────────────────────────────
+const notEkle = async (req, res, next) => {
+  try {
+    const mevzuat = await Mevzuat.findById(req.params.id);
+    if (!mevzuat) return res.status(404).json({ success: false, message: 'Mevzuat bulunamadı' });
+    const { icerik, madde_ref, renk = '#FFF9C4', renk_adi = 'Sarı', metin_rengi = '#333333' } = req.body;
+    if (!icerik?.trim()) return res.status(400).json({ success: false, message: 'Not içeriği zorunlu' });
+    mevzuat.notlar.push({ icerik, madde_ref, renk, renk_adi, metin_rengi });
+    await mevzuat.save();
+    res.json({ success: true, data: mevzuat.notlar[mevzuat.notlar.length - 1] });
+  } catch (err) { next(err); }
+};
+
+const notGuncelle = async (req, res, next) => {
+  try {
+    const mevzuat = await Mevzuat.findById(req.params.id);
+    if (!mevzuat) return res.status(404).json({ success: false, message: 'Mevzuat bulunamadı' });
+    const not = mevzuat.notlar.id(req.params.notId);
+    if (!not) return res.status(404).json({ success: false, message: 'Not bulunamadı' });
+    ['icerik','madde_ref','renk','renk_adi','metin_rengi'].forEach(a => { if (req.body[a] !== undefined) not[a] = req.body[a]; });
+    await mevzuat.save();
+    res.json({ success: true, data: not });
+  } catch (err) { next(err); }
+};
+
+const notSil = async (req, res, next) => {
+  try {
+    const mevzuat = await Mevzuat.findById(req.params.id);
+    if (!mevzuat) return res.status(404).json({ success: false, message: 'Mevzuat bulunamadı' });
+    mevzuat.notlar.pull(req.params.notId);
+    await mevzuat.save();
+    res.json({ success: true });
+  } catch (err) { next(err); }
+};
+
+// ── İçinde Kelime Ara ─────────────────────────────────────
+const icindekiAra = async (req, res, next) => {
+  try {
+    const { kelime } = req.query;
+    if (!kelime) return res.status(400).json({ success: false, message: 'Kelime gerekli' });
+    const mevzuat = await Mevzuat.findById(req.params.id).select('ad tur icerik notlar');
+    if (!mevzuat) return res.status(404).json({ success: false, message: 'Mevzuat bulunamadı' });
+    if (mevzuat.icerik_tipi === 'pdf') return res.json({ success: true, kelime, toplam: 0, data: [], mesaj: 'PDF içeriği aranamaz.' });
+
+    const sonuclar = [];
+    const re = new RegExp(kelime.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+
+    if (mevzuat.icerik) {
+      const satirlar = mevzuat.icerik.split('\n');
+      satirlar.forEach((satir, idx) => {
+        re.lastIndex = 0;
+        if (re.test(satir)) {
+          sonuclar.push({
+            tip: 'metin',
+            satir_no: idx + 1,
+            oncesi: (satirlar[idx - 1] || '').slice(-60),
+            eslesme: satir.trim().slice(0, 300),
+            sonrasi: (satirlar[idx + 1] || '').slice(0, 60),
+          });
+        }
+      });
+    }
+
+    mevzuat.notlar.forEach(not => {
+      re.lastIndex = 0;
+      if (re.test(not.icerik)) {
+        sonuclar.push({ tip: 'not', not_id: not._id, eslesme: not.icerik.slice(0, 200), madde_ref: not.madde_ref });
+      }
+    });
+
+    res.json({ success: true, kelime, toplam: sonuclar.length, data: sonuclar.slice(0, 100) });
+  } catch (err) { next(err); }
+};
+
+// ── Tüm Mevzuatlarda Notlar Listesi ──────────────────────
+const tumNotlar = async (req, res, next) => {
+  try {
+    const mevzuatlar = await Mevzuat.find({ aktif: true, 'notlar.0': { $exists: true } })
+      .select('ad tur mevzuat_no notlar');
+    const notlar = [];
+    mevzuatlar.forEach(mv => {
+      mv.notlar.forEach(not => {
+        notlar.push({
+          not_id: not._id,
+          mevzuat_id: mv._id,
+          mevzuat_ad: mv.ad,
+          mevzuat_tur: mv.tur,
+          mevzuat_no: mv.mevzuat_no,
+          icerik: not.icerik,
+          madde_ref: not.madde_ref,
+          renk: not.renk,
+          renk_adi: not.renk_adi,
+          metin_rengi: not.metin_rengi,
+          tarih: not.createdAt,
+        });
+      });
+    });
+    notlar.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
+    res.json({ success: true, toplam: notlar.length, data: notlar });
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   listele, getById, pdfGetir, olustur: [upload.single('pdf'), olustur],
   guncelle, sil, guncellemeyiOnayla, manuelYenile, istatistik, gunlukKontrol,
+  notEkle, notGuncelle, notSil, icindekiAra, tumNotlar,
 };
