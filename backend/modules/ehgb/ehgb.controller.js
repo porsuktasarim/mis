@@ -1,6 +1,162 @@
 const { EhgbParametre, EhgbHesap } = require('./ehgb.model');
 
-// ── Parametreler (Ayarlar) ────────────────────────────────
+// ── Varsayılan Parametreler (2026) ────────────────────────
+const VARSAYILAN_PARAMETRELER = {
+  // İşçilik (TL/da)
+  derin_surum: 511.87,
+  surum_pulluk: 354.94,
+  ikilem: 266.21,
+  tirmik: 342.90,
+  gubreleme: 179.90,
+  ekim: 658.24,
+  temizlik_tesviye: 342.90,
+  // Hafriyat
+  arac_kapasite_m3: 14,
+  ozgul_agirlik: 1600,       // kg/m3
+  torba_kg: 60,
+  yukleme_baz: 162,           // 1200 kg'a kadar TL
+  yukleme_ilave_torba: 11,    // her 60 kg fazlası TL
+  nakliye_km: 5,              // TL/km tek yön
+  depolama_giris: 5771,       // TL/araç
+  // Diğer işçilik
+  toprak_serme: 1874.50,      // TL/da (B+C için 1.5x)
+  asfalt_sokum: 288.90,       // TL/m3
+  tel_orgu: 121.25,           // TL/m
+  // Toprak
+  toprak_fiyati: 800,         // TL/m3
+  // Tohum (oran, TL/kg)
+  tohumlar: [
+    { ad: 'İtalyan çimi',           oran: 0.20, fiyat: 220 },
+    { ad: 'Domuz ayrığı',           oran: 0.10, fiyat: 600 },
+    { ad: 'Yüksek çayır yumağı',    oran: 0.15, fiyat: 500 },
+    { ad: 'Çayır salkım otu',       oran: 0.15, fiyat: 750 },
+    { ad: 'Yonca',                  oran: 0.15, fiyat: 800 },
+    { ad: 'Ak üçgül',               oran: 0.15, fiyat: 900 },
+    { ad: 'Korunga',                oran: 0.10, fiyat: 300 },
+  ],
+  tohum_miktar_da: 12,        // kg/da
+  // Gübre
+  amonyum_sulfat_fiyat: 25,   // TL/kg
+  amonyum_sulfat_miktar: 20,  // kg/da (2 yıl)
+  hayvan_gubres_fiyat: 3,     // TL/kg
+  hayvan_gubres_miktar: 2000, // kg/da (1 yıl)
+  kompoze_fiyat: 40,          // TL/kg
+  kompoze_miktar: 20,         // kg/da (2 yıl)
+};
+
+// ── Hesaplama Motoru ─────────────────────────────────────
+const hesaplaEHGB = (girdi, p) => {
+  const {
+    a_alan = 0,      // Sürülen/tarla m2
+    b_alan = 0,      // İnşaat/hafriyat m2
+    b_derinlik = 0,  // m
+    c_alan = 0,      // Asfalt/beton m2
+    c_kalinlik = 0,  // m
+    tel_orgu_m = 0,  // m
+    uzaklik_km = 0,  // km
+  } = girdi;
+
+  // Ara değerler
+  const hacim_m3 = (b_alan * b_derinlik) + (c_alan * c_kalinlik);
+  const toplam_alan_m2 = a_alan + b_alan + c_alan;
+  const toplam_alan_da = toplam_alan_m2 / 1000;
+  const bc_alan_da = (b_alan + c_alan) / 1000;
+  const asfalt_m3 = c_alan * c_kalinlik;
+
+  // İşçilik kalemleri
+  const derin_surum     = p.derin_surum     * toplam_alan_da;
+  const surum_pulluk    = p.surum_pulluk    * toplam_alan_da;
+  const ikilem          = p.ikilem          * toplam_alan_da;
+  const tirmik          = p.tirmik          * toplam_alan_da;
+  const gubreleme_isc   = p.gubreleme       * toplam_alan_da;
+  const ekim_isc        = p.ekim            * toplam_alan_da;
+  const temizlik        = p.temizlik_tesviye * toplam_alan_da;
+
+  // Hafriyat taşıma (3 bileşen)
+  let hafriyat_iscilik = 0, hafriyat_nakliye = 0, hafriyat_depolama = 0;
+  let sefer_sayisi = 0;
+  if (hacim_m3 > 0 && uzaklik_km > 0) {
+    sefer_sayisi = hacim_m3 / p.arac_kapasite_m3;
+    const arac_yuk_kg = p.arac_kapasite_m3 * p.ozgul_agirlik;
+    const ilave_torba = (arac_yuk_kg - 1200) / p.torba_kg;
+    const sefer_basi_iscilik = p.yukleme_baz + (ilave_torba * p.yukleme_ilave_torba);
+    hafriyat_iscilik  = sefer_basi_iscilik * sefer_sayisi;
+    hafriyat_nakliye  = sefer_sayisi * p.nakliye_km * p.arac_kapasite_m3 * 2 * uzaklik_km;
+    hafriyat_depolama = sefer_sayisi * p.depolama_giris;
+  }
+  const hafriyat_toplam = hafriyat_iscilik + hafriyat_nakliye + hafriyat_depolama;
+
+  // Toprak serme (B+C alanı, 1.5x çarpan dahil — zaten birim fiyata dahil)
+  const toprak_serme = bc_alan_da > 0 ? p.toprak_serme * bc_alan_da : 0;
+
+  // Asfalt/beton sökümü
+  const asfalt_sokum = asfalt_m3 > 0 ? p.asfalt_sokum * asfalt_m3 : 0;
+
+  // Tel örgü
+  const tel_orgu_bedel = tel_orgu_m > 0 ? p.tel_orgu * tel_orgu_m : 0;
+
+  // İşçilik toplam
+  const iscilik_toplam = derin_surum + surum_pulluk + ikilem + tirmik +
+    gubreleme_isc + ekim_isc + temizlik + hafriyat_toplam +
+    toprak_serme + asfalt_sokum + tel_orgu_bedel;
+
+  // Tohum maliyeti (da başına × toplam alan)
+  let tohum_toplam = 0;
+  const tohum_detay = (p.tohumlar || VARSAYILAN_PARAMETRELER.tohumlar).map(t => {
+    const miktar_da = t.oran * p.tohum_miktar_da;
+    const maliyet_da = miktar_da * t.fiyat;
+    const maliyet = maliyet_da * toplam_alan_da;
+    tohum_toplam += maliyet;
+    return { ad: t.ad, oran: t.oran, miktar_da, fiyat: t.fiyat, maliyet };
+  });
+
+  // Gübre maliyeti (2 yıl amonyum+kompoze, 1 yıl hayvan gübresi)
+  const amonyum_m = p.amonyum_sulfat_fiyat * p.amonyum_sulfat_miktar * toplam_alan_da * 2;
+  const hayvan_m  = p.hayvan_gubres_fiyat  * p.hayvan_gubres_miktar  * toplam_alan_da * 1;
+  const kompoze_m = p.kompoze_fiyat        * p.kompoze_miktar        * toplam_alan_da * 2;
+  const gubre_toplam = amonyum_m + hayvan_m + kompoze_m;
+
+  const genel_toplam = iscilik_toplam + tohum_toplam + gubre_toplam;
+
+  return {
+    // Girdiler
+    a_alan, b_alan, b_derinlik, c_alan, c_kalinlik, tel_orgu_m, uzaklik_km,
+    // Ara değerler
+    hacim_m3: +hacim_m3.toFixed(4),
+    toplam_alan_m2, toplam_alan_da: +toplam_alan_da.toFixed(4),
+    bc_alan_da: +bc_alan_da.toFixed(4),
+    asfalt_m3: +asfalt_m3.toFixed(4),
+    sefer_sayisi: +sefer_sayisi.toFixed(4),
+    // İşçilik
+    derin_surum: +derin_surum.toFixed(2),
+    surum_pulluk: +surum_pulluk.toFixed(2),
+    ikilem: +ikilem.toFixed(2),
+    tirmik: +tirmik.toFixed(2),
+    gubreleme_isc: +gubreleme_isc.toFixed(2),
+    ekim_isc: +ekim_isc.toFixed(2),
+    temizlik: +temizlik.toFixed(2),
+    hafriyat_iscilik: +hafriyat_iscilik.toFixed(2),
+    hafriyat_nakliye: +hafriyat_nakliye.toFixed(2),
+    hafriyat_depolama: +hafriyat_depolama.toFixed(2),
+    hafriyat_toplam: +hafriyat_toplam.toFixed(2),
+    toprak_serme: +toprak_serme.toFixed(2),
+    asfalt_sokum: +asfalt_sokum.toFixed(2),
+    tel_orgu_bedel: +tel_orgu_bedel.toFixed(2),
+    iscilik_toplam: +iscilik_toplam.toFixed(2),
+    // Tohum
+    tohum_detay,
+    tohum_toplam: +tohum_toplam.toFixed(2),
+    // Gübre
+    amonyum_m: +amonyum_m.toFixed(2),
+    hayvan_m: +hayvan_m.toFixed(2),
+    kompoze_m: +kompoze_m.toFixed(2),
+    gubre_toplam: +gubre_toplam.toFixed(2),
+    // Genel
+    genel_toplam: +genel_toplam.toFixed(2),
+  };
+};
+
+// ── Parametreler CRUD ─────────────────────────────────────
 const parametreListele = async (req, res, next) => {
   try {
     const parametreler = await EhgbParametre.find().sort({ yil: -1 });
@@ -11,9 +167,9 @@ const parametreListele = async (req, res, next) => {
 const parametreGetir = async (req, res, next) => {
   try {
     const { yil } = req.params;
-    const parametreler = await EhgbParametre.findOne({ yil: parseInt(yil) });
-    if (!parametreler) return res.status(404).json({ success: false, message: `${yil} yılı parametresi bulunamadı` });
-    res.json({ success: true, data: parametreler });
+    const p = await EhgbParametre.findOne({ yil: parseInt(yil) });
+    if (!p) return res.status(404).json({ success: false, message: `${yil} yılı parametresi bulunamadı` });
+    res.json({ success: true, data: p });
   } catch (err) { next(err); }
 };
 
@@ -41,7 +197,7 @@ const parametreSil = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// ── Hesaplamalar ──────────────────────────────────────────
+// ── Hesaplamalar CRUD ─────────────────────────────────────
 const hesapListele = async (req, res, next) => {
   try {
     const { isgal_id, yil, durum, sayfa = 1, limit = 20 } = req.query;
@@ -74,31 +230,35 @@ const hesapOlustur = async (req, res, next) => {
       isgalci_ad_soyad, isgalci_tc, isgalci_adres,
       isgal_alani_m2, isgal_turu, isgal_tarihi,
       karar_tarihi, aciklama,
+      a_alan, b_alan, b_derinlik, c_alan, c_kalinlik, tel_orgu_m, uzaklik_km,
     } = req.body;
 
     const hesaplama_yili = karar_tarihi
       ? new Date(karar_tarihi).getFullYear()
       : new Date().getFullYear();
 
-    // İlgili yılın parametrelerini çek
-    const parametreler = await EhgbParametre.findOne({ yil: hesaplama_yili });
+    // Yılın parametrelerini çek, yoksa varsayılan kullan
+    const dbParam = await EhgbParametre.findOne({ yil: hesaplama_yili });
+    const p = dbParam?.parametreler && Object.keys(dbParam.parametreler).length > 0
+      ? { ...VARSAYILAN_PARAMETRELER, ...dbParam.parametreler }
+      : VARSAYILAN_PARAMETRELER;
 
-    // TODO: Hesaplama formülü buraya eklenecek
-    const sonuc = {
-      mesaj: 'Hesaplama formülü henüz tanımlanmamış. Parametreler ayarlandıktan sonra hesaplanacak.',
-      hesaplama_yili,
-      parametreler_mevcut: !!parametreler,
+    const girdi = {
+      a_alan: +a_alan || 0, b_alan: +b_alan || 0, b_derinlik: +b_derinlik || 0,
+      c_alan: +c_alan || 0, c_kalinlik: +c_kalinlik || 0,
+      tel_orgu_m: +tel_orgu_m || 0, uzaklik_km: +uzaklik_km || 0,
     };
-    const toplam_bedel = null;
+
+    const sonuc = hesaplaEHGB(girdi, p);
 
     const hesap = await EhgbHesap.create({
-      isgal_id, mera_id,
+      isgal_id: isgal_id || null, mera_id: mera_id || null,
       il_ad, ilce_ad, mahalle_ad, ada, parsel,
       isgalci_ad_soyad, isgalci_tc, isgalci_adres,
-      isgal_alani_m2, isgal_turu, isgal_tarihi,
+      isgal_alani_m2, isgal_turu, isgal_tarihi: isgal_tarihi || null,
       karar_tarihi, hesaplama_yili,
-      kullanilan_parametreler: parametreler?.parametreler || {},
-      sonuc, toplam_bedel, aciklama,
+      kullanilan_parametreler: p,
+      sonuc, toplam_bedel: sonuc.genel_toplam, aciklama,
     });
 
     res.status(201).json({ success: true, data: hesap });
@@ -109,11 +269,34 @@ const hesapGuncelle = async (req, res, next) => {
   try {
     const hesap = await EhgbHesap.findById(req.params.id);
     if (!hesap) return res.status(404).json({ success: false, message: 'Hesaplama bulunamadı' });
-    const alanlar = ['il_ad','ilce_ad','mahalle_ad','ada','parsel','isgalci_ad_soyad',
+
+    // Alan değerleri değiştiyse yeniden hesapla
+    const alanlar = ['a_alan','b_alan','b_derinlik','c_alan','c_kalinlik','tel_orgu_m','uzaklik_km'];
+    const alanDegisti = alanlar.some(a => req.body[a] !== undefined);
+
+    if (alanDegisti) {
+      const girdi = {
+        a_alan: +(req.body.a_alan ?? hesap.sonuc?.a_alan ?? 0),
+        b_alan: +(req.body.b_alan ?? hesap.sonuc?.b_alan ?? 0),
+        b_derinlik: +(req.body.b_derinlik ?? hesap.sonuc?.b_derinlik ?? 0),
+        c_alan: +(req.body.c_alan ?? hesap.sonuc?.c_alan ?? 0),
+        c_kalinlik: +(req.body.c_kalinlik ?? hesap.sonuc?.c_kalinlik ?? 0),
+        tel_orgu_m: +(req.body.tel_orgu_m ?? hesap.sonuc?.tel_orgu_m ?? 0),
+        uzaklik_km: +(req.body.uzaklik_km ?? hesap.sonuc?.uzaklik_km ?? 0),
+      };
+      const p = hesap.kullanilan_parametreler || VARSAYILAN_PARAMETRELER;
+      const sonuc = hesaplaEHGB(girdi, p);
+      hesap.sonuc = sonuc;
+      hesap.toplam_bedel = sonuc.genel_toplam;
+    }
+
+    ['il_ad','ilce_ad','mahalle_ad','ada','parsel','isgalci_ad_soyad',
       'isgalci_tc','isgalci_adres','isgal_alani_m2','isgal_turu','isgal_tarihi',
-      'karar_tarihi','aciklama','durum','sonuc','toplam_bedel'];
-    alanlar.forEach(a => { if (req.body[a] !== undefined) hesap[a] = req.body[a]; });
+      'karar_tarihi','aciklama','durum'].forEach(a => {
+      if (req.body[a] !== undefined) hesap[a] = req.body[a];
+    });
     if (req.body.karar_tarihi) hesap.hesaplama_yili = new Date(req.body.karar_tarihi).getFullYear();
+
     await hesap.save();
     res.json({ success: true, data: hesap });
   } catch (err) { next(err); }
@@ -123,6 +306,25 @@ const hesapSil = async (req, res, next) => {
   try {
     await EhgbHesap.findByIdAndDelete(req.params.id);
     res.json({ success: true });
+  } catch (err) { next(err); }
+};
+
+// ── Canlı Hesaplama (kaydetmeden) ────────────────────────
+const canliHesapla = async (req, res, next) => {
+  try {
+    const { yil, ...girdi } = req.body;
+    const hesaplama_yili = yil || new Date().getFullYear();
+    const dbParam = await EhgbParametre.findOne({ yil: hesaplama_yili });
+    const p = dbParam?.parametreler && Object.keys(dbParam.parametreler).length > 0
+      ? { ...VARSAYILAN_PARAMETRELER, ...dbParam.parametreler }
+      : VARSAYILAN_PARAMETRELER;
+    const sonuc = hesaplaEHGB({
+      a_alan: +girdi.a_alan || 0, b_alan: +girdi.b_alan || 0,
+      b_derinlik: +girdi.b_derinlik || 0, c_alan: +girdi.c_alan || 0,
+      c_kalinlik: +girdi.c_kalinlik || 0, tel_orgu_m: +girdi.tel_orgu_m || 0,
+      uzaklik_km: +girdi.uzaklik_km || 0,
+    }, p);
+    res.json({ success: true, data: sonuc, parametreler_yili: hesaplama_yili });
   } catch (err) { next(err); }
 };
 
@@ -143,5 +345,5 @@ const istatistik = async (req, res, next) => {
 module.exports = {
   parametreListele, parametreGetir, parametreKaydet, parametreSil,
   hesapListele, hesapGetir, hesapOlustur, hesapGuncelle, hesapSil,
-  istatistik,
+  canliHesapla, istatistik,
 };
