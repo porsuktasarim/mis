@@ -347,11 +347,277 @@ const rapor = async (req, res, next) => {
   try {
     const hesap = await EhgbHesap.findById(req.params.id);
     if (!hesap) return res.status(404).json({ success: false, message: 'Hesaplama bulunamadı' });
+
+    // Ayarlardan aktif teknik ekip ve personeli çek
+    const Ayarlar = require('../ayarlar/ayarlar.model');
+    const ayarlar = await Ayarlar.findOne();
+    const teknikEkipler = ayarlar?.teknik_ekipler || [];
+    // En son yıllı ekibi bul, yoksa ilkini al
+    const aktifEkip = teknikEkipler.sort((a,b)=>(b.yil||0)-(a.yil||0))[0];
+    const personel = (aktifEkip?.uyeler || []).filter(u => u.aktif !== false);
+
     const s = hesap.sonuc || {};
+    const p = hesap.kullanilan_parametreler || {};
     const tarih = new Date().toLocaleDateString('tr-TR');
     const kararTarih = hesap.karar_tarihi ? new Date(hesap.karar_tarihi).toLocaleDateString('tr-TR') : '-';
     const fmt = n => n != null ? Number(n).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
-    const DURUM = { taslak:'TASLAK', kesinlesti:'KESİNLEŞMİŞ', itiraz:'İTİRAZ', iptal:'İPTAL' };
+    const DURUM = { taslak:'TASLAK (TASLAK)', kesinlesti:'KESİNLEŞMİŞ', itiraz:'İTİRAZ', iptal:'İPTAL' };
+    const damgaRenk = hesap.durum === 'kesinlesti' ? '#0a3622' : '#856404';
+
+    // İmza kutuları — personel varsa personel, yoksa genel
+    const imzaKutulari = personel.length > 0
+      ? personel.map(u => `
+          <div class="imza-kutu">
+            <div class="imza-cizgi"></div>
+            <div class="imza-ad">${u.ad}</div>
+            <div class="imza-unvan">${u.unvan||''}</div>
+          </div>`).join('')
+      : `<div class="imza-kutu"><div class="imza-cizgi"></div><div class="imza-ad">HAZIRLAYAN</div></div>
+         <div class="imza-kutu"><div class="imza-cizgi"></div><div class="imza-ad">ONAYLAYAN</div></div>`;
+
+    const html = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<title>Eski Haline Getirme Bedeli Hesap Raporu</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;font-size:10.5px;color:#111;background:#fff}
+.sayfa{padding:16mm 14mm;min-height:297mm;position:relative}
+.sayfa-1{page-break-after:always}
+@media print{
+  .sayfa{padding:10mm 12mm}
+  .sayfa-1{page-break-after:always}
+}
+h1{font-size:13px;text-align:center;font-weight:bold;margin-bottom:3px;text-transform:uppercase}
+h2{font-size:11px;text-align:center;color:#333;margin-bottom:14px;font-weight:normal}
+.durum-damga{border:2.5px solid ${damgaRenk};color:${damgaRenk};padding:3px 14px;
+  font-size:11px;font-weight:bold;display:inline-block;float:right;margin-top:-6px}
+.bolum-baslik{font-size:11px;font-weight:bold;color:#1a6b4a;border-bottom:1.5px solid #1a6b4a;
+  padding-bottom:3px;margin:10px 0 5px}
+table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:10px}
+th{background:#1a6b4a;color:#fff;padding:4px 6px;text-align:left;font-weight:bold}
+td{padding:3px 6px;border-bottom:1px solid #e0e0e0}
+tr:nth-child(even) td{background:#f5faf6}
+.r{text-align:right}
+.c{text-align:center}
+.grup td{background:#dff0e8 !important;font-weight:bold;color:#0a3622}
+.ara-toplam td{background:#c8e6d8 !important;font-weight:bold}
+.genel-toplam td{background:#1a6b4a !important;color:#fff;font-weight:bold;font-size:12px}
+.bilgi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.bilgi-kart{border:1px solid #ccd8cc;border-radius:4px;padding:8px}
+.bilgi-kart-baslik{font-size:10.5px;font-weight:bold;color:#1a6b4a;border-bottom:1px solid #ccd8cc;
+  padding-bottom:4px;margin-bottom:6px}
+.bilgi-satir{display:flex;gap:4px;margin-bottom:2px;font-size:10px}
+.etiket{color:#555;min-width:135px}
+.deger{font-weight:500}
+/* İmzalar */
+.imza-alani{margin-top:30px;display:flex;justify-content:space-around;flex-wrap:wrap;gap:10px}
+.imza-kutu{text-align:center;min-width:120px}
+.imza-cizgi{border-top:1px solid #333;margin-bottom:5px;width:100%}
+.imza-ad{font-weight:bold;font-size:10px}
+.imza-unvan{font-size:9px;color:#444}
+/* Sayfa 2 */
+.aciklama-kutu{border:1px solid #ccd8cc;border-radius:4px;padding:10px;margin-bottom:10px;background:#fafff8}
+.aciklama-baslik{font-weight:bold;color:#1a6b4a;margin-bottom:5px;font-size:11px}
+.formul-satir{font-family:monospace;background:#f0f4f0;border:1px solid #dde;padding:6px 8px;
+  border-radius:3px;margin:4px 0;font-size:10px;white-space:pre-wrap}
+.parametre-tablo td{padding:3px 6px;border-bottom:1px solid #eee}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ 1. SAYFA: HESAPLAMALAR ═══════════════ -->
+<div class="sayfa sayfa-1">
+
+<h1>4342 Sayılı Mera Kanunu Kapsamında</h1>
+<h2>Eski Haline Getirme Bedeli Hesap Raporu</h2>
+<span class="durum-damga">${DURUM[hesap.durum]||hesap.durum.toUpperCase()}</span>
+
+<div class="bilgi-grid">
+  <div class="bilgi-kart">
+    <div class="bilgi-kart-baslik">İşgalci Bilgileri</div>
+    <div class="bilgi-satir"><span class="etiket">Adı Soyadı / Unvanı:</span><span class="deger">${hesap.isgalci_ad_soyad||'-'}</span></div>
+    <div class="bilgi-satir"><span class="etiket">T.C. Kimlik / V.K.N.:</span><span class="deger">${hesap.isgalci_tc||'-'}</span></div>
+    <div class="bilgi-satir"><span class="etiket">Adresi:</span><span class="deger">${hesap.isgalci_adres||'-'}</span></div>
+  </div>
+  <div class="bilgi-kart">
+    <div class="bilgi-kart-baslik">İşgal Edilen Yer Bilgileri</div>
+    <div class="bilgi-satir"><span class="etiket">İl / İlçe:</span><span class="deger">${hesap.il_ad||'-'} / ${hesap.ilce_ad||'-'}</span></div>
+    <div class="bilgi-satir"><span class="etiket">Mahalle / Köy:</span><span class="deger">${hesap.mahalle_ad||'-'}</span></div>
+    <div class="bilgi-satir"><span class="etiket">Ada / Parsel:</span><span class="deger">${hesap.ada||'-'} / ${hesap.parsel||'-'}</span></div>
+    <div class="bilgi-satir"><span class="etiket">Kaymakamlık Karar Tarihi:</span><span class="deger">${kararTarih}</span></div>
+    <div class="bilgi-satir"><span class="etiket">Hesaplama Yılı:</span><span class="deger"><strong>${hesap.hesaplama_yili}</strong></span></div>
+  </div>
+</div>
+
+<div class="bilgi-kart" style="margin-bottom:10px">
+  <div class="bilgi-kart-baslik">Alan Bilgileri</div>
+  <table>
+    <tr><th>Alan Tipi</th><th class="r">Alan (m²)</th><th class="r">Derinlik / Kalınlık</th><th class="r">Hafriyat Hacmi (m³)</th></tr>
+    ${s.a_alan>0?`<tr><td>A — Sürülen / Tarla Olarak Kullanılan Alan</td><td class="r">${(s.a_alan||0).toLocaleString('tr-TR')}</td><td class="r">—</td><td class="r">—</td></tr>`:''}
+    ${s.b_alan>0?`<tr><td>B — İnşaat / Hafriyat Dökülen Alan</td><td class="r">${(s.b_alan||0).toLocaleString('tr-TR')}</td><td class="r">${s.b_derinlik} m</td><td class="r">${fmt(s.b_alan*s.b_derinlik)}</td></tr>`:''}
+    ${s.c_alan>0?`<tr><td>C — Asfalt / Beton Kaplı Alan</td><td class="r">${(s.c_alan||0).toLocaleString('tr-TR')}</td><td class="r">${s.c_kalinlik} m</td><td class="r">${fmt(s.c_alan*s.c_kalinlik)}</td></tr>`:''}
+    <tr class="grup"><td><strong>Toplam Islah Alanı</strong></td><td class="r"><strong>${(s.toplam_alan_m2||0).toLocaleString('tr-TR')} m²</strong></td><td class="r"><strong>${fmt(s.toplam_alan_da)} da</strong></td><td class="r"><strong>${fmt(s.hacim_m3)} m³</strong></td></tr>
+    ${s.tel_orgu_m>0?`<tr><td>Tel Örgü Uzunluğu</td><td class="r">${s.tel_orgu_m} m</td><td class="r">—</td><td class="r">—</td></tr>`:''}
+    ${s.uzaklik_km>0?`<tr><td>Döküm Sahasına Uzaklık</td><td class="r">${s.uzaklik_km} km</td><td class="r">—</td><td class="r">—</td></tr>`:''}
+  </table>
+</div>
+
+<div class="bolum-baslik">İşçilik Maliyetleri</div>
+<table>
+  <tr><th>İşlem Adı</th><th class="r">Birim Fiyat</th><th class="r">Alan / Miktar</th><th class="r">Toplam (TL)</th></tr>
+  <tr><td>Derin Sürüm (Dipkazan)</td><td class="r">${fmt(p.derin_surum)} TL/da</td><td class="r">${fmt(s.toplam_alan_da)} da</td><td class="r">${fmt(s.derin_surum)}</td></tr>
+  <tr><td>Sürüm (Pulluk)</td><td class="r">${fmt(p.surum_pulluk)} TL/da</td><td class="r">${fmt(s.toplam_alan_da)} da</td><td class="r">${fmt(s.surum_pulluk)}</td></tr>
+  <tr><td>İkileme (Kazayağı-Diskarrow)</td><td class="r">${fmt(p.ikilem)} TL/da</td><td class="r">${fmt(s.toplam_alan_da)} da</td><td class="r">${fmt(s.ikilem)}</td></tr>
+  <tr><td>Tırmık</td><td class="r">${fmt(p.tirmik)} TL/da</td><td class="r">${fmt(s.toplam_alan_da)} da</td><td class="r">${fmt(s.tirmik)}</td></tr>
+  <tr><td>Gübreleme — Makineli (2 yıl)</td><td class="r">${fmt(p.gubreleme)} TL/da</td><td class="r">${fmt(s.toplam_alan_da)} da</td><td class="r">${fmt(s.gubreleme_isc)}</td></tr>
+  <tr><td>Ekim — Mibzerle (2 yıl)</td><td class="r">${fmt(p.ekim)} TL/da</td><td class="r">${fmt(s.toplam_alan_da)} da</td><td class="r">${fmt(s.ekim_isc)}</td></tr>
+  <tr><td>Temizlik / Tesviye</td><td class="r">${fmt(p.temizlik_tesviye)} TL/da</td><td class="r">${fmt(s.toplam_alan_da)} da</td><td class="r">${fmt(s.temizlik)}</td></tr>
+  ${s.hafriyat_toplam>0?`
+  <tr class="ara-toplam"><td colspan="3">Hafriyat Taşıma (B+C tipi alanlar — toplam ${fmt(s.hacim_m3)} m³, ${fmt(s.sefer_sayisi)} sefer)</td><td class="r">${fmt(s.hafriyat_toplam)}</td></tr>
+  <tr><td style="padding-left:18px">↳ Yükleme İşçiliği</td><td class="r">${fmt(s.hafriyat_iscilik/Math.max(s.sefer_sayisi,1))} TL/sefer</td><td class="r">${fmt(s.sefer_sayisi)} sefer</td><td class="r">${fmt(s.hafriyat_iscilik)}</td></tr>
+  <tr><td style="padding-left:18px">↳ Nakliye (${s.uzaklik_km} km × 2 yön)</td><td class="r">${fmt(p.nakliye_km)} TL/km</td><td class="r">${fmt(s.sefer_sayisi)} sefer</td><td class="r">${fmt(s.hafriyat_nakliye)}</td></tr>
+  <tr><td style="padding-left:18px">↳ Depolama Sahası Giriş</td><td class="r">${fmt(p.depolama_giris)} TL/araç</td><td class="r">${fmt(s.sefer_sayisi)} araç</td><td class="r">${fmt(s.hafriyat_depolama)}</td></tr>`:''}
+  ${s.toprak_serme>0?`<tr><td>Toprak Serme (yalnızca B+C alanı)</td><td class="r">${fmt(p.toprak_serme)} TL/da</td><td class="r">${fmt(s.bc_alan_da)} da</td><td class="r">${fmt(s.toprak_serme)}</td></tr>`:''}
+  ${s.asfalt_sokum>0?`<tr><td>Asfalt / Beton Sökümü (yalnızca C alanı)</td><td class="r">${fmt(p.asfalt_sokum)} TL/m³</td><td class="r">${fmt(s.asfalt_m3)} m³</td><td class="r">${fmt(s.asfalt_sokum)}</td></tr>`:''}
+  ${s.tel_orgu_bedel>0?`<tr><td>Tel Örgü Kaldırılması ve Sınır Düzenleme</td><td class="r">${fmt(p.tel_orgu)} TL/m</td><td class="r">${s.tel_orgu_m} m</td><td class="r">${fmt(s.tel_orgu_bedel)}</td></tr>`:''}
+  <tr class="grup"><td colspan="3"><strong>İşçilik Toplam</strong></td><td class="r"><strong>${fmt(s.iscilik_toplam)}</strong></td></tr>
+</table>
+
+<div class="bilgi-grid" style="margin-top:4px">
+  <div>
+    <div class="bolum-baslik">Tohum Maliyetleri</div>
+    <table>
+      <tr><th>Bitki Adı</th><th class="r">Oran</th><th class="r">kg/da</th><th class="r">TL/kg</th><th class="r">Toplam</th></tr>
+      ${(s.tohum_detay||[]).map(t=>`<tr><td>${t.ad}</td><td class="r">%${(t.oran*100).toFixed(0)}</td><td class="r">${t.miktar_da.toFixed(2)}</td><td class="r">${fmt(t.fiyat)}</td><td class="r">${fmt(t.maliyet)}</td></tr>`).join('')}
+      <tr class="grup"><td colspan="4"><strong>Tohum Toplam (${fmt(s.toplam_alan_da)} da)</strong></td><td class="r"><strong>${fmt(s.tohum_toplam)}</strong></td></tr>
+    </table>
+  </div>
+  <div>
+    <div class="bolum-baslik">Gübreleme Maliyetleri</div>
+    <table>
+      <tr><th>Gübre</th><th class="c">Yıl</th><th class="r">TL/kg</th><th class="r">kg/da</th><th class="r">Toplam</th></tr>
+      <tr><td>Amonyum Sülfat %21 N</td><td class="c">2</td><td class="r">${fmt(p.amonyum_sulfat_fiyat)}</td><td class="r">${p.amonyum_sulfat_miktar}</td><td class="r">${fmt(s.amonyum_m)}</td></tr>
+      <tr><td>Yanmış Hayvan Gübresi</td><td class="c">1</td><td class="r">${fmt(p.hayvan_gubres_fiyat)}</td><td class="r">${p.hayvan_gubres_miktar}</td><td class="r">${fmt(s.hayvan_m)}</td></tr>
+      <tr><td>Kompoze Gübre 20-20-0</td><td class="c">2</td><td class="r">${fmt(p.kompoze_fiyat)}</td><td class="r">${p.kompoze_miktar}</td><td class="r">${fmt(s.kompoze_m)}</td></tr>
+      <tr class="grup"><td colspan="4"><strong>Gübre Toplam (${fmt(s.toplam_alan_da)} da)</strong></td><td class="r"><strong>${fmt(s.gubre_toplam)}</strong></td></tr>
+    </table>
+  </div>
+</div>
+
+<table style="margin-top:6px">
+  <tr><th colspan="2" style="font-size:11px;text-align:center">ÖZET</th></tr>
+  <tr><td style="width:70%">İşçilik Toplam</td><td class="r">${fmt(s.iscilik_toplam)} TL</td></tr>
+  <tr><td>Tohum Toplam</td><td class="r">${fmt(s.tohum_toplam)} TL</td></tr>
+  <tr><td>Gübreleme Toplam</td><td class="r">${fmt(s.gubre_toplam)} TL</td></tr>
+  <tr class="genel-toplam"><td><strong>ESKİ HALİNE GETİRME BEDELİ TOPLAMI</strong></td><td class="r"><strong>${fmt(hesap.toplam_bedel)} TL</strong></td></tr>
+</table>
+
+<p style="font-size:9.5px;color:#555;margin:8px 0 20px;line-height:1.5">
+  Yukarıda hesaplanan bedel, 4342 sayılı Mera Kanunu'nun ilgili hükümleri çerçevesinde mera alanının eski haline getirilmesi amacıyla köy sandığına veya belediye bütçesinde ayrı bir hesaba yatırılacaktır.
+</p>
+
+<div style="font-size:9.5px;margin-bottom:8px"><strong>Tarih:</strong> ${tarih}${aktifEkip?.ad ? ` &nbsp;|&nbsp; <strong>Teknik Ekip:</strong> ${aktifEkip.ad}${aktifEkip.yil?' ('+aktifEkip.yil+')':''}` : ''}</div>
+
+<div class="imza-alani">
+  ${imzaKutulari}
+</div>
+
+</div><!-- /sayfa-1 -->
+
+
+<!-- ═══════════════ 2. SAYFA: AÇIKLAMALAR & FORMÜLLER ═══════════════ -->
+<div class="sayfa">
+
+<h1>Eki — Hesaplama Yöntemi ve Birim Fiyatlar</h1>
+<h2 style="margin-bottom:14px">Eski Haline Getirme Bedeli — ${hesap.hesaplama_yili} Yılı</h2>
+
+<div class="aciklama-kutu">
+  <div class="aciklama-baslik">Yasal Dayanak ve Genel Açıklamalar</div>
+  <p style="line-height:1.6;margin-bottom:6px">
+    Bu hesap raporu, 4342 sayılı Mera Kanunu kapsamında haksız işgal edilen mera alanlarının eski haline getirilmesi amacıyla tahakkuk ettirilecek bedeli belirlemek üzere hazırlanmıştır.
+  </p>
+  <ul style="line-height:1.8;padding-left:16px">
+    <li>Birim fiyatlar; piyasa fiyat araştırmaları, İl Mera Komisyonu Kararları, İBB ve OGM rayiçleri esas alınarak belirlenmiştir.</li>
+    <li>Hafriyat taşıma bedeli, İBB Çevre Koruma Şube Müdürlüğü Hizmet Tarifesi esas alınmıştır.</li>
+    <li>İnşaat/Hafriyat (B Tipi) alanlarda toprak serme + tohum/gübre bedeli 1,5 kat olarak uygulanmıştır. Hesaplamada serilecek toprak yüksekliği 20 cm olarak alınmıştır.</li>
+    <li>Gübreleme: Yanmış hayvan gübresi 1 yıl; amonyum sülfat ve kompoze gübre 2 yıl uygulanır.</li>
+    <li>Tohum bedeli ve gübreleme bedeli tüm ıslah alanına (A+B+C) uygulanmıştır.</li>
+  </ul>
+</div>
+
+<div class="aciklama-kutu">
+  <div class="aciklama-baslik">Alan Tipleri</div>
+  <table class="parametre-tablo">
+    <tr><th style="width:60px">Tip</th><th>Açıklama</th><th>Uygulanan İşlemler</th></tr>
+    <tr><td><strong>A</strong></td><td>Sürülen / Tarla Olarak Kullanılan Alan</td><td>İşçilik + Tohum + Gübre</td></tr>
+    <tr><td><strong>B</strong></td><td>İnşaat / Hafriyat Dökülen Alan</td><td>İşçilik + Hafriyat Taşıma + Toprak Serme (1,5x) + Tohum + Gübre</td></tr>
+    <tr><td><strong>C</strong></td><td>Asfalt / Beton Kaplı Alan</td><td>İşçilik + Asfalt Sökümü + Hafriyat Taşıma + Toprak Serme (1,5x) + Tohum + Gübre</td></tr>
+  </table>
+</div>
+
+<div class="aciklama-kutu">
+  <div class="aciklama-baslik">Hafriyat Taşıma Hesaplama Formülleri</div>
+  <p style="margin-bottom:6px"><strong>Hafriyat Hacmi (m³):</strong></p>
+  <div class="formul-satir">Hacim = (B Alanı × B Derinliği) + (C Alanı × C Kalınlığı)</div>
+  <p style="margin:6px 0"><strong>Sefer Sayısı:</strong></p>
+  <div class="formul-satir">Sefer = Hafriyat Hacmi (m³) / Araç Kapasitesi (${p.arac_kapasite_m3||14} m³)</div>
+  <p style="margin:6px 0"><strong>Yükleme İşçiliği:</strong></p>
+  <div class="formul-satir">Araç Yükü (kg) = Araç Kapasitesi × Özgül Ağırlık = ${p.arac_kapasite_m3||14} × ${p.ozgul_agirlik||1600} = ${(p.arac_kapasite_m3||14)*(p.ozgul_agirlik||1600)} kg
+İlave Torba = (Araç Yükü − 1.200 kg) / ${p.torba_kg||60} kg
+Sefer Başı İşçilik = ${fmt(p.yukleme_baz||162)} TL + (İlave Torba × ${fmt(p.yukleme_ilave_torba||11)} TL)
+Toplam Yükleme = Sefer Başı İşçilik × Sefer Sayısı</div>
+  <p style="margin:6px 0"><strong>Nakliye:</strong></p>
+  <div class="formul-satir">Nakliye = Sefer Sayısı × ${fmt(p.nakliye_km||5)} TL/km × Araç Kapasitesi × 2 (gidiş-dönüş) × Uzaklık (km)</div>
+  <p style="margin:6px 0"><strong>Depolama Sahası Giriş:</strong></p>
+  <div class="formul-satir">Depolama Giriş = Sefer Sayısı × ${fmt(p.depolama_giris||5771)} TL/araç</div>
+</div>
+
+<div class="aciklama-kutu">
+  <div class="aciklama-baslik">Tohum Karışımı</div>
+  <table class="parametre-tablo">
+    <tr><th>Bitki Adı</th><th class="r">Oran (%)</th><th class="r">Miktar (kg/da)</th><th class="r">Birim Fiyat (TL/kg)</th><th class="r">Maliyet (TL/da)</th></tr>
+    ${(p.tohumlar||[]).map(t=>`<tr><td>${t.ad}</td><td class="r">%${(t.oran*100).toFixed(0)}</td><td class="r">${(t.oran*(p.tohum_miktar_da||12)).toFixed(2)}</td><td class="r">${fmt(t.fiyat)}</td><td class="r">${fmt(t.oran*(p.tohum_miktar_da||12)*t.fiyat)}</td></tr>`).join('')}
+    <tr class="grup"><td colspan="2"><strong>Toplam</strong></td><td class="r"><strong>${p.tohum_miktar_da||12} kg/da</strong></td><td></td><td class="r"><strong>${fmt((p.tohumlar||[]).reduce((s,t)=>s+t.oran*(p.tohum_miktar_da||12)*t.fiyat,0))} TL/da</strong></td></tr>
+  </table>
+</div>
+
+<div class="aciklama-kutu">
+  <div class="aciklama-baslik">${hesap.hesaplama_yili} Yılı Tüm Birim Fiyatlar</div>
+  <table class="parametre-tablo">
+    <tr><th>Kalem</th><th>Birim</th><th class="r">Fiyat</th><th>Kaynak</th></tr>
+    <tr><td>Derin Sürüm (Dipkazan)</td><td>TL/da</td><td class="r">${fmt(p.derin_surum)}</td><td>OGM Rayiçleri / İl Mera Komisyonu Kararları</td></tr>
+    <tr><td>Sürüm (Pulluk)</td><td>TL/da</td><td class="r">${fmt(p.surum_pulluk)}</td><td>OGM Rayiçleri / İl Mera Komisyonu Kararları</td></tr>
+    <tr><td>İkileme (Kazayağı-Diskarrow)</td><td>TL/da</td><td class="r">${fmt(p.ikilem)}</td><td>OGM Rayiçleri / İl Mera Komisyonu Kararları</td></tr>
+    <tr><td>Tırmık</td><td>TL/da</td><td class="r">${fmt(p.tirmik)}</td><td>OGM Rayiçleri / İl Mera Komisyonu Kararları</td></tr>
+    <tr><td>Gübreleme (Makineli – 2 yıl)</td><td>TL/da</td><td class="r">${fmt(p.gubreleme)}</td><td>OGM Rayiçleri / İl Mera Komisyonu Kararları</td></tr>
+    <tr><td>Ekim (Mibzerle – 2 yıl)</td><td>TL/da</td><td class="r">${fmt(p.ekim)}</td><td>OGM Rayiçleri / İl Mera Komisyonu Kararları</td></tr>
+    <tr><td>Temizlik / Tesviye</td><td>TL/da</td><td class="r">${fmt(p.temizlik_tesviye)}</td><td>OGM Rayiçleri / İl Mera Komisyonu Kararları</td></tr>
+    <tr><td>Toprak Serme (B+C)</td><td>TL/da</td><td class="r">${fmt(p.toprak_serme)}</td><td>Piyasa / İl Mera Komisyonu Kararları</td></tr>
+    <tr><td>Asfalt / Beton Sökümü</td><td>TL/m³</td><td class="r">${fmt(p.asfalt_sokum)}</td><td>KGM/18.190</td></tr>
+    <tr><td>Tel Örgü Kaldırılması</td><td>TL/m</td><td class="r">${fmt(p.tel_orgu)}</td><td>KGM/70.052 – 70.053</td></tr>
+    <tr><td>Hafriyat Araç Kapasitesi</td><td>m³</td><td class="r">${p.arac_kapasite_m3||14}</td><td>—</td></tr>
+    <tr><td>Toprağın Özgül Ağırlığı</td><td>kg/m³</td><td class="r">${p.ozgul_agirlik||1600}</td><td>—</td></tr>
+    <tr><td>Nakliye Ücreti (tek yön)</td><td>TL/km</td><td class="r">${fmt(p.nakliye_km)}</td><td>İBB Çevre Koruma Şube Müdürlüğü</td></tr>
+    <tr><td>Döküm Sahası Araç Giriş Ücreti</td><td>TL/araç</td><td class="r">${fmt(p.depolama_giris)}</td><td>İBB Çevre Koruma Şube Müdürlüğü</td></tr>
+    <tr><td>Yükleme İşçiliği (1.200 kg'a kadar)</td><td>TL</td><td class="r">${fmt(p.yukleme_baz)}</td><td>İBB Çevre Koruma Şube Müdürlüğü</td></tr>
+    <tr><td>Yükleme İşçiliği (her 60 kg fazlası)</td><td>TL/torba</td><td class="r">${fmt(p.yukleme_ilave_torba)}</td><td>İBB Çevre Koruma Şube Müdürlüğü</td></tr>
+    <tr><td>Amonyum Sülfat %21 N</td><td>TL/kg</td><td class="r">${fmt(p.amonyum_sulfat_fiyat)}</td><td>Piyasa / İl Mera Komisyonu Kararları</td></tr>
+    <tr><td>Yanmış Hayvan Gübresi</td><td>TL/kg</td><td class="r">${fmt(p.hayvan_gubres_fiyat)}</td><td>Piyasa / İl Mera Komisyonu Kararları</td></tr>
+    <tr><td>Kompoze Gübre 20-20-0</td><td>TL/kg</td><td class="r">${fmt(p.kompoze_fiyat)}</td><td>Piyasa / İl Mera Komisyonu Kararları</td></tr>
+  </table>
+</div>
+
+</div><!-- /sayfa-2 -->
+
+<script>window.print();<\/script>
+</body></html>`;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) { next(err); }
+};
 
     const html = `<!DOCTYPE html>
 <html lang="tr">
