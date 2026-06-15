@@ -13,5 +13,6 @@ router.post('/',                     ctrl.hesapOlustur);
 router.get('/:id',                   ctrl.hesapGetir);
 router.put('/:id',                   ctrl.hesapGuncelle);
 router.delete('/:id',               ctrl.hesapSil);
+router.get('/:id/rapor',             ctrl.rapor);
 
 module.exports = router;

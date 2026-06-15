@@ -80,7 +80,7 @@
 <div class="modal fade" id="hesapModal" tabindex="-1" data-bs-backdrop="static">
   <div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header">
-      <h5 class="modal-title">Yeni EHGB Hesabı</h5>
+      <h5 class="modal-title">Yeni Eski Haline Getirme Bedeli Hesabı</h5>
       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
     </div>
     <div class="modal-body">
@@ -89,6 +89,17 @@
         <i class="bi bi-link-45deg me-1"></i>İşgal kaydından aktarılan bilgiler otomatik dolduruldu.
       </div>
       <input type="hidden" id="h-isgal-id"/>
+
+      <!-- İşgal Seçici -->
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Bağlı İşgal Kaydı <span class="text-muted">(opsiyonel)</span></label>
+        <div class="d-flex gap-2">
+          <select class="form-select form-select-sm flex-grow-1" id="h-isgal-sec" onchange="isgalSecildi()">
+            <option value="">— İşgal seçilmedi (farazi hesaplama) —</option>
+          </select>
+          <button class="btn btn-sm btn-outline-secondary" onclick="isgalSecimTemizle()" title="Temizle"><i class="bi bi-x"></i></button>
+        </div>
+      </div>
 
       <div class="row g-3">
         <div class="col-12"><h6 class="text-success border-bottom pb-1 mb-0">Parsel Bilgileri</h6></div>
@@ -162,6 +173,49 @@ const loadIstatistik = async () => {
   }
 };
 
+// İşgal listesini yükle
+const loadIsgaller = async () => {
+  try {
+    const r = await fetch('/api/isgal?limit=200');
+    const j = await r.json();
+    const sel = document.getElementById('h-isgal-sec');
+    sel.innerHTML = '<option value="">— İşgal seçilmedi (farazi hesaplama) —</option>' +
+      (j.data||[]).map(ig=>`<option value="${ig._id}" data-ig='${JSON.stringify({
+        il_ad:ig.il_ad||'',ilce_ad:ig.ilce_ad||'',mahalle_ad:ig.mahalle_ad||'',
+        ada:ig.ada||'',parsel:ig.parsel||'',isgalci_ad_soyad:ig.isgalci_ad_soyad||'',
+        isgalci_tc:ig.isgalci_tc||'',isgalci_adres:ig.isgalci_adres||'',
+        alan:ig.isgal_alani_m2||'',tur:ig.isgal_turu||''
+      })}'>
+        ${ig.isgal_no} — ${ig.il_ad||''} ${ig.mahalle_ad||''} (${ig.isgalci_ad_soyad||'?'})
+      </option>`).join('');
+  } catch(e) { console.error(e); }
+};
+
+window.isgalSecildi = () => {
+  const sel = document.getElementById('h-isgal-sec');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt.value) { isgalSecimTemizle(); return; }
+  const ig = JSON.parse(opt.dataset.ig);
+  document.getElementById('h-isgal-id').value = opt.value;
+  document.getElementById('h-il').value = ig.il_ad;
+  document.getElementById('h-ilce').value = ig.ilce_ad;
+  document.getElementById('h-mahalle').value = ig.mahalle_ad;
+  document.getElementById('h-ada').value = ig.ada;
+  document.getElementById('h-parsel').value = ig.parsel;
+  document.getElementById('h-isgalci-ad').value = ig.isgalci_ad_soyad;
+  document.getElementById('h-isgalci-tc').value = ig.isgalci_tc;
+  document.getElementById('h-isgalci-adres').value = ig.isgalci_adres;
+  if (ig.alan) document.getElementById('h-alan').value = ig.alan;
+  if (ig.tur) document.getElementById('h-tur').value = ig.tur;
+  document.getElementById('isgal-bilgi-banner').classList.remove('d-none');
+};
+
+window.isgalSecimTemizle = () => {
+  document.getElementById('h-isgal-sec').value = '';
+  document.getElementById('h-isgal-id').value = '';
+  document.getElementById('isgal-bilgi-banner').classList.add('d-none');
+};
+
 const loadHesaplar = async (sayfa=1) => {
   const params = new URLSearchParams({ sayfa, limit:20 });
   if (document.getElementById('f-yil').value) params.set('yil', document.getElementById('f-yil').value);
@@ -192,6 +246,7 @@ const loadHesaplar = async (sayfa=1) => {
           <td><span class="px-2 py-1 rounded-pill small fw-semibold ${DURUM_CLS[h.durum]||''}">${DURUM_ETIKET[h.durum]||'-'}</span></td>
           <td><div class="d-flex gap-1">
             <a href="/ehgb/detay.html?id=${h._id}" class="btn btn-xs btn-mis"><i class="bi bi-eye"></i></a>
+            <a href="/api/ehgb/${h._id}/rapor" target="_blank" class="btn btn-xs btn-outline-success" title="Rapor Al"><i class="bi bi-printer"></i></a>
             <button class="btn btn-xs btn-outline-danger" onclick="hesapSil('${h._id}')"><i class="bi bi-trash"></i></button>
           </div></td>
         </tr>`).join('')}</tbody>
@@ -290,7 +345,7 @@ if (urlParams.get('isgal_id')) {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => { loadIstatistik(); loadHesaplar(); });
+document.addEventListener('DOMContentLoaded', () => { loadIstatistik(); loadHesaplar(); loadIsgaller(); });
 </script>
 <style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
 </body>

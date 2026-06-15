@@ -56,6 +56,7 @@
       <button class="ayar-sekme" data-tab="verim"><i class="bi bi-table me-1"></i>Verim Tabloları</button>
       <button class="ayar-sekme" data-tab="idari"><i class="bi bi-map me-1"></i>İdari Yönetim</button>
       <button class="ayar-sekme" data-tab="personel"><i class="bi bi-people me-1"></i>Personel</button>
+      <button class="ayar-sekme" data-tab="ehgb"><i class="bi bi-calculator me-1"></i>EHGB</button>
       <button class="ayar-sekme" data-tab="guvenlik"><i class="bi bi-shield-lock me-1"></i>Güvenlik</button>
     </div>
 
@@ -203,6 +204,108 @@
               <div id="il-oncelik-alani"></div>
               <button class="btn btn-sm btn-mis mt-2" onclick="oncelikKaydet()"><i class="bi bi-save me-1"></i>Öncelikleri Kaydet</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EHGB PARAMETRELERİ -->
+      <div class="ayar-tab" id="tab-ehgb">
+        <div class="row g-3 mb-3 align-items-end">
+          <div class="col-auto">
+            <label class="form-label small fw-semibold">Yıl Seç</label>
+            <select class="form-select form-select-sm" id="ehgb-yil-sec" onchange="ehgbYilYukle()" style="width:120px">
+              <option value="">— Seç —</option>
+            </select>
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-sm btn-mis" onclick="ehgbYeniYilEkle()"><i class="bi bi-plus-lg me-1"></i>Yeni Yıl Ekle</button>
+          </div>
+          <div class="col-auto ms-auto">
+            <button class="btn btn-sm btn-success d-none" id="ehgb-kaydet-btn" onclick="ehgbKaydet()"><i class="bi bi-save me-1"></i>Kaydet</button>
+          </div>
+        </div>
+
+        <div id="ehgb-form" class="d-none">
+          <div class="row g-4">
+
+            <!-- İşçilik -->
+            <div class="col-md-6">
+              <div class="mis-card">
+                <div class="mis-card-header"><i class="bi bi-tools"></i><span class="title">İşçilik Birim Fiyatları (TL/da)</span></div>
+                <table class="table table-sm mb-0">
+                  <thead><tr><th>İşlem</th><th style="width:130px">TL/da</th></tr></thead>
+                  <tbody>
+                    <tr><td class="small">Derin Sürüm (Dipkazan)</td><td><input type="number" class="form-control form-control-sm" id="ep-derin_surum" step="0.01"/></td></tr>
+                    <tr><td class="small">Sürüm (Pulluk)</td><td><input type="number" class="form-control form-control-sm" id="ep-surum_pulluk" step="0.01"/></td></tr>
+                    <tr><td class="small">İkileme (Kazayağı-Diskarrow)</td><td><input type="number" class="form-control form-control-sm" id="ep-ikilem" step="0.01"/></td></tr>
+                    <tr><td class="small">Tırmık</td><td><input type="number" class="form-control form-control-sm" id="ep-tirmik" step="0.01"/></td></tr>
+                    <tr><td class="small">Gübreleme (Makineli – 2 yıl)</td><td><input type="number" class="form-control form-control-sm" id="ep-gubreleme" step="0.01"/></td></tr>
+                    <tr><td class="small">Ekim (Mibzerle – 2 yıl)</td><td><input type="number" class="form-control form-control-sm" id="ep-ekim" step="0.01"/></td></tr>
+                    <tr><td class="small">Temizlik / Tesviye</td><td><input type="number" class="form-control form-control-sm" id="ep-temizlik_tesviye" step="0.01"/></td></tr>
+                    <tr><td class="small">Toprak Serme (B+C için)</td><td><input type="number" class="form-control form-control-sm" id="ep-toprak_serme" step="0.01"/></td></tr>
+                    <tr><td class="small">Asfalt/Beton Sökümü (TL/m³)</td><td><input type="number" class="form-control form-control-sm" id="ep-asfalt_sokum" step="0.01"/></td></tr>
+                    <tr><td class="small">Tel Örgü Kaldırma (TL/m)</td><td><input type="number" class="form-control form-control-sm" id="ep-tel_orgu" step="0.01"/></td></tr>
+                    <tr><td class="small">Toprak Fiyatı (TL/m³)</td><td><input type="number" class="form-control form-control-sm" id="ep-toprak_fiyati" step="0.01"/></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Hafriyat + Gübre -->
+            <div class="col-md-6">
+              <div class="mis-card mb-3">
+                <div class="mis-card-header"><i class="bi bi-truck"></i><span class="title">Hafriyat Taşıma Parametreleri</span></div>
+                <table class="table table-sm mb-0">
+                  <thead><tr><th>Parametre</th><th style="width:130px">Değer</th></tr></thead>
+                  <tbody>
+                    <tr><td class="small">Araç Kapasitesi (m³)</td><td><input type="number" class="form-control form-control-sm" id="ep-arac_kapasite_m3" step="0.1"/></td></tr>
+                    <tr><td class="small">Özgül Ağırlık (kg/m³)</td><td><input type="number" class="form-control form-control-sm" id="ep-ozgul_agirlik"/></td></tr>
+                    <tr><td class="small">1 Torba (kg)</td><td><input type="number" class="form-control form-control-sm" id="ep-torba_kg"/></td></tr>
+                    <tr><td class="small">Yükleme Baz Ücreti (TL)</td><td><input type="number" class="form-control form-control-sm" id="ep-yukleme_baz" step="0.01"/></td></tr>
+                    <tr><td class="small">Yükleme İlave (TL/torba)</td><td><input type="number" class="form-control form-control-sm" id="ep-yukleme_ilave_torba" step="0.01"/></td></tr>
+                    <tr><td class="small">Nakliye (TL/km tek yön)</td><td><input type="number" class="form-control form-control-sm" id="ep-nakliye_km" step="0.01"/></td></tr>
+                    <tr><td class="small">Depolama Sahası Giriş (TL/araç)</td><td><input type="number" class="form-control form-control-sm" id="ep-depolama_giris" step="0.01"/></td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="mis-card">
+                <div class="mis-card-header"><i class="bi bi-moisture"></i><span class="title">Gübreleme</span></div>
+                <table class="table table-sm mb-0">
+                  <thead><tr><th>Gübre</th><th style="width:90px">TL/kg</th><th style="width:90px">kg/da</th></tr></thead>
+                  <tbody>
+                    <tr><td class="small">Amonyum Sülfat %21 N (2 yıl)</td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-amonyum_sulfat_fiyat" step="0.01"/></td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-amonyum_sulfat_miktar"/></td></tr>
+                    <tr><td class="small">Yanmış Hayvan Gübresi (1 yıl)</td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-hayvan_gubres_fiyat" step="0.01"/></td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-hayvan_gubres_miktar"/></td></tr>
+                    <tr><td class="small">Kompoze Gübre 20-20-0 (2 yıl)</td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-kompoze_fiyat" step="0.01"/></td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-kompoze_miktar"/></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tohum -->
+            <div class="col-12">
+              <div class="mis-card">
+                <div class="mis-card-header"><i class="bi bi-flower2"></i><span class="title">Tohum Karışımı</span>
+                  <span class="badge bg-secondary ms-2">Toplam 12 kg/da</span>
+                </div>
+                <table class="table table-sm mb-0">
+                  <thead><tr><th>Bitki Adı</th><th style="width:90px">Oran (%)</th><th style="width:110px">TL/kg</th></tr></thead>
+                  <tbody id="ehgb-tohumlar">
+                  </tbody>
+                </table>
+                <div class="p-2">
+                  <label class="form-label small fw-semibold">Dekara Toplam Tohum Miktarı (kg/da)</label>
+                  <input type="number" class="form-control form-control-sm" id="ep-tohum_miktar_da" style="width:120px" step="0.1"/>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -368,7 +471,7 @@ const loadAyarlar = async () => {
   const j = await r.json();
   ayarlar = j.data;
   renderDrive(); renderKategoriler(); renderRenkler(); renderToprak(); renderYagis();
-  renderPersonel();
+  renderPersonel(); ehgbYillariYukle();
   renderVerim('tablo1','yararlanilabilir_yesil_ot');
   renderVerim('tablo2','uretilen_yesil_ot');
   renderVerim('tablo3','uretilen_kuru_ot');
@@ -509,7 +612,109 @@ window.ikonAra = () => {
       onclick="ikonSec('${ikon}')" title="${ikon}"><i class="bi ${ikon}"></i></button>`).join('');
 };
 
-// ── Personel ──────────────────────────────────────────────
+// ── EHGB Parametreleri ────────────────────────────────────
+const EHGB_VARSAYILAN = {
+  derin_surum:511.87, surum_pulluk:354.94, ikilem:266.21, tirmik:342.90,
+  gubreleme:179.90, ekim:658.24, temizlik_tesviye:342.90,
+  toprak_serme:1874.50, asfalt_sokum:288.90, tel_orgu:121.25, toprak_fiyati:800,
+  arac_kapasite_m3:14, ozgul_agirlik:1600, torba_kg:60,
+  yukleme_baz:162, yukleme_ilave_torba:11, nakliye_km:5, depolama_giris:5771,
+  amonyum_sulfat_fiyat:25, amonyum_sulfat_miktar:20,
+  hayvan_gubres_fiyat:3, hayvan_gubres_miktar:2000,
+  kompoze_fiyat:40, kompoze_miktar:20,
+  tohum_miktar_da:12,
+  tohumlar:[
+    {ad:'İtalyan çimi (Lolium multiflorum)',    oran:0.20, fiyat:220},
+    {ad:'Domuz ayrığı (Dactylis glomerata)',     oran:0.10, fiyat:600},
+    {ad:'Yüksek çayır yumağı (Festuca pratensis)',oran:0.15,fiyat:500},
+    {ad:'Çayır salkım otu (Poa pratensis)',       oran:0.15, fiyat:750},
+    {ad:'Yonca (Medicago sativa)',               oran:0.15, fiyat:800},
+    {ad:'Ak üçgül (Trifolium repens)',            oran:0.15, fiyat:900},
+    {ad:'Korunga (Onobrychis sativa)',            oran:0.10, fiyat:300},
+  ],
+};
+let ehgbYillar = [];
+let ehgbAktifYil = null;
+
+const ehgbYillariYukle = async () => {
+  const r = await fetch('/api/ehgb/parametreler');
+  const j = await r.json();
+  ehgbYillar = j.data || [];
+  const sel = document.getElementById('ehgb-yil-sec');
+  const mevcutYil = new Date().getFullYear();
+  sel.innerHTML = '<option value="">— Seç —</option>' +
+    ehgbYillar.map(p=>`<option value="${p.yil}">${p.yil}</option>`).join('');
+  // Mevcut yıl varsa otomatik seç
+  if (ehgbYillar.find(p=>p.yil===mevcutYil)) {
+    sel.value = mevcutYil;
+    ehgbYilYukle();
+  }
+};
+
+window.ehgbYilYukle = () => {
+  const yil = parseInt(document.getElementById('ehgb-yil-sec').value);
+  if (!yil) { document.getElementById('ehgb-form').classList.add('d-none'); document.getElementById('ehgb-kaydet-btn').classList.add('d-none'); return; }
+  ehgbAktifYil = yil;
+  const kayit = ehgbYillar.find(p=>p.yil===yil);
+  const p = (kayit?.parametreler && Object.keys(kayit.parametreler).length) ? {...EHGB_VARSAYILAN,...kayit.parametreler} : EHGB_VARSAYILAN;
+  ehgbFormuDoldur(p);
+  document.getElementById('ehgb-form').classList.remove('d-none');
+  document.getElementById('ehgb-kaydet-btn').classList.remove('d-none');
+};
+
+window.ehgbYeniYilEkle = async () => {
+  const yil = prompt('Hangi yılın parametrelerini eklemek istiyorsunuz?', new Date().getFullYear());
+  if (!yil || isNaN(yil)) return;
+  const r = await fetch('/api/ehgb/parametreler', {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({yil:parseInt(yil), aciklama:'', parametreler:EHGB_VARSAYILAN})});
+  const j = await r.json();
+  if (j.success) {
+    await ehgbYillariYukle();
+    document.getElementById('ehgb-yil-sec').value = yil;
+    ehgbYilYukle();
+    showToast(`${yil} yılı parametreleri eklendi.`);
+  }
+};
+
+const ehgbFormuDoldur = (p) => {
+  const alanlar = ['derin_surum','surum_pulluk','ikilem','tirmik','gubreleme','ekim','temizlik_tesviye',
+    'toprak_serme','asfalt_sokum','tel_orgu','toprak_fiyati',
+    'arac_kapasite_m3','ozgul_agirlik','torba_kg','yukleme_baz','yukleme_ilave_torba','nakliye_km','depolama_giris',
+    'amonyum_sulfat_fiyat','amonyum_sulfat_miktar','hayvan_gubres_fiyat','hayvan_gubres_miktar',
+    'kompoze_fiyat','kompoze_miktar','tohum_miktar_da'];
+  alanlar.forEach(a => { const el=document.getElementById('ep-'+a); if(el) el.value=p[a]||''; });
+  // Tohumlar
+  document.getElementById('ehgb-tohumlar').innerHTML = (p.tohumlar||EHGB_VARSAYILAN.tohumlar).map((t,i)=>`
+    <tr>
+      <td class="small">${t.ad}</td>
+      <td><input type="number" class="form-control form-control-sm" id="ep-tohum-oran-${i}" value="${(t.oran*100).toFixed(0)}" step="1" min="0" max="100"/></td>
+      <td><input type="number" class="form-control form-control-sm" id="ep-tohum-fiyat-${i}" value="${t.fiyat}" step="0.01"/></td>
+    </tr>`).join('');
+};
+
+window.ehgbKaydet = async () => {
+  if (!ehgbAktifYil) return;
+  const alanlar = ['derin_surum','surum_pulluk','ikilem','tirmik','gubreleme','ekim','temizlik_tesviye',
+    'toprak_serme','asfalt_sokum','tel_orgu','toprak_fiyati',
+    'arac_kapasite_m3','ozgul_agirlik','torba_kg','yukleme_baz','yukleme_ilave_torba','nakliye_km','depolama_giris',
+    'amonyum_sulfat_fiyat','amonyum_sulfat_miktar','hayvan_gubres_fiyat','hayvan_gubres_miktar',
+    'kompoze_fiyat','kompoze_miktar','tohum_miktar_da'];
+  const p = {};
+  alanlar.forEach(a => { const el=document.getElementById('ep-'+a); if(el) p[a]=parseFloat(el.value)||0; });
+  // Tohumlar
+  const tohumlar = EHGB_VARSAYILAN.tohumlar.map((t,i) => ({
+    ad: t.ad,
+    oran: (parseFloat(document.getElementById(`ep-tohum-oran-${i}`)?.value)||0) / 100,
+    fiyat: parseFloat(document.getElementById(`ep-tohum-fiyat-${i}`)?.value)||0,
+  }));
+  p.tohumlar = tohumlar;
+
+  const r = await fetch('/api/ehgb/parametreler', {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({yil:ehgbAktifYil, parametreler:p})});
+  const j = await r.json();
+  if (j.success) { await ehgbYillariYukle(); document.getElementById('ehgb-yil-sec').value=ehgbAktifYil; showToast(`${ehgbAktifYil} yılı parametreleri kaydedildi.`); }
+  else showToast(j.message,'danger');
+};
 const uyeSatiriPersonel = (uyeler, listeAdi, ekipIdx, uyeIdx) => {
   const u = uyeler[uyeIdx];
   const path = ekipIdx !== null ? `${listeAdi}[${ekipIdx}].uyeler` : listeAdi;

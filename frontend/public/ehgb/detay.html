@@ -34,9 +34,10 @@
   <div id="page-content" class="flex-grow-1 d-flex flex-column">
     <nav class="navbar mis-topbar px-3">
       <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
-      <span class="mis-topbar-title" id="page-baslik">EHGB Hesabı</span>
+      <span class="mis-topbar-title" id="page-baslik">Eski Haline Getirme Bedeli Hesabı</span>
       <div class="ms-auto d-flex gap-2">
         <a href="/ehgb/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Liste</a>
+        <a id="btn-rapor" href="#" target="_blank" class="btn btn-sm btn-outline-success d-none"><i class="bi bi-printer me-1"></i>Rapor</a>
         <button class="btn btn-sm btn-outline-secondary" onclick="duzenleAc()"><i class="bi bi-pencil me-1"></i>Düzenle</button>
         <button class="btn btn-sm btn-mis d-none" id="btn-kesinlestir" onclick="kesinlestir()"><i class="bi bi-check-circle me-1"></i>Kesinleştir</button>
       </div>
@@ -508,6 +509,11 @@ const loadHesap = async () => {
   document.getElementById('param-yil-badge').textContent = hesap.hesaplama_yili + ' yılı';
 
   if (hesap.durum === 'taslak') document.getElementById('btn-kesinlestir').classList.remove('d-none');
+  if (id) {
+    const raporBtn = document.getElementById('btn-rapor');
+    raporBtn.href = `/api/ehgb/${id}/rapor`;
+    raporBtn.classList.remove('d-none');
+  }
   if (hesap.karar_tarihi) document.getElementById('karar_tarihi').value = new Date(hesap.karar_tarihi).toISOString().slice(0,10);
 
   // Alan değerlerini forma yükle
