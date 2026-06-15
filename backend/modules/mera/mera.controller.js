@@ -669,26 +669,28 @@ const istatistik = async (req, res, next) => {
     const [toplam, aktif, vasifUyari, tahsisUyari] = await Promise.all([
       Mera.countDocuments({ durum: 'Aktif' }),
       Mera.countDocuments({ durum: 'Aktif' }),
-      Mera.countDocuments({ durum: 'Aktif', vasif_bitis: { $lt: altiAy, $gt: bugun } }),
-      Mera.countDocuments({ durum: 'Aktif', tahsis_durumu_bitis: { $lt: birYil, $gt: bugun } }),
+      Mera.countDocuments({ durum: 'Aktif', vasif_bitis: { $exists: true, $lt: altiAy, $gt: bugun } }),
+      Mera.countDocuments({ durum: 'Aktif', tahsis_durumu_bitis: { $exists: true, $lt: birYil, $gt: bugun } }),
     ]);
 
-    // Toplam hektar ve otlatma kapasitesi (sadece aktif meralar)
     const aktifMeralar = await Mera.find({ durum: 'Aktif' }).select('tapu_alani_da otlatma');
-    const toplamHektar = aktifMeralar.reduce((sum, m) => sum + (m.tapu_alani_da || 0), 0) / 10; // da → ha
+    const toplamHektar = aktifMeralar.reduce((sum, m) => sum + (m.tapu_alani_da || 0), 0) / 10;
     const toplamBbhb = aktifMeralar.reduce((sum, m) => sum + (m.otlatma?.otlatma_kapasitesi_bbhb || 0), 0);
 
-    const vasifUyarilar = await Mera.find({ durum: 'Aktif', vasif_bitis: { $lt: altiAy, $gt: bugun } })
-      .select('il_ad ilce_ad mahalle_ad ada parsel vasif vasif_bitis').limit(10);
-    const tahsisUyarilar = await Mera.find({ durum: 'Aktif', tahsis_durumu_bitis: { $lt: birYil, $gt: bugun } })
-      .select('il_ad ilce_ad mahalle_ad ada parsel tahsis_durumu tahsis_durumu_bitis').limit(10);
+    const [vasifUyarilar, tahsisUyarilar] = await Promise.all([
+      Mera.find({ durum: 'Aktif', vasif_bitis: { $exists: true, $lt: altiAy, $gt: bugun } })
+        .select('il_ad ilce_ad mahalle_ad ada parsel vasif vasif_bitis').limit(10),
+      Mera.find({ durum: 'Aktif', tahsis_durumu_bitis: { $exists: true, $lt: birYil, $gt: bugun } })
+        .select('il_ad ilce_ad mahalle_ad ada parsel tahsis_durumu tahsis_durumu_bitis').limit(10),
+    ]);
 
     res.json({ success: true, data: {
       toplam, aktif, pasif: 0,
       toplam_hektar: parseFloat(toplamHektar.toFixed(2)),
       toplam_bbhb: parseFloat(toplamBbhb.toFixed(2)),
       vasif_uyari: vasifUyari, tahsis_uyari: tahsisUyari,
-      vasif_uyarilar, tahsis_uyarilar
+      vasif_uyarilar: vasifUyarilar || [],
+      tahsis_uyarilar: tahsisUyarilar || [],
     }});
   } catch (err) { console.error('[Mera İstatistik Hatası]', err.message); next(err); }
 };

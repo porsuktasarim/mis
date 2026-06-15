@@ -289,7 +289,17 @@ const sekmeyiAc = (id) => {
 };
 document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => sekmeyiAc(b.dataset.tab)));
 
-totalBbhb = fmt(totalBbhb);
+const recalc = () => {
+  let totalBbhb = 0, totalAdet = 0, aktifSayi = 0;
+  turler.forEach(t => {
+    const adet = adetler[t.tur_id] || 0;
+    const bbhb = fmt(adet * t.katsayi);
+    totalBbhb += bbhb; totalAdet += adet;
+    if (adet > 0) aktifSayi++;
+    const el = document.getElementById(`sonuc-${t.tur_id}`);
+    if (el) el.textContent = adet > 0 ? bbhb.toFixed(2) : '—';
+  });
+  totalBbhb = fmt(totalBbhb);
   document.getElementById('stat-bbhb').textContent = totalBbhb.toFixed(2);
   document.getElementById('stat-adet').textContent = totalAdet;
   document.getElementById('stat-tur').textContent = aktifSayi;
