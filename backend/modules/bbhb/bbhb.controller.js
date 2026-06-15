@@ -47,7 +47,7 @@ const hesapla = (req, res) => {
 
 const kaydet = async (req, res, next) => {
   try {
-    const { baslik, aciklama, hayvanlar } = req.body;
+    const { baslik, ciftci_ad, aciklama, hayvanlar } = req.body;
     const islenmiş = hayvanlar.map(h => {
       const tur = HAYVAN_TURLERI.find(t => t.tur_id === h.tur_id);
       if (!tur) throw Object.assign(new Error(`Geçersiz tür: ${h.tur_id}`), { statusCode: 400 });
@@ -59,7 +59,7 @@ const kaydet = async (req, res, next) => {
     const tur_sayisi = islenmiş.filter(h => h.adet > 0).length;
 
     const kayit = await BBHBHesaplama.create({
-      baslik, aciklama: aciklama || '', hayvanlar: islenmiş,
+      baslik, ciftci_ad: ciftci_ad || '', aciklama: aciklama || '', hayvanlar: islenmiş,
       toplam_adet, toplam_bbhb, tur_sayisi, durum: 'tamamlandi',
     });
     res.status(201).json({ success: true, data: kayit });
@@ -104,10 +104,11 @@ const excelRapor = async (req, res, next) => {
     ws.getCell('A1').alignment = { horizontal: 'center' };
 
     ws.getCell('A3').value = 'Başlık:';       ws.getCell('B3').value = kayit.baslik;
-    ws.getCell('A4').value = 'Açıklama:';     ws.getCell('B4').value = kayit.aciklama;
-    ws.getCell('A5').value = 'Tarih:';        ws.getCell('B5').value = new Date(kayit.createdAt).toLocaleDateString('tr-TR');
+    ws.getCell('A4').value = 'Çiftçi:';       ws.getCell('B4').value = kayit.ciftci_ad || '-';
+    ws.getCell('A5').value = 'Açıklama:';     ws.getCell('B5').value = kayit.aciklama;
+    ws.getCell('A6').value = 'Tarih:';        ws.getCell('B6').value = new Date(kayit.createdAt).toLocaleDateString('tr-TR');
 
-    const headerRow = ws.getRow(7);
+    const headerRow = ws.getRow(8);
     ['Hayvan Türü', 'Katsayı', 'Adet', 'BBHB', 'Grup'].forEach((h, i) => {
       headerRow.getCell(i + 1).value = h;
       headerRow.getCell(i + 1).font = { bold: true };
@@ -117,14 +118,14 @@ const excelRapor = async (req, res, next) => {
 
     const aktif = kayit.hayvanlar.filter(h => h.adet > 0);
     aktif.forEach((h, i) => {
-      const row = ws.getRow(8 + i);
+      const row = ws.getRow(10 + i);
       row.values = [h.tur_adi, h.katsayi, h.adet, h.bbhb, ''];
       if (i % 2 === 0) {
         row.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5EE' } }; });
       }
     });
 
-    const sumRow = ws.getRow(8 + aktif.length + 1);
+    const sumRow = ws.getRow(10 + aktif.length + 1);
     sumRow.getCell(1).value = 'TOPLAM';
     sumRow.getCell(3).value = kayit.toplam_adet;
     sumRow.getCell(4).value = kayit.toplam_bbhb;
@@ -190,6 +191,7 @@ const pdfRapor = async (req, res, next) => {
   <h1>BÜYÜK BAŞ HAYVAN BİRİMİ (BBHB) RAPORU</h1>
   <div class="meta">
     <span><strong>Başlık:</strong> ${kayit.baslik}</span>
+    ${kayit.ciftci_ad ? `<span><strong>Çiftçi:</strong> ${kayit.ciftci_ad}</span>` : ''}
     <span><strong>Tarih:</strong> ${tarih}</span>
     ${kayit.aciklama ? `<span><strong>Açıklama:</strong> ${kayit.aciklama}</span>` : ''}
   </div>

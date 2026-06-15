@@ -121,11 +121,15 @@
 
             <div class="mis-card">
               <div class="mis-card-header"><i class="bi bi-save"></i><span class="title">Kaydet</span></div>
-              <div class="mb-3">
+              <div class="mb-2">
+                <label class="form-label small fw-semibold">Çiftçi Adı Soyadı</label>
+                <input type="text" class="form-control form-control-sm" id="inp-ciftci-ad" placeholder="Çiftçi adı soyadı"/>
+              </div>
+              <div class="mb-2">
                 <label class="form-label small fw-semibold">Başlık <span class="text-danger">*</span></label>
                 <input type="text" class="form-control form-control-sm" id="inp-baslik" placeholder="Örn: Ahır No.3 - Haziran 2026" />
               </div>
-              <div class="mb-3">
+              <div class="mb-2">
                 <label class="form-label small fw-semibold">Açıklama</label>
                 <textarea class="form-control form-control-sm" id="inp-aciklama" rows="2" placeholder="İsteğe bağlı..."></textarea>
               </div>
@@ -355,14 +359,18 @@ document.getElementById('btnSifirla').addEventListener('click', () => {
 document.getElementById('btnKaydet').addEventListener('click', async () => {
   const baslik = document.getElementById('inp-baslik').value.trim();
   if(!baslik){ showToast('Başlık giriniz.','warning'); return; }
+  const ciftci_ad = document.getElementById('inp-ciftci-ad').value.trim();
   const hayvanlar = turler.map(t=>({tur_id:t.tur_id,adet:adetler[t.tur_id]||0})).filter(h=>h.adet>0);
   if(!hayvanlar.length){ showToast('En az bir hayvan giriniz.','warning'); return; }
   try {
     const r = await fetch(`${API_BBHB}/kaydet`,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({baslik,aciklama:document.getElementById('inp-aciklama').value,hayvanlar})});
+      body:JSON.stringify({baslik, ciftci_ad, aciklama:document.getElementById('inp-aciklama').value, hayvanlar})});
     const j = await r.json();
-    if(j.success){ showToast('Kaydedildi!','success'); document.getElementById('inp-baslik').value=''; }
-    else showToast(j.message||'Hata.','danger');
+    if(j.success){
+      showToast('Kaydedildi!','success');
+      document.getElementById('inp-baslik').value='';
+      document.getElementById('inp-ciftci-ad').value='';
+    } else showToast(j.message||'Hata.','danger');
   } catch { showToast('Sunucuya ulaşılamadı.','danger'); }
 });
 
@@ -536,9 +544,10 @@ const loadGecmis = async () => {
     document.getElementById('hesap-tablo').innerHTML = hesaplamalar.length===0
       ? '<p class="text-muted text-center py-3 small">Henüz hesaplama yok.</p>'
       : `<div class="table-responsive"><table class="table table-sm mis-table mb-0"><thead><tr>
-          <th>Başlık</th><th class="text-end">Hayvan</th><th class="text-end">BBHB</th><th>Tarih</th><th>İşlemler</th>
+          <th>Başlık</th><th>Çiftçi</th><th class="text-end">Hayvan</th><th class="text-end">BBHB</th><th>Tarih</th><th>İşlemler</th>
         </tr></thead><tbody>${hesaplamalar.map(k=>`<tr>
           <td><strong>${k.baslik}</strong>${k.aciklama?`<br><small class="text-muted">${k.aciklama}</small>`:''}</td>
+          <td class="small">${k.ciftci_ad||'-'}</td>
           <td class="text-end">${k.toplam_adet}</td>
           <td class="text-end fw-bold text-success">${k.toplam_bbhb.toFixed(2)}</td>
           <td class="small text-muted">${new Date(k.createdAt).toLocaleDateString('tr-TR')}</td>

@@ -11,6 +11,7 @@ const HayvanKalemiSchema = new mongoose.Schema({
 const BBHBHesaplamaSchema = new mongoose.Schema(
   {
     baslik:        { type: String, required: true, trim: true },
+    ciftci_ad:     { type: String, default: '', trim: true },
     aciklama:      { type: String, default: '' },
     hayvanlar:     { type: [HayvanKalemiSchema], default: [] },
     toplam_adet:   { type: Number, default: 0 },
