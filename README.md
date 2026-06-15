@@ -9,10 +9,9 @@ Tarım ve Orman Bakanlığı İl/İlçe Müdürlükleri için geliştirilmiş me
 | Backend | Node.js, Express.js, Mongoose |
 | Veritabanı | MongoDB 7 |
 | Frontend | Bootstrap 5, Vanilla JS, Leaflet.js |
-| Dosya Depolama | Google Drive (OAuth2 / Service Account) |
+| Dosya Depolama | Google Drive (OAuth2) |
 | Altyapı | Docker Compose, Coolify |
 | Zamanlama | node-cron |
-| HTTP İstemci | axios |
 | Raporlama | ExcelJS, docx |
 
 ## Canlı URL
@@ -32,13 +31,10 @@ mis-app/
 ├── docker-compose.yml
 ├── .env
 ├── backend/
-│   ├── Dockerfile
-│   ├── package.json
 │   ├── server.js
 │   ├── config/db.js
 │   ├── middleware/errorHandler.js
-│   ├── data/
-│   │   └── Il-ilce-Semt-Mahalle-PostaKodu.xml   # 47.649 mahalle
+│   ├── data/Il-ilce-Semt-Mahalle-PostaKodu.xml
 │   └── modules/
 │       ├── bbhb/
 │       ├── bbhb-yukle/
@@ -46,9 +42,9 @@ mis-app/
 │       ├── ayarlar/
 │       ├── idari/
 │       ├── isgal/
-│       └── mevzuat/
+│       ├── mevzuat/
+│       └── ehgb/
 └── frontend/
-    ├── Dockerfile
     ├── nginx.conf
     └── public/
         ├── index.html
@@ -58,6 +54,7 @@ mis-app/
         ├── mera/
         ├── isgal/
         ├── mevzuat/
+        ├── ehgb/
         └── ayarlar/
 ```
 
@@ -72,6 +69,7 @@ Modüller
 
 Araçlar
   └─ BBHB Hesaplayıcı
+  └─ EHGB Hesaplama
   └─ Mevzuat
 
 Sistem
@@ -86,82 +84,33 @@ Sistem
 Mera parsellerinin kayıt ve takip modülü.
 
 **Özellikler:**
-- İl/ilçe/mahalle filtreli liste (47.649 mahalle, plaka sırasına göre)
-- Parsel detayları: nitelik, vasıf, toprak sınıfı, tapu alanı, kadastral alan
-- Mülkiyet bilgileri: cilt/sayfa/kayıt durumu, malik, pay/payda, şerhler
-- KML/KMZ yükleme → Google Drive'a kaydedilir, Leaflet+OpenStreetMap ile harita
-- Vasıf belgesi (1 yıl) ve tahsis belgesi (5 yıl) takibi → süresi yaklaşınca uyarı
-- Otlatma kapasitesi: EK-1 tabloları üzerinden BBHB hesaplama
-- Renkli notlar, dosya yükleme, dosya-not ilişkilendirme
-- PDF raporu (çok sayfalı, her sayfada başlık)
-- Ana sayfada: toplam aktif mera (adet, hektar, BBHB), uyarı sayaçları
+- İl/ilçe/mahalle filtreli liste (47.649 mahalle)
+- Parsel detayları: nitelik, vasıf, toprak sınıfı, tapu/kadastral alan
+- Mülkiyet bilgileri: cilt/sayfa/kayıt, malik, pay/payda, şerhler
+- KML/KMZ yükleme → Drive'a kaydedilir, Leaflet haritada gösterilir
+- Vasıf belgesi (1 yıl) ve tahsis belgesi (5 yıl) takibi → uyarı
+- Otlatma kapasitesi (BBHB), renkli notlar, dosya yükleme
+- PDF raporu (çok sayfalı)
 
-**API:**
-```
-GET    /api/mera/istatistik
-GET    /api/mera
-POST   /api/mera
-GET    /api/mera/:id
-PUT    /api/mera/:id
-DELETE /api/mera/:id
-POST   /api/mera/:id/kml
-GET    /api/mera/:id/kml
-POST   /api/mera/:id/notlar
-PUT    /api/mera/:id/notlar/:notId
-DELETE /api/mera/:id/notlar/:notId
-POST   /api/mera/:id/dosyalar
-DELETE /api/mera/:id/dosyalar/:dosyaId
-POST   /api/mera/:id/vasif-dosya
-POST   /api/mera/:id/tahsis-dosya
-GET    /api/mera/:id/rapor/pdf
-```
+**API:** `GET|POST /api/mera`, `GET|PUT|DELETE /api/mera/:id`, `/api/mera/istatistik`, `/:id/kml`, `/:id/notlar`, `/:id/dosyalar`, `/:id/rapor/pdf`
 
 ---
 
 ### İşgal (`/isgal/`)
-Mera parseline yapılan tecavüz/işgal kayıt ve takip modülü. 4342, 3091 ve 2886 sayılı kanunlar kapsamında süreç yönetimi.
+Mera parseline yapılan işgal kayıt ve süreç takip modülü.
 
 **Özellikler:**
-- İşgal no: `ISG-YY-NNNN` formatı (sistem), kullanıcı no eklenebilir
-- İşgal türü: Tarla İşgali / Yapılaşma / Yol-Hafriyat (açıklama zorunlu)
-- Tıklamalı süreç takibi:
-  1. Tespit Tutanağı
-  2. Komisyona İntikal
-  3. Komisyon Kararı
-  4. 3091 — Kaymakamlık/Valilik (15 gün sayacı)
-  5. 3091 Sonucu
-  6. 2886/75 — Jandarma/Kaymakamlık
-  7. Men-i Müdahale ve Kal Davası
-  8. Suç Duyurusu
-  9. Eski Hale Getirme
-  10. Tazminat Davası
-  11. Sonuç/Kapatma
-- Her adımda belge yükleme (opsiyonel), açıklama zorunlu
+- İşgal no: `ISG-YY-NNNN` (otomatik)
+- İşgal türü: Tarla / Yapılaşma / Yol-Hafriyat
+- 11 adımlı tıklamalı süreç takibi: Tespit → Komisyon → 3091 (15 gün sayacı) → 2886/75 → Dava → Suç Duyurusu → Eski Hale → Tazminat → Sonuç
+- Her adımda belge yükleme, açıklama
 - `aktif_adim` yoksa → ilk tamamlanmamış adım otomatik aktif
-- Dosyalar sekmesi: tamamlanan adımlara ek belge yüklenebilir
-- KML: işgal + mera sınırı üst üste, farklı renkler
-- Harman/sıvat/eğrek → suç duyurusu otomatik uyarısı
-- Dosya adı: `ISGAL-[sistem_no]-[DDMMYYYY]-[adim-tipi]-[sira].uzanti`
-- Raporlar: tekil HTML/PDF + Word, tüm liste HTML/PDF + Excel
-- Süreç adımı ve duruma göre filtreleme, 3091 süre uyarıları
+- KML: işgal + mera üst üste, farklı renkler
+- "Eski Hale Getirme" adımında **EHGB Hesapla** bağlantısı
+- Dosya adı formatı: `ISGAL-[no]-[YYYYMMDD]-[adim]-[sira].uzanti`
+- Raporlar: tekil HTML/PDF/Word, tüm liste HTML/PDF/Excel
 
-**API:**
-```
-GET    /api/isgal/istatistik
-GET    /api/isgal/rapor
-GET    /api/isgal/rapor/excel
-GET    /api/isgal
-POST   /api/isgal
-GET    /api/isgal/:id
-PUT    /api/isgal/:id
-DELETE /api/isgal/:id
-GET    /api/isgal/:id/rapor
-GET    /api/isgal/:id/rapor/word
-POST   /api/isgal/:id/adim
-POST   /api/isgal/:id/adim-dosya
-POST   /api/isgal/:id/kml
-GET    /api/isgal/:id/kml/:kmlId
-```
+**API:** `GET|POST /api/isgal`, `GET|PUT|DELETE /api/isgal/:id`, `/istatistik`, `/:id/adim`, `/:id/adim-dosya`, `/:id/kml`, `/:id/rapor`, `/:id/rapor/word`, `/rapor/excel`
 
 ---
 
@@ -169,89 +118,94 @@ GET    /api/isgal/:id/kml/:kmlId
 Büyükbaş Hayvan Birimi hesaplama aracı.
 
 **Özellikler:**
-- 16 hayvan türü, katsayılarıyla BBHB hesaplama
-- Manuel giriş veya XLS dosya yükleme (Türkvet formatı)
+- 17 hayvan türü (kültür inek, kültür melezi, yerli, koyun, keçi, manda, at, eşek, katır vb.)
+- Çiftçi adı soyadı alanı
 - Hesaplama geçmişi, raporlar (Excel, PDF, Word)
-- Sekmeli yapı: Hesapla | Yükle | Geçmiş | Raporlar
+- XLS dosya yükleme (Türkvet formatı)
+- Geçmiş listesinde çiftçi adı sütunu
+
+**API:** `GET /api/bbhb/turler`, `GET|DELETE /api/bbhb/gecmis`, `POST /api/bbhb/kaydet`, `GET /api/bbhb/:id/rapor/excel|pdf|word`
+
+---
+
+### EHGB Hesaplama (`/ehgb/`)
+Eski Haline Getirme Bedeli hesaplama modülü. 4342 sayılı Mera Kanunu kapsamında.
+
+**Özellikler:**
+- Alan tipleri: A (tarla), B (inşaat/hafriyat), C (asfalt/beton), tel örgü, döküm uzaklığı
+- Canlı hesaplama (400ms debounce) — alan girilince anında sonuç
+- Kalem kalem detaylı breakdown: işçilik, hafriyat (işçilik+nakliye+depolama), tohum, gübre
+- İşgalden yönlendirme: parsel ve işgalci bilgileri otomatik aktarılır
+- İşgal seçici (opsiyonel bağlantı)
+- Yıllık parametreler Ayarlar'dan güncellenir
+- **2 sayfalı rapor:**
+  - 1. Sayfa: hesaplamalar + teknik personel imzaları
+  - 2. Sayfa: yasal dayanak, alan tipi açıklamaları, formüller, birim fiyat tablosu
+
+**Hesaplama Formülleri:**
+- İşçilik: 7 işlem × TL/da × toplam alan (A+B+C)
+- Hafriyat: yükleme işçiliği + nakliye (km×2yön) + depolama sahası girişi
+- Tohum: 7 tür karışımı × 12 kg/da × alan
+- Gübre: amonyum+kompoze 2 yıl, hayvan gübresi 1 yıl × alan
+
+**API:** `GET|POST /api/ehgb`, `GET|PUT|DELETE /api/ehgb/:id`, `/:id/rapor`, `POST /api/ehgb/hesapla` (canlı), `/parametreler` (CRUD)
 
 ---
 
 ### Mevzuat (`/mevzuat/`)
-Kanun, yönetmelik, tebliğ ve diğer mevzuatların kayıt ve takip modülü.
+Kanun, yönetmelik ve diğer mevzuatların kayıt ve takip modülü.
 
 **Özellikler:**
-- Türe göre sekmeli liste: Kanun / Yönetmelik / Tebliğ / Genelge / Yönerge / Karar / Diğer / 📝 Notlar
-- 4 ekleme yöntemi:
-  1. PDF yükle → Drive'a kaydedilir, sayfa içinde iframe ile görüntülenir
-  2. Metin yapıştır
-  3. Harici bağlantı
-  4. mevzuat.gov.tr URL → `bedesten.adalet.gov.tr` API ile içerik otomatik çekilir
-- İçinde kelime/kelime grubu arama (metin ve notlarda)
-- Not ekleme: renkli, madde referanslı notlar; tüm notlar "Notlar" sekmesinde
-- Günlük 04:00 cron: mevzuat.gov.tr bağlantılı mevzuatlar kontrol, değişiklik arşivlenir
-- Sürüm geçmişi, manuel yenile, güncelleme onaylama
+- 4 ekleme yöntemi: PDF, metin, harici link, mevzuat.gov.tr URL
+- mevzuat.gov.tr: `bedesten.adalet.gov.tr` API ile içerik otomatik çekilir
+- Türe göre sekmeler: Kanun / Yönetmelik / Tebliğ / Genelge / Yönerge / Karar / Diğer / Notlar
+- Metin içinde kelime/kelime grubu arama (notlar dahil)
+- Renkli notlar, madde referansı; tüm notlar "Notlar" sekmesinde listelenir
+- Günlük 04:00 cron: değişiklik takibi, sürüm arşivi
 - Ana sayfada güncelleme uyarısı
 
-**mevzuat.gov.tr URL formatı:**
-```
-https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=4342&MevzuatTur=1&MevzuatTertip=5
-```
-Parametreler: `MevzuatNo`=kanun no, `MevzuatTur`=1(Kanun) 4(Yönetmelik) 7(Tebliğ)
-
-**API:**
-```
-GET    /api/mevzuat/istatistik
-GET    /api/mevzuat/notlar
-GET    /api/mevzuat
-POST   /api/mevzuat
-GET    /api/mevzuat/:id
-PUT    /api/mevzuat/:id
-DELETE /api/mevzuat/:id
-GET    /api/mevzuat/:id/pdf
-GET    /api/mevzuat/:id/ara?kelime=...
-POST   /api/mevzuat/:id/yenile
-POST   /api/mevzuat/:id/onayla
-POST   /api/mevzuat/:id/notlar
-PUT    /api/mevzuat/:id/notlar/:notId
-DELETE /api/mevzuat/:id/notlar/:notId
-```
+**API:** `GET|POST /api/mevzuat`, `GET|PUT|DELETE /api/mevzuat/:id`, `/istatistik`, `/notlar`, `/:id/ara`, `/:id/yenile`, `/:id/onayla`, `/:id/notlar`
 
 ---
 
 ### Ayarlar (`/ayarlar/`)
-Şifre korumalı sistem ayarları (varsayılan: 123456).
+Şifre korumalı sistem ayarları (varsayılan: `123456`).
 
 **Sekmeler:**
-- **Google Drive:** OAuth2 veya Service Account bağlantısı
-- **Dosya Kategorileri:** özelleştirilebilir kategori ve ikon listesi
-- **Not Renkleri:** not renk tanımları
-- **Toprak Sınıfları:** I-VIII, tanımlarıyla
-- **Yağış Kuşakları:** 81 il, EK-2
-- **Otlatma Verim Tabloları:** EK-1, 3 tablo
-- **İdari Yönetim:** il/ilçe/mahalle ara, düzenle, sil, ekle, öncelik sıralaması
+
+| Sekme | İçerik |
+|---|---|
+| Google Drive | OAuth2 bağlantısı (hesap ekle, yetkilendir) |
+| Dosya Kategorileri | Bootstrap Icons seçicili, özelleştirilebilir kategoriler |
+| Not Renkleri | Not renk tanımları |
+| Toprak Sınıfları | I-VIII sınıf tanımları |
+| Yağış Kuşakları | 81 il, EK-2 |
+| Verim Tabloları | EK-1, 3 tablo |
+| İdari Yönetim | İl/ilçe/mahalle ara, düzenle, ekle, sil |
+| Personel | Teknik ekipler (ad+yıl+üyeler), İl Mera Komisyonları (yıl+üyeler), Kullanıcılar (yakında) |
+| EHGB | Yıllık birim fiyat parametreleri (işçilik, hafriyat, tohum, gübre) |
+| Güvenlik | Admin şifre değiştirme |
+
+**Personel → Teknik Ekip:** EHGB raporunda otomatik imza olarak kullanılır.
 
 ---
 
 ## Google Drive Kurulumu (OAuth2)
 
-1. [Google Cloud Console](https://console.cloud.google.com/) → Yeni proje oluştur
-2. **APIs & Services → OAuth consent screen** → External → App adı gir → Kaydet
-3. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
-   - Application type: **Desktop app**
-   - İndir: `client_secret_xxx.json`
-4. **APIs & Services → Library → Google Drive API → Enable**
-5. MİS Ayarlar → Drive → **JSON Yükle** → indirilen dosyayı seç
-6. **Yetkilendir** butonuna tıkla → Google sayfası açılır
-7. Hesabı seç → İzin ver → Gösterilen kodu kopyala
-8. MİS'e yapıştır → **Kaydet**
+1. [console.cloud.google.com](https://console.cloud.google.com) → Yeni proje
+2. APIs & Services → Library → **Google Drive API** → Enable
+3. APIs & Services → OAuth consent screen → External → Kaydet
+4. Credentials → **+ Create Credentials → OAuth client ID** → Desktop app → JSON indir
+5. MİS Ayarlar → Drive → **Hesap Ekle** → JSON içeriğini yapıştır → Kaydet
+6. **Yetkilendir** → Google sayfasında izin ver → Kodu kopyala → MİS'e yapıştır
 
-> **Not:** Service Account ile normal Drive'da "storage quota" hatası alınır. Shared Drive gerektirir. OAuth2 önerilir.
+> Service Account normal Drive'da "storage quota" hatası verir. OAuth2 kullanın.
 
 ---
 
 ## Deployment
 
-### Ortam Değişkenleri (Coolify)
+### Ortam Değişkenleri
 ```
 MONGO_USER=misadmin
 MONGO_PASS=...
@@ -262,20 +216,14 @@ NODE_ENV=production
 ```
 
 ### Docker Compose Servisleri
-| Servis | Port | Açıklama |
-|---|---|---|
-| mongo | 27017 (internal) | MongoDB 7 |
-| backend | 5000 (internal) | Node.js API |
-| frontend | 80 | Nginx static + /api/ proxy |
+| Servis | Açıklama |
+|---|---|
+| mongo | MongoDB 7 (internal) |
+| backend | Node.js 5000 (internal) |
+| frontend | Nginx 80 — static + `/api/` proxy |
 
-### Frontend Yeniden Başlatma
-```bash
-# Coolify terminal (frontend container)
-nginx -s reload
-```
-
-### İdari Veri
-İlk başlangıçta `data/Il-ilce-Semt-Mahalle-PostaKodu.xml` otomatik yüklenir (~30-60 sn, 47.649 mahalle).
+### Tarih Formatı
+Tüm dosya adlarında tarih **YYYYMMDD** formatında (ör: `20260615`).
 
 ---
 
@@ -283,7 +231,7 @@ nginx -s reload
 
 | Zamanlama | İşlem |
 |---|---|
-| Her gün 04:00 (İstanbul) | mevzuat.gov.tr bağlantılı mevzuatları kontrol et |
+| Her gün 04:00 (UTC) | mevzuat.gov.tr bağlantılı mevzuatları kontrol et |
 
 ---
 
@@ -291,11 +239,18 @@ nginx -s reload
 
 | Versiyon | Değişiklik |
 |---|---|
+| v1.8.4 | EHGB rapor 2 sayfa (hesaplar+imzalar / açıklamalar+formüller) |
+| v1.8.3 | EHGB: ayarlar EHGB parametreler sekmesi, işgal seçici, rapor butonu |
+| v1.8.2 | EHGB hesaplama motoru ve detay formu (canlı hesaplama) |
+| v1.8.1 | BBHB çiftçi adı alanı, rapor güncelleme |
+| v1.8.0 | EHGB modülü iskelet |
+| v1.7.3 | Ayarlar personel sekmesi (teknik ekip, komisyon, yıl) |
+| v1.7.2 | README güncelle, Drive OAuth2 rehberi, kategori ikon seçici |
 | v1.7.1 | Mevzuat: not ekleme, içinde arama, notlar sekmesi |
 | v1.7.0 | Mevzuat modülü, sidebar yeniden yapılandırma |
 | v1.6.2 | İşgal: süreç düzeltme, belge yükleme, Excel/Word rapor |
 | v1.6.0 | İşgal modülü |
-| v1.5.3 | Mülkiyet bilgileri, istatistik, PDF rapor |
+| v1.5.x | Mülkiyet bilgileri, istatistik, PDF rapor |
 | v1.0.0 | İlk yayın: Mera, BBHB, Ayarlar |
 
-**Güncel: v1.7.1**
+**Güncel: v1.8.4**
