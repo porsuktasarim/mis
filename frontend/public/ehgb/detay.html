@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EHGB Detay - MİS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+  <style>
+    .detay-sekme{border:none;background:none;padding:9px 15px;font-size:13px;color:#4a6358;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;}
+    .detay-sekme.active{color:#0F6E56;border-bottom-color:#0F6E56;font-weight:500;}
+    .detay-tab{display:none;}.detay-tab.active{display:block;}
+    .detay-topbar{background:#fff;border-bottom:1px solid #e2e8e4;display:flex;align-items:center;overflow-x:auto;padding:0 1rem;}
+    .hesap-kutu{background:#f0f9f5;border:2px solid #0F6E56;border-radius:12px;padding:1.5rem;text-align:center;}
+    .hesap-tutar{font-size:2rem;font-weight:700;color:#0F6E56;}
+    .formul-alan{background:#f8f9fa;border-radius:8px;padding:1rem;font-family:monospace;font-size:12px;}
+    .parametre-eksik{background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:1rem;text-align:center;}
+  </style>
+</head>
+<body>
+<div class="d-flex" id="wrapper">
+  <div id="mis-sidebar-mount"></div>
+  <div id="page-content" class="flex-grow-1 d-flex flex-column">
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
+      <span class="mis-topbar-title" id="page-baslik">EHGB Hesabı</span>
+      <div class="ms-auto d-flex gap-2">
+        <a href="/ehgb/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Liste</a>
+        <button class="btn btn-sm btn-outline-secondary" onclick="duzenleAc()"><i class="bi bi-pencil me-1"></i>Düzenle</button>
+        <button class="btn btn-sm btn-mis" id="btn-kesinlestir" onclick="kesinlestir()" style="display:none"><i class="bi bi-check-circle me-1"></i>Kesinleştir</button>
+      </div>
+    </nav>
+    <div class="detay-topbar">
+      <button class="detay-sekme active" data-tab="hesap"><i class="bi bi-calculator me-1"></i>Hesaplama</button>
+      <button class="detay-sekme" data-tab="bilgi"><i class="bi bi-info-circle me-1"></i>Bilgiler</button>
+    </div>
+
+    <main class="mis-main p-4">
+
+      <!-- HESAPLAMA -->
+      <div class="detay-tab active" id="tab-hesap">
+        <div class="row g-4">
+          <div class="col-lg-5">
+
+            <!-- Hesap Sonucu -->
+            <div class="hesap-kutu mb-3" id="hesap-sonuc-kutu">
+              <div class="text-muted small mb-1">Toplam Bedel</div>
+              <div class="hesap-tutar" id="h-toplam">—</div>
+              <div class="text-muted small mt-1" id="h-yil-etiketi"></div>
+            </div>
+
+            <!-- Parametre eksik uyarısı -->
+            <div id="parametre-eksik-uyari" class="d-none parametre-eksik mb-3">
+              <i class="bi bi-exclamation-triangle fs-3 text-warning d-block mb-2"></i>
+              <strong>Parametre Bulunamadı</strong>
+              <p class="small text-muted mb-2" id="eksik-yil-metin"></p>
+              <a href="/ehgb/parametreler.html" class="btn btn-sm btn-warning">Parametreleri Gir</a>
+            </div>
+
+            <!-- Hesap Özeti -->
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-list-ul"></i><span class="title">Hesap Özeti</span></div>
+              <div id="hesap-ozet">
+                <p class="text-muted small text-center py-3">Hesaplama formülü tanımlanmamış.<br>Parametreler girildikten sonra burada görünecek.</p>
+              </div>
+            </div>
+
+          </div>
+          <div class="col-lg-7">
+
+            <!-- Formül -->
+            <div class="mis-card mb-3">
+              <div class="mis-card-header"><i class="bi bi-code-slash"></i><span class="title">Hesaplama Detayı</span></div>
+              <div class="formul-alan" id="formul-alani">
+                <div class="text-muted small text-center py-3">
+                  Hesaplama formülü henüz tanımlanmamış.<br>
+                  İçerik netleşince burası otomatik doldurulacak.
+                </div>
+              </div>
+            </div>
+
+            <!-- Kullanılan Parametreler -->
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-sliders"></i><span class="title">Kullanılan Parametreler</span>
+                <span class="badge bg-secondary ms-2" id="param-yil-badge"></span>
+              </div>
+              <div id="kullanilan-parametreler">
+                <p class="text-muted small text-center py-3">Parametre bilgisi yok.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- BİLGİLER -->
+      <div class="detay-tab" id="tab-bilgi">
+        <div class="row g-4">
+          <div class="col-lg-6">
+            <div class="mis-card mb-3">
+              <div class="mis-card-header"><i class="bi bi-geo-alt"></i><span class="title">Parsel Bilgileri</span></div>
+              <table class="table table-sm mb-0">
+                <tr><td class="text-muted small" style="width:35%">İl</td><td id="b-il">-</td></tr>
+                <tr><td class="text-muted small">İlçe</td><td id="b-ilce">-</td></tr>
+                <tr><td class="text-muted small">Mahalle/Köy</td><td id="b-mahalle">-</td></tr>
+                <tr><td class="text-muted small">Ada / Parsel</td><td id="b-ada-parsel">-</td></tr>
+                <tr><td class="text-muted small">İşgal Alanı</td><td id="b-alan">-</td></tr>
+                <tr><td class="text-muted small">İşgal Türü</td><td id="b-tur">-</td></tr>
+                <tr><td class="text-muted small">İşgal Tarihi</td><td id="b-isgal-tarihi">-</td></tr>
+              </table>
+            </div>
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-person"></i><span class="title">İşgalci Bilgileri</span></div>
+              <table class="table table-sm mb-0">
+                <tr><td class="text-muted small" style="width:35%">Ad Soyad</td><td id="b-isgalci">-</td></tr>
+                <tr><td class="text-muted small">TC</td><td id="b-tc">-</td></tr>
+                <tr><td class="text-muted small">Adres</td><td id="b-adres">-</td></tr>
+              </table>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-calendar3"></i><span class="title">Hesaplama Bilgileri</span></div>
+              <table class="table table-sm mb-0">
+                <tr><td class="text-muted small" style="width:40%">Karar Tarihi</td><td id="b-karar">-</td></tr>
+                <tr><td class="text-muted small">Hesaplama Yılı</td><td id="b-hesap-yili" class="fw-semibold">-</td></tr>
+                <tr><td class="text-muted small">Durum</td><td id="b-durum">-</td></tr>
+                <tr><td class="text-muted small">Kayıt Tarihi</td><td id="b-kayit-tarihi">-</td></tr>
+                <tr id="b-isgal-satir" style="display:none"><td class="text-muted small">Bağlı İşgal</td><td id="b-isgal-link">-</td></tr>
+              </table>
+            </div>
+            <div class="mis-card mt-3" id="aciklama-kart" style="display:none">
+              <div class="mis-card-header"><i class="bi bi-chat-text"></i><span class="title">Açıklama</span></div>
+              <p id="b-aciklama" class="p-3 small mb-0">-</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Düzenle Modal -->
+<div class="modal fade" id="duzenleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Hesap Düzenle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-3">
+        <div class="col-md-4"><label class="form-label small fw-semibold">Karar Tarihi</label><input type="date" class="form-control form-control-sm" id="d-karar-tarihi"/></div>
+        <div class="col-md-4"><label class="form-label small fw-semibold">İşgal Alanı (m²)</label><input type="number" class="form-control form-control-sm" id="d-alan"/></div>
+        <div class="col-md-4"><label class="form-label small fw-semibold">Durum</label>
+          <select class="form-select form-select-sm" id="d-durum">
+            <option value="taslak">Taslak</option>
+            <option value="kesinlesti">Kesinleşti</option>
+            <option value="itiraz">İtiraz</option>
+            <option value="iptal">İptal</option>
+          </select>
+        </div>
+        <div class="col-md-6"><label class="form-label small fw-semibold">Ad Soyad</label><input type="text" class="form-control form-control-sm" id="d-isgalci-ad"/></div>
+        <div class="col-md-3"><label class="form-label small fw-semibold">TC</label><input type="text" class="form-control form-control-sm" id="d-isgalci-tc"/></div>
+        <div class="col-12"><label class="form-label small fw-semibold">Açıklama</label><textarea class="form-control form-control-sm" id="d-aciklama" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button><button class="btn btn-sm btn-mis" onclick="duzenleKaydet()">Kaydet</button></div>
+  </div></div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+  <div id="mis-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex"><div class="toast-body fw-semibold" id="toast-msg"></div>
+    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button></div>
+  </div>
+</div>
+
+<script src="/js/sidebar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '/api/ehgb';
+const id = new URLSearchParams(location.search).get('id');
+let hesap = null;
+
+const showToast = (msg, type='success') => {
+  const el = document.getElementById('mis-toast');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+};
+
+const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+const DURUM_CLS = { taslak:'bg-warning text-dark', kesinlesti:'bg-success', itiraz:'bg-danger', iptal:'bg-secondary' };
+const DURUM_ETIKET = { taslak:'Taslak', kesinlesti:'Kesinleşti', itiraz:'İtiraz', iptal:'İptal' };
+const fmt = n => n != null ? Number(n).toLocaleString('tr-TR') : '-';
+
+document.querySelectorAll('.detay-sekme').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.detay-sekme').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.detay-tab').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); document.getElementById('tab-'+b.dataset.tab).classList.add('active');
+}));
+
+const loadHesap = async () => {
+  const r = await fetch(`${API}/${id}`);
+  const j = await r.json();
+  hesap = j.data;
+  renderHesap();
+  renderBilgiler();
+  document.getElementById('page-baslik').textContent = `EHGB — ${hesap.il_ad||''} ${hesap.mahalle_ad||''} Ada:${hesap.ada||'-'} P:${hesap.parsel||'-'}`;
+  if (hesap.durum === 'taslak') document.getElementById('btn-kesinlestir').style.display = '';
+};
+
+const renderHesap = () => {
+  const yil = hesap.hesaplama_yili;
+  document.getElementById('h-yil-etiketi').textContent = `${yil} yılı parametreleri`;
+  document.getElementById('param-yil-badge').textContent = yil + ' yılı';
+
+  if (hesap.toplam_bedel != null) {
+    document.getElementById('h-toplam').textContent = fmt(hesap.toplam_bedel) + ' ₺';
+  } else {
+    document.getElementById('h-toplam').textContent = '—';
+    // Parametre kontrolü
+    fetch(`${API}/parametreler/${yil}`).then(r=>r.json()).then(j=>{
+      if (!j.success) {
+        document.getElementById('parametre-eksik-uyari').classList.remove('d-none');
+        document.getElementById('eksik-yil-metin').textContent = `${yil} yılına ait parametreler girilmemiş. Hesaplama yapılamıyor.`;
+      }
+    });
+  }
+
+  // Kullanılan parametreler
+  const params = hesap.kullanilan_parametreler;
+  document.getElementById('kullanilan-parametreler').innerHTML = params && Object.keys(params).length
+    ? `<pre class="small p-2 mb-0">${JSON.stringify(params, null, 2)}</pre>`
+    : '<p class="text-muted small text-center py-2">Parametre bilgisi yok.</p>';
+
+  // Formül (ileride doldurulacak)
+  document.getElementById('formul-alani').innerHTML = `
+    <div class="text-muted small">
+      <strong>Hesaplama Yılı:</strong> ${yil}<br>
+      <strong>İşgal Alanı:</strong> ${fmt(hesap.isgal_alani_m2)} m²<br>
+      <strong>İşgal Türü:</strong> ${TUR_ETIKET[hesap.isgal_turu]||'-'}<br>
+      <hr/>
+      <em>Hesaplama formülü tanımlanmamış. Parametreler netleşince burası güncellenecek.</em>
+    </div>`;
+};
+
+const renderBilgiler = () => {
+  document.getElementById('b-il').textContent = hesap.il_ad||'-';
+  document.getElementById('b-ilce').textContent = hesap.ilce_ad||'-';
+  document.getElementById('b-mahalle').textContent = hesap.mahalle_ad||'-';
+  document.getElementById('b-ada-parsel').textContent = `${hesap.ada||'-'} / ${hesap.parsel||'-'}`;
+  document.getElementById('b-alan').textContent = hesap.isgal_alani_m2 ? fmt(hesap.isgal_alani_m2)+' m²' : '-';
+  document.getElementById('b-tur').innerHTML = `<span class="grup-badge">${TUR_ETIKET[hesap.isgal_turu]||'-'}</span>`;
+  document.getElementById('b-isgal-tarihi').textContent = hesap.isgal_tarihi ? new Date(hesap.isgal_tarihi).toLocaleDateString('tr-TR') : '-';
+  document.getElementById('b-isgalci').textContent = hesap.isgalci_ad_soyad||'-';
+  document.getElementById('b-tc').textContent = hesap.isgalci_tc||'-';
+  document.getElementById('b-adres').textContent = hesap.isgalci_adres||'-';
+  document.getElementById('b-karar').textContent = hesap.karar_tarihi ? new Date(hesap.karar_tarihi).toLocaleDateString('tr-TR') : '-';
+  document.getElementById('b-hesap-yili').textContent = hesap.hesaplama_yili||'-';
+  document.getElementById('b-durum').innerHTML = `<span class="badge ${DURUM_CLS[hesap.durum]||''}">${DURUM_ETIKET[hesap.durum]||'-'}</span>`;
+  document.getElementById('b-kayit-tarihi').textContent = new Date(hesap.createdAt).toLocaleString('tr-TR');
+  if (hesap.isgal_id) {
+    document.getElementById('b-isgal-satir').style.display='';
+    document.getElementById('b-isgal-link').innerHTML = `<a href="/isgal/detay.html?id=${hesap.isgal_id}">İşgal Kaydına Git →</a>`;
+  }
+  if (hesap.aciklama) {
+    document.getElementById('aciklama-kart').style.display='';
+    document.getElementById('b-aciklama').textContent = hesap.aciklama;
+  }
+};
+
+window.kesinlestir = async () => {
+  if (!confirm('Bu hesap kesinleştirilecek?')) return;
+  const r = await fetch(`${API}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({durum:'kesinlesti'}) });
+  const j = await r.json();
+  if (j.success) { await loadHesap(); showToast('Kesinleştirildi.'); }
+};
+
+window.duzenleAc = () => {
+  document.getElementById('d-karar-tarihi').value = hesap.karar_tarihi ? new Date(hesap.karar_tarihi).toISOString().slice(0,10) : '';
+  document.getElementById('d-alan').value = hesap.isgal_alani_m2||'';
+  document.getElementById('d-durum').value = hesap.durum||'taslak';
+  document.getElementById('d-isgalci-ad').value = hesap.isgalci_ad_soyad||'';
+  document.getElementById('d-isgalci-tc').value = hesap.isgalci_tc||'';
+  document.getElementById('d-aciklama').value = hesap.aciklama||'';
+  new bootstrap.Modal(document.getElementById('duzenleModal')).show();
+};
+
+window.duzenleKaydet = async () => {
+  const veri = {
+    karar_tarihi: document.getElementById('d-karar-tarihi').value,
+    isgal_alani_m2: document.getElementById('d-alan').value||null,
+    durum: document.getElementById('d-durum').value,
+    isgalci_ad_soyad: document.getElementById('d-isgalci-ad').value,
+    isgalci_tc: document.getElementById('d-isgalci-tc').value,
+    aciklama: document.getElementById('d-aciklama').value,
+  };
+  const r = await fetch(`${API}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(veri) });
+  const j = await r.json();
+  if (j.success) { bootstrap.Modal.getInstance(document.getElementById('duzenleModal')).hide(); await loadHesap(); showToast('Güncellendi.'); }
+  else showToast(j.message,'danger');
+};
+
+document.addEventListener('DOMContentLoaded', loadHesap);
+</script>
+<style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
+</body>
+</html>

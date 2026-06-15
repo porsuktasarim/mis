@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EHGB Parametreler - MİS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+</head>
+<body>
+<div class="d-flex" id="wrapper">
+  <div id="mis-sidebar-mount"></div>
+  <div id="page-content" class="flex-grow-1">
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
+      <span class="mis-topbar-title">EHGB — Yıllık Parametreler</span>
+      <div class="ms-auto d-flex gap-2">
+        <a href="/ehgb/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Hesaplamalar</a>
+        <button class="btn btn-sm btn-mis" onclick="yeniYilEkle()"><i class="bi bi-plus-lg me-1"></i>Yıl Ekle</button>
+      </div>
+    </nav>
+
+    <main class="mis-main p-4">
+      <div class="alert alert-info mb-4">
+        <i class="bi bi-info-circle me-2"></i>
+        Bu sayfada her yıla ait birim fiyat ve hesaplama parametreleri girilir.
+        Hesaplama yöntemi netleşince parametreler buradan güncellenir.
+        Hesaplamalar, kaymakamlık kararı tarihine ait yılın parametrelerini kullanır.
+      </div>
+
+      <div class="mis-card">
+        <div class="mis-card-header"><i class="bi bi-sliders"></i><span class="title">Yıllık Parametreler</span></div>
+        <div id="parametre-listesi">
+          <div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-success"></div><span class="ms-2">Yükleniyor...</span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Parametre Modal -->
+<div class="modal fade" id="parametreModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="p-modal-baslik">Parametre Ekle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="p-id"/>
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Yıl *</label>
+        <input type="number" class="form-control form-control-sm" id="p-yil" min="2000" max="2100" placeholder="2026"/>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small fw-semibold">Açıklama</label>
+        <textarea class="form-control form-control-sm" id="p-aciklama" rows="2" placeholder="Bu yıl için notlar..."></textarea>
+      </div>
+      <div class="alert alert-warning py-2 small">
+        <i class="bi bi-clock me-1"></i>
+        Hesaplama formülü netleşince ek parametre alanları buraya eklenecek.
+        Şu an sadece yıl ve açıklama kaydedilebilir.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
+      <button class="btn btn-sm btn-mis" onclick="parametreKaydet()">Kaydet</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+  <div id="mis-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex"><div class="toast-body fw-semibold" id="toast-msg"></div>
+    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button></div>
+  </div>
+</div>
+
+<script src="/js/sidebar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '/api/ehgb';
+
+const showToast = (msg, type='success') => {
+  const el = document.getElementById('mis-toast');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+};
+
+const loadParametreler = async () => {
+  const r = await fetch(`${API}/parametreler`);
+  const j = await r.json();
+  const liste = j.data || [];
+
+  document.getElementById('parametre-listesi').innerHTML = liste.length
+    ? `<table class="table table-sm mis-table mb-0">
+        <thead><tr><th>Yıl</th><th>Açıklama</th><th>Güncellenme</th><th></th></tr></thead>
+        <tbody>${liste.map(p=>`<tr>
+          <td class="fw-bold fs-5 text-success">${p.yil}</td>
+          <td class="small">${p.aciklama||'-'}</td>
+          <td class="small text-muted">${new Date(p.guncelleme_tarihi||p.createdAt).toLocaleDateString('tr-TR')}</td>
+          <td><div class="d-flex gap-1">
+            <button class="btn btn-xs btn-outline-secondary" onclick="parametreDuzenle('${p._id}','${p.yil}','${(p.aciklama||'').replace(/'/g,"\\'")}')"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-xs btn-outline-danger" onclick="parametreSil('${p._id}')"><i class="bi bi-trash"></i></button>
+          </div></td>
+        </tr>`).join('')}</tbody>
+      </table>`
+    : '<p class="text-muted text-center py-4 small">Henüz parametre girilmemiş. "Yıl Ekle" ile başlayın.</p>';
+};
+
+window.yeniYilEkle = () => {
+  document.getElementById('p-id').value = '';
+  document.getElementById('p-yil').value = new Date().getFullYear();
+  document.getElementById('p-aciklama').value = '';
+  document.getElementById('p-modal-baslik').textContent = 'Yıl Parametresi Ekle';
+  document.getElementById('p-yil').disabled = false;
+  new bootstrap.Modal(document.getElementById('parametreModal')).show();
+};
+
+window.parametreDuzenle = (id, yil, aciklama) => {
+  document.getElementById('p-id').value = id;
+  document.getElementById('p-yil').value = yil;
+  document.getElementById('p-yil').disabled = true;
+  document.getElementById('p-aciklama').value = aciklama;
+  document.getElementById('p-modal-baslik').textContent = `${yil} Parametrelerini Düzenle`;
+  new bootstrap.Modal(document.getElementById('parametreModal')).show();
+};
+
+window.parametreKaydet = async () => {
+  const yil = parseInt(document.getElementById('p-yil').value);
+  if (!yil) { showToast('Yıl zorunlu.','warning'); return; }
+  const veri = { yil, aciklama: document.getElementById('p-aciklama').value, parametreler: {} };
+  const r = await fetch(`${API}/parametreler`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(veri) });
+  const j = await r.json();
+  if (j.success) { bootstrap.Modal.getInstance(document.getElementById('parametreModal')).hide(); loadParametreler(); showToast('Kaydedildi.'); }
+  else showToast(j.message,'danger');
+};
+
+window.parametreSil = async (id) => {
+  if (!confirm('Silinecek?')) return;
+  const r = await fetch(`${API}/parametreler/${id}`, { method:'DELETE' });
+  if ((await r.json()).success) { showToast('Silindi.'); loadParametreler(); }
+};
+
+document.addEventListener('DOMContentLoaded', loadParametreler);
+</script>
+<style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
+</body>
+</html>

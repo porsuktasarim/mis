@@ -13,6 +13,7 @@ const ayarlarRoutes = require('./modules/ayarlar/ayarlar.routes');
 const meraRoutes = require('./modules/mera/mera.routes');
 const isgalRoutes = require('./modules/isgal/isgal.routes');
 const mevzuatRoutes = require('./modules/mevzuat/mevzuat.routes');
+const ehgbHesapRoutes = require('./modules/ehgb/ehgb.routes');
 const fs = require('fs');
 
 const app = express();
@@ -74,6 +75,7 @@ app.use('/api/ayarlar', ayarlarRoutes);
 app.use('/api/mera', meraRoutes);
 app.use('/api/isgal', isgalRoutes);
 app.use('/api/mevzuat', mevzuatRoutes);
+app.use('/api/ehgb', ehgbHesapRoutes);
 
 // Günlük mevzuat kontrolü - her gün 04:00'da
 const cron = require('node-cron');

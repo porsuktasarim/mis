@@ -243,7 +243,7 @@ const ADIMLAR = [
   { tip:'iki_bin_sekiz_yuz_seksen_alti', etiket:'2886/75 - Jandarma/Kaymakamlık', aciklama:'Zaman aşımı nedeniyle 2886 sayılı Kanun uygulaması' },
   { tip:'dava_men_mudahale', etiket:'Men-i Müdahale ve Kal Davası', aciklama:'Muhakemat Müdürlüğü kanalıyla dava açılması' },
   { tip:'suc_duyurusu', etiket:'Suç Duyurusu', aciklama:'Cumhuriyet Savcılığına suç duyurusunda bulunulması' },
-  { tip:'eski_hale_getirme', etiket:'Eski Hale Getirme', aciklama:'Tecavüzcüden eski hale getirme talebinde bulunulması' },
+  { tip:'eski_hale_getirme', etiket:'Eski Hale Getirme', aciklama:'Tecavüzcüden eski hale getirme talebinde bulunulması', ehgb: true },
   { tip:'tazminat_davasi', etiket:'Tazminat Davası', aciklama:'Hazine avukatlığına tazminat davası açılması için yazı' },
   { tip:'sonuc', etiket:'Sonuç / Kapatma', aciklama:'İşgal giderildi veya süreç tamamlandı' },
 ];
@@ -352,6 +352,7 @@ const renderSurec = () => {
         <div class="d-flex gap-2 mt-2">
           ${aktif || tamamlandi ? `<button class="btn btn-xs btn-mis" onclick="adimAc('${a.tip}', '${a.etiket.replace(/'/g, "\\'")}')"><i class="bi bi-check2 me-1"></i>${tamamlandi ? 'Ek Kayıt' : 'Tamamla'}</button>` : ''}
           ${tamamlandi ? `<button class="btn btn-xs btn-outline-success" onclick="dosyaSekmesineGit('${a.tip}')"><i class="bi bi-upload me-1"></i>Belge Ekle</button>` : ''}
+          ${a.ehgb ? `<a href="/ehgb/?isgal_id=${id}" class="btn btn-xs btn-outline-primary"><i class="bi bi-calculator me-1"></i>EHGB Hesapla</a>` : ''}
         </div>
       </div>
       ${sureBilgisi}
