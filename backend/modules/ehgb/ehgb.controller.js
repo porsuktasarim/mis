@@ -287,13 +287,13 @@ const hesapGuncelle = async (req, res, next) => {
 
     if (alanDegisti) {
       const girdi = {
-        a_alan: +(req.body.a_alan ?? hesap.sonuc?.a_alan ?? 0),
-        b_alan: +(req.body.b_alan ?? hesap.sonuc?.b_alan ?? 0),
-        b_derinlik: +(req.body.b_derinlik ?? hesap.sonuc?.b_derinlik ?? 0),
-        c_alan: +(req.body.c_alan ?? hesap.sonuc?.c_alan ?? 0),
-        c_kalinlik: +(req.body.c_kalinlik ?? hesap.sonuc?.c_kalinlik ?? 0),
-        tel_orgu_m: +(req.body.tel_orgu_m ?? hesap.sonuc?.tel_orgu_m ?? 0),
-        uzaklik_km: +(req.body.uzaklik_km ?? hesap.sonuc?.uzaklik_km ?? 0),
+        a_alan:      +(req.body.a_alan      ?? hesap.sonuc?.a_alan      ?? 0),
+        b_alan:      +(req.body.b_alan      ?? hesap.sonuc?.b_alan      ?? 0),
+        b_derinlik:  +(req.body.b_derinlik  ?? hesap.sonuc?.b_derinlik  ?? 0),
+        c_alan:      +(req.body.c_alan      ?? hesap.sonuc?.c_alan      ?? 0),
+        c_kalinlik:  +(req.body.c_kalinlik  ?? hesap.sonuc?.c_kalinlik  ?? 0),
+        tel_orgu_m:  +(req.body.tel_orgu_m  ?? hesap.sonuc?.tel_orgu_m  ?? 0),
+        uzaklik_km:  +(req.body.uzaklik_km  ?? hesap.sonuc?.uzaklik_km  ?? 0),
       };
       const p = hesap.kullanilan_parametreler || VARSAYILAN_PARAMETRELER;
       const sonuc = hesaplaEHGB(girdi, p);
@@ -301,11 +301,20 @@ const hesapGuncelle = async (req, res, next) => {
       hesap.toplam_bedel = sonuc.genel_toplam;
     }
 
-    ['il_ad','ilce_ad','mahalle_ad','ada','parsel','isgalci_ad_soyad',
-      'isgalci_tc','isgalci_adres','isgal_alani_m2','isgal_turu','isgal_tarihi',
-      'karar_tarihi','aciklama','durum'].forEach(a => {
+    // Tüm alanları güncelle
+    ['il_ad','ilce_ad','mahalle_ad','ada','parsel',
+     'isgalci_ad_soyad','isgalci_tc','isgalci_adres',
+     'isgal_alani_m2','isgal_turu','isgal_tarihi',
+     'karar_tarihi','aciklama','durum'].forEach(a => {
       if (req.body[a] !== undefined) hesap[a] = req.body[a];
     });
+
+    // isgal_id bağlantısı
+    if (req.body.isgal_id !== undefined) hesap.isgal_id = req.body.isgal_id || null;
+
+    // Seçilen personel
+    if (req.body.secilen_personel !== undefined) hesap.secilen_personel = req.body.secilen_personel;
+
     if (req.body.karar_tarihi) hesap.hesaplama_yili = new Date(req.body.karar_tarihi).getFullYear();
 
     await hesap.save();
@@ -395,12 +404,12 @@ const rapor = async (req, res, next) => {
     // İmza alanı: 2 satır boşluk + %60 opaklıkta "İMZA" arka plan yazısı, çizgi yok
     const pSay = personel.length || 1;
     const imzaKutu = (ad, unvan) => `
-      <div style="width:${Math.floor(100/pSay)}%;display:inline-block;text-align:center;vertical-align:top;padding:0 4px">
-        <div style="position:relative;height:60px;display:flex;align-items:center;justify-content:center">
-          <span style="position:absolute;font-size:22px;font-weight:900;color:#cccccc;opacity:0.6;letter-spacing:4px;user-select:none">İMZA</span>
+      <div style="width:${Math.floor(100/pSay)}%;display:inline-block;text-align:center;vertical-align:top;padding:0 6px">
+        <div style="position:relative;height:70px;display:flex;align-items:center;justify-content:center;margin-bottom:6px">
+          <span style="font-size:26px;font-weight:900;color:rgba(204,204,204,0.9);letter-spacing:6px;user-select:none">İMZA</span>
         </div>
-        <div style="font-weight:bold;font-size:9.5px;margin-top:4px">${tamAd(ad, unvan)}</div>
-        <div style="font-size:8.5px;color:#444">${unvan||''}</div>
+        <div style="font-weight:bold;font-size:9.5px">${tamAd(ad, unvan)}</div>
+        <div style="font-size:8.5px;color:#444;margin-top:2px">${unvan||''}</div>
       </div>`;
 
     const imzaKutulari = personel.length > 0
@@ -543,10 +552,7 @@ tr:nth-child(even) td{background:#f5faf6}
   Yukarıda hesaplanan bedel, 4342 sayılı Mera Kanunu'nun ilgili hükümleri çerçevesinde mera alanının eski haline getirilmesi amacıyla köy sandığına veya belediye bütçesinde ayrı bir hesaba yatırılacaktır.
 </p>
 
-<div style="font-size:9.5px;margin-bottom:12px">
-  <strong>Tarih:</strong> .......................
-  ${aktifEkip?.ad ? ` &nbsp;|&nbsp; <strong>Teknik Ekip:</strong> ${aktifEkip.ad}${aktifEkip.yil?' ('+aktifEkip.yil+')':''}` : ''}
-</div>
+<div style="font-size:9.5px;margin-bottom:12px"><strong>Tarih:</strong> .......................</div>
 
 <div class="imza-baslik">HAZIRLAYANLAR</div>
 <div style="display:flex;width:100%">
@@ -659,8 +665,144 @@ Toplam Yükleme = Sefer Başı × Sefer Sayısı</div>
   } catch (err) { next(err); }
 };
 
+// ── Word (docx) Raporu ───────────────────────────────────
+const raporWord = async (req, res, next) => {
+  try {
+    const { Document, Paragraph, Table, TableRow, TableCell, TextRun,
+      AlignmentType, WidthType, ShadingType, convertInchesToTwip, BorderStyle,
+      HeadingLevel } = require('docx');
+    const { Packer } = require('docx');
+
+    const hesap = await EhgbHesap.findById(req.params.id);
+    if (!hesap) return res.status(404).json({ success: false, message: 'Bulunamadı' });
+
+    const Ayarlar = require('../ayarlar/ayarlar.model');
+    const ayarlar = await Ayarlar.findOne();
+    const teknikEkipler = ayarlar?.teknik_ekipler || [];
+    const aktifEkip = teknikEkipler.sort((a,b) => (b.yil||0)-(a.yil||0))[0];
+    const ekipAdlari = new Set((aktifEkip?.uyeler||[]).map(u=>u.ad));
+    let personel = [];
+    if (hesap.secilen_personel?.length > 0) {
+      personel = [...hesap.secilen_personel.filter(p=>ekipAdlari.has(p.ad)),
+                  ...hesap.secilen_personel.filter(p=>!ekipAdlari.has(p.ad))];
+    } else {
+      const eu = (aktifEkip?.uyeler||[]).filter(u=>u.aktif!==false);
+      const ku = (ayarlar?.kullanicilar||[]).filter(u=>u.aktif!==false);
+      personel = [...eu, ...ku.filter(k=>!eu.some(e=>e.ad===k.ad))];
+    }
+
+    const s = hesap.sonuc || {};
+    const p = hesap.kullanilan_parametreler || {};
+    const titrMap = { 'Doktor Ziraat Mühendisi':'Dr. ','Doçent Doktor Ziraat Mühendisi':'Doç. Dr. ','Profesör Doktor Ziraat Mühendisi':'Prof. Dr. ' };
+    const tamAd = (ad, unvan) => (titrMap[unvan]||'')+(ad||'');
+    const fmt = n => n!=null ? Number(n).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '0,00';
+    const kararTarih = hesap.karar_tarihi ? new Date(hesap.karar_tarihi).toLocaleDateString('tr-TR') : '-';
+    const tespitTarih = hesap.isgal_tarihi ? new Date(hesap.isgal_tarihi).toLocaleDateString('tr-TR') : '-';
+
+    const YSL = 24; // yazı boyutu (half-point)
+    const YSLB = 24;
+    const GREEN = '1A6B4A';
+    const WHITE = 'FFFFFF';
+
+    const txt = (text, opts={}) => new TextRun({ text: String(text||''), size: opts.size||YSL, bold: opts.bold||false, color: opts.color||'000000', ...opts });
+    const par = (children, align) => new Paragraph({ children: Array.isArray(children)?children:[children], alignment: align||AlignmentType.LEFT, spacing:{after:80} });
+    const hdr = (text, color) => new Paragraph({ children:[new TextRun({text,bold:true,size:26,color:color||GREEN})], spacing:{before:160,after:80} });
+
+    const cell = (content, opts={}) => new TableCell({
+      children: [new Paragraph({ children:[new TextRun({text:String(content||'-'),size:YSL,bold:opts.bold||false,color:opts.color||'000000'})], spacing:{after:40} })],
+      shading: opts.bg ? { type:ShadingType.SOLID, color:opts.bg, fill:opts.bg } : undefined,
+      width: opts.w ? { size:opts.w, type:WidthType.PERCENTAGE } : undefined,
+      margins: { top:60, bottom:60, left:80, right:80 },
+    });
+
+    const bilgiSatiri = (etiket, deger) => new TableRow({ children:[
+      cell(etiket, {bold:true, w:35}), cell(deger),
+    ]});
+
+    const bilgiTablosu = (satirlar) => new Table({
+      width:{size:100,type:WidthType.PERCENTAGE},
+      borders:{top:{style:BorderStyle.SINGLE,size:4,color:'CCCCCC'},bottom:{style:BorderStyle.SINGLE,size:4,color:'CCCCCC'},left:{style:BorderStyle.SINGLE,size:4,color:'CCCCCC'},right:{style:BorderStyle.SINGLE,size:4,color:'CCCCCC'},insideH:{style:BorderStyle.SINGLE,size:2,color:'E0E0E0'},insideV:{style:BorderStyle.SINGLE,size:2,color:'E0E0E0'}},
+      rows: satirlar,
+    });
+
+    // Özet tablosu
+    const ozetSatiri = (etiket, deger, baslik) => new TableRow({ children:[
+      cell(etiket, baslik?{bold:true,bg:GREEN,color:WHITE}:{bold:baslik}),
+      new TableCell({
+        children:[new Paragraph({children:[new TextRun({text:String(deger),size:YSL,bold:baslik||false,color:baslik?WHITE:'000000'})],alignment:AlignmentType.RIGHT,spacing:{after:40}})],
+        shading: baslik?{type:ShadingType.SOLID,color:GREEN,fill:GREEN}:undefined,
+        margins:{top:60,bottom:60,left:80,right:80},
+      }),
+    ]});
+
+    // İmza satırları
+    const imzaSatirlari = personel.length > 0
+      ? [
+          new Paragraph({children:personel.map((u,i)=>new TextRun({text:(i>0?'                              ':'')+tamAd(u.ad,u.unvan),size:20,bold:true})), spacing:{before:400,after:80}}),
+          new Paragraph({children:personel.map((u,i)=>new TextRun({text:(i>0?'                              ':'')+u.unvan||'',size:18,color:'444444'})), spacing:{after:200}}),
+        ]
+      : [new Paragraph({children:[txt('HAZIRLAYAN',{bold:true})],spacing:{before:400,after:200}})];
+
+    const children = [
+      par([txt('4342 SAYILI MERA KANUNU KAPSAMINDA',{bold:true,size:26})], AlignmentType.CENTER),
+      par([txt('ESKİ HALİNE GETİRME BEDELİ HESAP RAPORU',{bold:true,size:28})], AlignmentType.CENTER),
+      par([txt(`Hesap No: ${hesap.hesap_no||'-'}`,{bold:true,size:22,color:GREEN})], AlignmentType.CENTER),
+      new Paragraph({spacing:{after:160}}),
+
+      hdr('İşgalci Bilgileri'),
+      bilgiTablosu([
+        bilgiSatiri('Adı Soyadı / Unvanı', hesap.isgalci_ad_soyad||'-'),
+        bilgiSatiri('T.C. Kimlik / V.K.N.', hesap.isgalci_tc||'-'),
+        bilgiSatiri('Adresi', hesap.isgalci_adres||'-'),
+      ]),
+
+      hdr('Parsel ve Karar Bilgileri'),
+      bilgiTablosu([
+        bilgiSatiri('İl / İlçe', `${hesap.il_ad||'-'} / ${hesap.ilce_ad||'-'}`),
+        bilgiSatiri('Mahalle / Köy', hesap.mahalle_ad||'-'),
+        bilgiSatiri('Ada / Parsel', `${hesap.ada||'-'} / ${hesap.parsel||'-'}`),
+        bilgiSatiri('Tespit Tarihi', tespitTarih),
+        bilgiSatiri('Hesaplama Tarihi', kararTarih),
+        bilgiSatiri('Hesaplama Yılı', String(hesap.hesaplama_yili||'-')),
+        bilgiSatiri('Toplam Islah Alanı', `${(s.toplam_alan_m2||0).toLocaleString('tr-TR')} m² (${fmt(s.toplam_alan_da)} da)`),
+        ...(s.hacim_m3>0 ? [bilgiSatiri('Hafriyat Hacmi', `${fmt(s.hacim_m3)} m³`)] : []),
+      ]),
+
+      hdr('Hesap Özeti'),
+      new Table({
+        width:{size:100,type:WidthType.PERCENTAGE},
+        borders:{top:{style:BorderStyle.SINGLE,size:4,color:'CCCCCC'},bottom:{style:BorderStyle.SINGLE,size:4,color:'CCCCCC'},left:{style:BorderStyle.SINGLE,size:4,color:'CCCCCC'},right:{style:BorderStyle.SINGLE,size:4,color:'CCCCCC'},insideH:{style:BorderStyle.SINGLE,size:2,color:'E0E0E0'},insideV:{style:BorderStyle.SINGLE,size:2,color:'E0E0E0'}},
+        rows: [
+          ozetSatiri('İşçilik Toplam', fmt(s.iscilik_toplam)+' TL', false),
+          ozetSatiri('Tohum Toplam', fmt(s.tohum_toplam)+' TL', false),
+          ozetSatiri('Gübreleme Toplam', fmt(s.gubre_toplam)+' TL', false),
+          ozetSatiri('ESKİ HALİNE GETİRME BEDELİ TOPLAMI', fmt(hesap.toplam_bedel)+' TL', true),
+        ],
+      }),
+
+      new Paragraph({spacing:{after:200}}),
+      par([txt('Tarih: .......................',{size:22})]),
+      new Paragraph({spacing:{after:80}}),
+      par([txt('HAZIRLAYANLAR',{bold:true,size:22,color:GREEN})]),
+      ...imzaSatirlari,
+    ];
+
+    const doc = new Document({
+      creator: 'MİS - Mera İzleme Sistemi',
+      title: `EHGB Raporu - ${hesap.hesap_no}`,
+      sections: [{ properties:{page:{margin:{top:720,right:720,bottom:720,left:720}}}, children }],
+    });
+
+    const buffer = await Packer.toBuffer(doc);
+    const dosyaAd = `EHGB-${hesap.hesap_no||'rapor'}-${hesap.hesaplama_yili||''}.docx`;
+    res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition',`attachment; filename="${dosyaAd}"`);
+    res.send(buffer);
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   parametreListele, parametreGetir, parametreKaydet, parametreSil,
   hesapListele, hesapGetir, hesapOlustur, hesapGuncelle, hesapSil,
-  canliHesapla, istatistik, rapor,
+  canliHesapla, istatistik, rapor, raporWord,
 };

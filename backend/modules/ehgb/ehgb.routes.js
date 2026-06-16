@@ -14,5 +14,6 @@ router.get('/:id',                   ctrl.hesapGetir);
 router.put('/:id',                   ctrl.hesapGuncelle);
 router.delete('/:id',               ctrl.hesapSil);
 router.get('/:id/rapor',             ctrl.rapor);
+router.get('/:id/rapor/word',        ctrl.raporWord);
 
 module.exports = router;

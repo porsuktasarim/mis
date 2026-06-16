@@ -37,7 +37,9 @@
       <span class="mis-topbar-title" id="page-baslik">Eski Haline Getirme Bedeli Hesabı</span>
       <div class="ms-auto d-flex gap-2">
         <a href="/ehgb/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Liste</a>
-        <a id="btn-rapor" href="#" target="_blank" class="btn btn-sm btn-outline-success d-none"><i class="bi bi-printer me-1"></i>Rapor</a>
+        <a id="btn-isgal-git" href="#" class="btn btn-sm btn-outline-warning d-none"><i class="bi bi-link-45deg me-1"></i>İşgal</a>
+        <a id="btn-rapor" href="#" target="_blank" class="btn btn-sm btn-outline-success d-none"><i class="bi bi-printer me-1"></i>PDF</a>
+        <a id="btn-rapor-word" href="#" class="btn btn-sm btn-outline-primary d-none"><i class="bi bi-file-earmark-word me-1"></i>Word</a>
         <button class="btn btn-sm btn-outline-secondary" onclick="duzenleAc()"><i class="bi bi-pencil me-1"></i>Düzenle</button>
         <button class="btn btn-sm btn-mis d-none" id="btn-kesinlestir" onclick="kesinlestir()"><i class="bi bi-check-circle me-1"></i>Kesinleştir</button>
       </div>
@@ -495,9 +497,9 @@ window.hesapKaydet = async () => {
   }
 
   const seciliPersonel = seciliPersonelGetir();
-  if (seciliPersonel.length < 2 || seciliPersonel.length > 6) {
+  if (seciliPersonel.length > 0 && (seciliPersonel.length < 2 || seciliPersonel.length > 6)) {
     document.getElementById('personel-uyari').classList.remove('d-none');
-    showToast('En az 2, en fazla 6 personel seçin.','warning');
+    showToast('Personel seçilecekse en az 2, en fazla 6 kişi seçin.','warning');
     return;
   }
 
@@ -508,7 +510,8 @@ window.hesapKaydet = async () => {
     isgalci_ad_soyad: hesap?.isgalci_ad_soyad || '', isgalci_tc: hesap?.isgalci_tc || '',
     isgalci_adres: hesap?.isgalci_adres || '',
     isgal_alani_m2: hesap?.isgal_alani_m2 || null, isgal_turu: hesap?.isgal_turu || '',
-    karar_tarihi: karar,
+    isgal_tarihi: hesap?.isgal_tarihi || null,
+    karar_tarihi: karar || null,
     aciklama: document.getElementById('kaydet-aciklama').value,
     secilen_personel: seciliPersonel,
     a_alan: sonucVerisi.a_alan, b_alan: sonucVerisi.b_alan,
@@ -525,8 +528,14 @@ window.hesapKaydet = async () => {
     hesap = j.data;
     showToast('Kaydedildi.');
     renderBilgiler();
-    if (!id) window.location.href = `/ehgb/detay.html?id=${j.data._id}`;
-    else { const rb = document.getElementById('btn-rapor'); if(rb){ rb.href=`/api/ehgb/${id}/rapor`; rb.classList.remove('d-none'); } }
+    if (!id) {
+      window.location.href = `/ehgb/detay.html?id=${j.data._id}`;
+    } else {
+      document.getElementById('btn-rapor').href = `/api/ehgb/${id}/rapor`;
+      document.getElementById('btn-rapor').classList.remove('d-none');
+      document.getElementById('btn-rapor-word').href = `/api/ehgb/${id}/rapor/word`;
+      document.getElementById('btn-rapor-word').classList.remove('d-none');
+    }
   } else showToast(j.message||'Hata.','danger');
 };
 
@@ -563,9 +572,10 @@ const loadHesap = async () => {
 
   if (hesap.durum === 'taslak') document.getElementById('btn-kesinlestir').classList.remove('d-none');
   if (id) {
-    const raporBtn = document.getElementById('btn-rapor');
-    raporBtn.href = `/api/ehgb/${id}/rapor`;
-    raporBtn.classList.remove('d-none');
+    document.getElementById('btn-rapor').href = `/api/ehgb/${id}/rapor`;
+    document.getElementById('btn-rapor').classList.remove('d-none');
+    document.getElementById('btn-rapor-word').href = `/api/ehgb/${id}/rapor/word`;
+    document.getElementById('btn-rapor-word').classList.remove('d-none');
   }
   if (hesap.karar_tarihi) {
     document.getElementById('karar_tarihi').value = new Date(hesap.karar_tarihi).toISOString().slice(0,10);
@@ -611,7 +621,13 @@ const renderBilgiler = () => {
   document.getElementById('b-kayit-tarihi').textContent = hesap.createdAt ? new Date(hesap.createdAt).toLocaleString('tr-TR') : '-';
   if (hesap.isgal_id) {
     document.getElementById('b-isgal-satir').style.display='';
-    document.getElementById('b-isgal-link').innerHTML = `<a href="/isgal/detay.html?id=${hesap.isgal_id}">İşgal Kaydına Git →</a>`;
+    document.getElementById('b-isgal-link').innerHTML =
+      `<a href="/isgal/detay.html?id=${hesap.isgal_id}" class="btn btn-xs btn-mis">
+        <i class="bi bi-arrow-right-circle me-1"></i>İşgal Kaydına Git
+      </a>`;
+    // Navbar'a da işgal butonu ekle
+    const navbarIsgal = document.getElementById('btn-isgal-git');
+    if (navbarIsgal) { navbarIsgal.href = `/isgal/detay.html?id=${hesap.isgal_id}`; navbarIsgal.classList.remove('d-none'); }
   }
 };
 
