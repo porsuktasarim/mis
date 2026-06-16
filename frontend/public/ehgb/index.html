@@ -244,7 +244,8 @@ const loadHesaplar = async (sayfa=1) => {
           <td class="small">${h.karar_tarihi?new Date(h.karar_tarihi).toLocaleDateString('tr-TR'):'-'}</td>
           <td class="text-end small fw-semibold">${h.toplam_bedel!=null?fmt(h.toplam_bedel)+' ₺':'<span class="text-muted">—</span>'}</td>
           <td onclick="event.stopPropagation()"><div class="d-flex gap-1">
-            <a href="/api/ehgb/${h._id}/rapor" target="_blank" class="btn btn-xs btn-outline-success" title="Rapor"><i class="bi bi-printer"></i></a>
+            <a href="/api/ehgb/${h._id}/rapor" target="_blank" class="btn btn-xs btn-outline-success" title="PDF Rapor"><i class="bi bi-printer"></i></a>
+            <a href="/api/ehgb/${h._id}/rapor/word" class="btn btn-xs btn-outline-primary" title="Word"><i class="bi bi-file-earmark-word"></i></a>
             <button class="btn btn-xs btn-outline-danger" onclick="hesapSil('${h._id}')"><i class="bi bi-trash"></i></button>
           </div></td>
         </tr>`).join('')}</tbody>

@@ -361,13 +361,15 @@ const rapor = async (req, res, next) => {
 
     // Personel: önce seçilen personel, yoksa ayarlardan çek
     let personel = [];
+    let aktifEkip = null;
+    const Ayarlar = require('../ayarlar/ayarlar.model');
+    const ayarlar = await Ayarlar.findOne();
+    const teknikEkipler = ayarlar?.teknik_ekipler || [];
+    aktifEkip = teknikEkipler.sort((a,b)=>(b.yil||0)-(a.yil||0))[0];
+
     if (hesap.secilen_personel && hesap.secilen_personel.length > 0) {
       personel = hesap.secilen_personel;
     } else {
-      const Ayarlar = require('../ayarlar/ayarlar.model');
-      const ayarlar = await Ayarlar.findOne();
-      const teknikEkipler = ayarlar?.teknik_ekipler || [];
-      const aktifEkip = teknikEkipler.sort((a,b)=>(b.yil||0)-(a.yil||0))[0];
       const ekipUyeleri = (aktifEkip?.uyeler || []).filter(u => u.aktif !== false);
       const kullanicilar = (ayarlar?.kullanicilar || []).filter(u => u.aktif !== false);
       personel = [...ekipUyeleri, ...kullanicilar.filter(k => !ekipUyeleri.some(e => e.ad === k.ad))];
@@ -643,8 +645,132 @@ Toplam = Sefer Başı × Sefer Sayısı</div>
   } catch (err) { next(err); }
 };
 
+// ── Word Raporu ───────────────────────────────────────────
+const raporWord = async (req, res, next) => {
+  try {
+    const { Document, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel,
+      AlignmentType, BorderStyle, WidthType, PageBreak } = require('docx');
+
+    const hesap = await EhgbHesap.findById(req.params.id);
+    if (!hesap) return res.status(404).json({ success: false, message: 'Hesaplama bulunamadı' });
+
+    const Ayarlar = require('../ayarlar/ayarlar.model');
+    const ayarlar = await Ayarlar.findOne();
+    const teknikEkipler = ayarlar?.teknik_ekipler || [];
+    const aktifEkip = teknikEkipler.sort((a,b)=>(b.yil||0)-(a.yil||0))[0];
+    let personel = [];
+    if (hesap.secilen_personel && hesap.secilen_personel.length > 0) {
+      personel = hesap.secilen_personel;
+    } else {
+      const ekipUyeleri = (aktifEkip?.uyeler || []).filter(u => u.aktif !== false);
+      const kullanicilar = (ayarlar?.kullanicilar || []).filter(u => u.aktif !== false);
+      personel = [...ekipUyeleri, ...kullanicilar.filter(k => !ekipUyeleri.some(e => e.ad === k.ad))];
+    }
+
+    const s = hesap.sonuc || {};
+    const p = hesap.kullanilan_parametreler || {};
+    const fmt = n => n != null ? Number(n).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
+    const kararTarih = hesap.karar_tarihi ? new Date(hesap.karar_tarihi).toLocaleDateString('tr-TR') : '-';
+    const titrMap = { 'Doktor Ziraat Mühendisi':'Dr. ', 'Doçent Doktor Ziraat Mühendisi':'Doç. Dr. ', 'Profesör Doktor Ziraat Mühendisi':'Prof. Dr. ' };
+    const tamAd = (ad, unvan) => (titrMap[unvan]||'') + (ad||'');
+
+    const baslik = (text, bold=true, size=24) => new Paragraph({
+      children: [new TextRun({ text, bold, size })],
+      alignment: AlignmentType.CENTER, spacing: { after: 100 },
+    });
+
+    const satir = (etiket, deger) => new TableRow({ children: [
+      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: etiket, bold: true, size: 18 })] })], width: { size: 35, type: WidthType.PERCENTAGE } }),
+      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(deger||'-'), size: 18 })] })] }),
+    ]});
+
+    const tablo = (basliklar, satirlar) => new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({ children: basliklar.map(b => new TableCell({
+          children: [new Paragraph({ children: [new TextRun({ text: b, bold: true, size: 18, color: 'FFFFFF' })] })],
+          shading: { fill: '1a6b4a' },
+        })), tableHeader: true }),
+        ...satirlar,
+      ],
+    });
+
+    const children = [
+      baslik('4342 SAYILI MERA KANUNU KAPSAMINDA', true, 26),
+      baslik('ESKİ HALİNE GETİRME BEDELİ HESAP RAPORU', true, 24),
+      baslik(`Hesap No: ${hesap.hesap_no||'-'}  |  ${hesap.hesaplama_yili} Yılı`, false, 20),
+      new Paragraph({ children: [], spacing: { after: 200 } }),
+
+      new Paragraph({ children: [new TextRun({ text: 'İşgalci Bilgileri', bold: true, size: 22, color: '1a6b4a' })], heading: HeadingLevel.HEADING_2 }),
+      tablo([], [
+        satir('Adı Soyadı / Unvanı', hesap.isgalci_ad_soyad),
+        satir('T.C. Kimlik / V.K.N.', hesap.isgalci_tc),
+        satir('Adresi', hesap.isgalci_adres),
+      ]),
+      new Paragraph({ children: [], spacing: { after: 100 } }),
+
+      new Paragraph({ children: [new TextRun({ text: 'Parsel ve Karar Bilgileri', bold: true, size: 22, color: '1a6b4a' })], heading: HeadingLevel.HEADING_2 }),
+      tablo([], [
+        satir('İl / İlçe', `${hesap.il_ad||'-'} / ${hesap.ilce_ad||'-'}`),
+        satir('Mahalle / Köy', hesap.mahalle_ad),
+        satir('Ada / Parsel', `${hesap.ada||'-'} / ${hesap.parsel||'-'}`),
+        satir('Karar Tarihi', kararTarih),
+        satir('Hesaplama Yılı', String(hesap.hesaplama_yili||'-')),
+        satir('Toplam Islah Alanı', `${(s.toplam_alan_m2||0).toLocaleString('tr-TR')} m² (${fmt(s.toplam_alan_da)} da)`),
+        satir('Hafriyat Hacmi', s.hacim_m3 > 0 ? `${fmt(s.hacim_m3)} m³` : '—'),
+      ]),
+      new Paragraph({ children: [], spacing: { after: 100 } }),
+
+      new Paragraph({ children: [new TextRun({ text: 'Hesap Özeti', bold: true, size: 22, color: '1a6b4a' })], heading: HeadingLevel.HEADING_2 }),
+      tablo(['Kalem', 'Tutar (TL)'], [
+        new TableRow({ children: [
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'İşçilik Toplam', size: 18 })] })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmt(s.iscilik_toplam), size: 18 })] })], alignment: AlignmentType.RIGHT }),
+        ]}),
+        new TableRow({ children: [
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Tohum Toplam', size: 18 })] })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmt(s.tohum_toplam), size: 18 })] })], alignment: AlignmentType.RIGHT }),
+        ]}),
+        new TableRow({ children: [
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Gübreleme Toplam', size: 18 })] })] }),
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmt(s.gubre_toplam), size: 18 })] })], alignment: AlignmentType.RIGHT }),
+        ]}),
+        new TableRow({ children: [
+          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ESKİ HALİNE GETİRME BEDELİ TOPLAMI', bold: true, size: 20 })] })], shading: { fill: '1a6b4a' }, children: [new Paragraph({ children: [new TextRun({ text: 'ESKİ HALİNE GETİRME BEDELİ TOPLAMI', bold: true, size: 20, color: 'FFFFFF' })] })] }),
+          new TableCell({ shading: { fill: '1a6b4a' }, children: [new Paragraph({ children: [new TextRun({ text: fmt(hesap.toplam_bedel) + ' TL', bold: true, size: 20, color: 'FFFFFF' })] })], alignment: AlignmentType.RIGHT }),
+        ]}),
+      ]),
+
+      new Paragraph({ children: [], spacing: { after: 300 } }),
+      new Paragraph({ children: [new TextRun({ text: 'Tarih: .......................', size: 20 })] }),
+      new Paragraph({ children: [], spacing: { after: 100 } }),
+      new Paragraph({ children: [new TextRun({ text: 'HAZIRLAYANLAR', bold: true, size: 20, color: '1a6b4a' })] }),
+      new Paragraph({ children: [], spacing: { after: 400 } }),
+      ...personel.map(u => new Paragraph({ children: [
+        new TextRun({ text: '________________________________    ', size: 18 }),
+      ]})).reduce((acc, _, i, arr) => { if (i % 3 === 0) acc.push(new TableRow({ children: arr.slice(i, i+3) })); return acc; }, []),
+      ...personel.map(u => new Paragraph({
+        children: [new TextRun({ text: tamAd(u.ad, u.unvan) + (u.unvan ? `  (${u.unvan})` : ''), size: 18 })],
+      })),
+    ];
+
+    const doc = new Document({
+      sections: [{ properties: {}, children }],
+      creator: 'MİS - Mera İzleme Sistemi',
+      title: `EHGB Raporu - ${hesap.hesap_no}`,
+    });
+
+    const { Packer } = require('docx');
+    const buffer = await Packer.toBuffer(doc);
+    const dosyaAd = `EHGB-${hesap.hesap_no}-${hesap.hesaplama_yili}-RAPOR.docx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${dosyaAd}"`);
+    res.send(buffer);
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   parametreListele, parametreGetir, parametreKaydet, parametreSil,
   hesapListele, hesapGetir, hesapOlustur, hesapGuncelle, hesapSil,
-  canliHesapla, istatistik, rapor,
+  canliHesapla, istatistik, rapor, raporWord,
 };
