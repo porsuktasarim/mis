@@ -37,8 +37,7 @@
       <span class="mis-topbar-title" id="page-baslik">Eski Haline Getirme Bedeli Hesabı</span>
       <div class="ms-auto d-flex gap-2">
         <a href="/ehgb/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Liste</a>
-        <a id="btn-rapor" href="#" target="_blank" class="btn btn-sm btn-outline-success d-none"><i class="bi bi-printer me-1"></i>PDF Rapor</a>
-        <a id="btn-rapor-word" href="#" class="btn btn-sm btn-outline-primary d-none"><i class="bi bi-file-earmark-word me-1"></i>Word</a>
+        <a id="btn-rapor" href="#" target="_blank" class="btn btn-sm btn-outline-success d-none"><i class="bi bi-printer me-1"></i>Rapor</a>
         <button class="btn btn-sm btn-outline-secondary" onclick="duzenleAc()"><i class="bi bi-pencil me-1"></i>Düzenle</button>
         <button class="btn btn-sm btn-mis d-none" id="btn-kesinlestir" onclick="kesinlestir()"><i class="bi bi-check-circle me-1"></i>Kesinleştir</button>
       </div>
@@ -563,9 +562,6 @@ const loadHesap = async () => {
     const raporBtn = document.getElementById('btn-rapor');
     raporBtn.href = `/api/ehgb/${id}/rapor`;
     raporBtn.classList.remove('d-none');
-    const wordBtn = document.getElementById('btn-rapor-word');
-    wordBtn.href = `/api/ehgb/${id}/rapor/word`;
-    wordBtn.classList.remove('d-none');
   }
   if (hesap.karar_tarihi) document.getElementById('karar_tarihi').value = new Date(hesap.karar_tarihi).toISOString().slice(0,10);
 

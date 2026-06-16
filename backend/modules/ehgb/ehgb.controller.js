@@ -360,15 +360,13 @@ const rapor = async (req, res, next) => {
     if (!hesap) return res.status(404).json({ success: false, message: 'Hesaplama bulunamadı' });
 
     // Personel: önce seçilen personel, yoksa ayarlardan çek
+    // Teknik ekip üyeleri daima önce
     let personel = [];
-    let aktifEkip = null;
-    const Ayarlar = require('../ayarlar/ayarlar.model');
-    const ayarlar = await Ayarlar.findOne();
-    const teknikEkipler = ayarlar?.teknik_ekipler || [];
-    aktifEkip = teknikEkipler.sort((a,b)=>(b.yil||0)-(a.yil||0))[0];
-
+    const ekipAdlari = new Set((aktifEkip?.uyeler||[]).map(u=>u.ad));
     if (hesap.secilen_personel && hesap.secilen_personel.length > 0) {
-      personel = hesap.secilen_personel;
+      const ekipSecili = hesap.secilen_personel.filter(pp => ekipAdlari.has(pp.ad));
+      const diger = hesap.secilen_personel.filter(pp => !ekipAdlari.has(pp.ad));
+      personel = [...ekipSecili, ...diger];
     } else {
       const ekipUyeleri = (aktifEkip?.uyeler || []).filter(u => u.aktif !== false);
       const kullanicilar = (ayarlar?.kullanicilar || []).filter(u => u.aktif !== false);
@@ -388,14 +386,23 @@ const rapor = async (req, res, next) => {
     };
     const tamAd = (ad, unvan) => (titrMap[unvan] || '') + (ad || '');
 
+    // Eşit aralıklı, ortalanmış imza kutuları (imza boşluğu üstte)
+    const pSay = personel.length || 1;
     const imzaKutulari = personel.length > 0
       ? personel.map(u => `
-          <div class="imza-kutu">
-            <div class="imza-cizgi"></div>
-            <div class="imza-ad">${tamAd(u.ad, u.unvan)}</div>
-            <div class="imza-unvan">${u.unvan||''}</div>
+          <div style="width:${Math.floor(100/pSay)}%;text-align:center;padding:0 6px;display:inline-block;vertical-align:top">
+            <div style="height:45px"></div>
+            <div style="border-top:1px solid #333;padding-top:4px">
+              <div style="font-weight:bold;font-size:9.5px">${tamAd(u.ad, u.unvan)}</div>
+              <div style="font-size:8.5px;color:#444">${u.unvan||''}</div>
+            </div>
           </div>`).join('')
-      : `<div class="imza-kutu"><div class="imza-cizgi"></div><div class="imza-ad">HAZIRLAYAN</div></div>`;
+      : `<div style="width:40%;text-align:center;padding:0 6px;display:inline-block">
+           <div style="height:45px"></div>
+           <div style="border-top:1px solid #333;padding-top:4px">
+             <div style="font-weight:bold;font-size:9.5px">HAZIRLAYAN</div>
+           </div>
+         </div>`;
 
     const html = `<!DOCTYPE html>
 <html lang="tr">
@@ -539,7 +546,7 @@ tr:nth-child(even) td{background:#f5faf6}
 </div>
 
 <div class="imza-baslik">HAZIRLAYANLAR</div>
-<div class="imza-alani">
+<div style="display:flex;width:100%">
   ${imzaKutulari}
 </div>
 
@@ -552,7 +559,7 @@ tr:nth-child(even) td{background:#f5faf6}
 <h2 style="margin-bottom:10px">Eski Haline Getirme Bedeli — ${hesap.hesaplama_yili} Yılı</h2>
 
 <div class="iki-sutun">
-<div><!-- SOL SÜTUN -->
+<div><!-- SOL: Yasal dayanak + Alan tipleri + Hafriyat formülleri -->
 
 <div class="aciklama-kutu">
   <div class="aciklama-baslik">Yasal Dayanak ve Genel Açıklamalar</div>
@@ -561,14 +568,16 @@ tr:nth-child(even) td{background:#f5faf6}
     <li>Birim fiyatlar; piyasa araştırmaları, İl Mera Komisyonu Kararları, İBB ve OGM rayiçleri esas alınmıştır.</li>
     <li>Hafriyat taşıma bedeli, İBB Çevre Koruma Şube Müdürlüğü Hizmet Tarifesi esas alınmıştır.</li>
     <li>B tipi alanlarda toprak serme + tohum/gübre bedeli 1,5 kat uygulanmıştır.</li>
-    <li>Gübreleme: Yanmış hayvan gübresi 1 yıl; amonyum sülfat ve kompoze gübre 2 yıl.</li>
+    <li>Gübreleme: Yanmış hayvan gübresi 1 yıl; amonyum sülfat ve kompoze gübre 2 yıl uygulanır.</li>
+    <li>Tohum bedeli ve gübreleme bedeli tüm ıslah alanına (A+B+C) uygulanmıştır.</li>
+    <li>Tohum karışımı, 2021/12 sayılı Çayır Mera Islah ve Amenajman Projeleri Uygulama Talimatı kapsamında proje koordinatörü olarak belirlenen danışman(lar) tarafından belirlenmiştir.</li>
   </ul>
 </div>
 
 <div class="aciklama-kutu">
   <div class="aciklama-baslik">Alan Tipleri</div>
   <table>
-    <tr><th style="width:30px">Tip</th><th>Açıklama</th></tr>
+    <tr><th style="width:28px">Tip</th><th>Açıklama</th></tr>
     <tr><td><strong>A</strong></td><td>Sürülen / Tarla — İşçilik + Tohum + Gübre</td></tr>
     <tr><td><strong>B</strong></td><td>Hafriyat — İşçilik + Taşıma + Toprak Serme (1,5x) + Tohum + Gübre</td></tr>
     <tr><td><strong>C</strong></td><td>Asfalt/Beton — İşçilik + Söküm + Taşıma + Toprak Serme (1,5x) + Tohum + Gübre</td></tr>
@@ -579,30 +588,21 @@ tr:nth-child(even) td{background:#f5faf6}
   <div class="aciklama-baslik">Hafriyat Taşıma Formülleri</div>
   <p style="margin-bottom:3px"><strong>Hacim:</strong></p>
   <div class="formul-satir">Hacim (m³) = (B Alanı × B Derinliği) + (C Alanı × C Kalınlığı)</div>
-  <p style="margin:4px 0 2px"><strong>Sefer:</strong></p>
-  <div class="formul-satir">Sefer = Hacim / ${p.arac_kapasite_m3||14} m³ (araç kap.)</div>
+  <p style="margin:4px 0 2px"><strong>Sefer Sayısı:</strong></p>
+  <div class="formul-satir">Sefer = Hacim / ${p.arac_kapasite_m3||14} m³ (araç kapasitesi)</div>
   <p style="margin:4px 0 2px"><strong>Yükleme İşçiliği:</strong></p>
   <div class="formul-satir">Araç Yükü = ${p.arac_kapasite_m3||14} × ${p.ozgul_agirlik||1600} = ${(p.arac_kapasite_m3||14)*(p.ozgul_agirlik||1600)} kg
 İlave Torba = (Yük − 1.200) / ${p.torba_kg||60} kg
-Sefer Başı = ${fmt(p.yukleme_baz||162)} + İlave × ${fmt(p.yukleme_ilave_torba||11)} TL
-Toplam = Sefer Başı × Sefer Sayısı</div>
+Sefer Başı = ${fmt(p.yukleme_baz||162)} TL + İlave Torba × ${fmt(p.yukleme_ilave_torba||11)} TL
+Toplam Yükleme = Sefer Başı × Sefer Sayısı</div>
   <p style="margin:4px 0 2px"><strong>Nakliye:</strong></p>
-  <div class="formul-satir">Sefer × ${fmt(p.nakliye_km||5)} TL/km × Araç Kap. × 2 × Uzaklık</div>
-  <p style="margin:4px 0 2px"><strong>Depolama:</strong></p>
-  <div class="formul-satir">Sefer × ${fmt(p.depolama_giris||5771)} TL/araç</div>
-</div>
-
-<div class="aciklama-kutu">
-  <div class="aciklama-baslik">Tohum Karışımı</div>
-  <table>
-    <tr><th>Bitki</th><th class="r">%</th><th class="r">kg/da</th><th class="r">TL/kg</th></tr>
-    ${(p.tohumlar||[]).map(t=>`<tr><td>${t.ad}</td><td class="r">%${(t.oran*100).toFixed(0)}</td><td class="r">${(t.oran*(p.tohum_miktar_da||12)).toFixed(2)}</td><td class="r">${fmt(t.fiyat)}</td></tr>`).join('')}
-    <tr class="grup"><td colspan="2"><strong>Toplam</strong></td><td class="r"><strong>${p.tohum_miktar_da||12}</strong></td><td></td></tr>
-  </table>
+  <div class="formul-satir">Sefer × ${fmt(p.nakliye_km||5)} TL/km × Araç Kap. × 2 (gidiş-dönüş) × Uzaklık (km)</div>
+  <p style="margin:4px 0 2px"><strong>Depolama Sahası Girişi:</strong></p>
+  <div class="formul-satir">Sefer Sayısı × ${fmt(p.depolama_giris||5771)} TL/araç</div>
 </div>
 
 </div><!-- /sol -->
-<div><!-- SAĞ SÜTUN -->
+<div><!-- SAĞ: Birim fiyatlar + Tohum karışımı -->
 
 <div class="aciklama-kutu">
   <div class="aciklama-baslik">${hesap.hesaplama_yili} Yılı Birim Fiyatlar</div>
@@ -615,21 +615,33 @@ Toplam = Sefer Başı × Sefer Sayısı</div>
     <tr><td>Gübreleme (makineli, 2 yıl)</td><td>TL/da</td><td class="r">${fmt(p.gubreleme)}</td></tr>
     <tr><td>Ekim (mibzerle, 2 yıl)</td><td>TL/da</td><td class="r">${fmt(p.ekim)}</td></tr>
     <tr><td>Temizlik / Tesviye</td><td>TL/da</td><td class="r">${fmt(p.temizlik_tesviye)}</td></tr>
-    <tr><td>Toprak Serme (B+C)</td><td>TL/da</td><td class="r">${fmt(p.toprak_serme)}</td></tr>
-    <tr><td>Asfalt/Beton Sökümü</td><td>TL/m³</td><td class="r">${fmt(p.asfalt_sokum)}</td></tr>
+    <tr><td>Toprak Serme (B+C alanı)</td><td>TL/da</td><td class="r">${fmt(p.toprak_serme)}</td></tr>
+    <tr><td>Asfalt / Beton Sökümü</td><td>TL/m³</td><td class="r">${fmt(p.asfalt_sokum)}</td></tr>
     <tr><td>Tel Örgü Kaldırılması</td><td>TL/m</td><td class="r">${fmt(p.tel_orgu)}</td></tr>
-    <tr><td colspan="3" style="background:#f0f0f0;font-weight:bold;padding-top:5px">Hafriyat Parametreleri</td></tr>
+    <tr><td colspan="3" style="background:#eaf3ee;font-weight:bold;font-size:8px;padding:3px 5px">HAFRIYAT PARAMETRELERİ</td></tr>
     <tr><td>Araç Kapasitesi</td><td>m³</td><td class="r">${p.arac_kapasite_m3||14}</td></tr>
     <tr><td>Özgül Ağırlık</td><td>kg/m³</td><td class="r">${p.ozgul_agirlik||1600}</td></tr>
     <tr><td>Nakliye (tek yön)</td><td>TL/km</td><td class="r">${fmt(p.nakliye_km)}</td></tr>
     <tr><td>Döküm Sahası Girişi</td><td>TL/araç</td><td class="r">${fmt(p.depolama_giris)}</td></tr>
-    <tr><td>Yükleme Baz</td><td>TL</td><td class="r">${fmt(p.yukleme_baz)}</td></tr>
-    <tr><td>Yükleme İlave</td><td>TL/torba</td><td class="r">${fmt(p.yukleme_ilave_torba)}</td></tr>
-    <tr><td colspan="3" style="background:#f0f0f0;font-weight:bold;padding-top:5px">Gübreleme</td></tr>
-    <tr><td>Amonyum Sülfat %21 N</td><td>TL/kg × kg/da</td><td class="r">${fmt(p.amonyum_sulfat_fiyat)} × ${p.amonyum_sulfat_miktar}</td></tr>
-    <tr><td>Yanmış Hayvan Gübresi</td><td>TL/kg × kg/da</td><td class="r">${fmt(p.hayvan_gubres_fiyat)} × ${p.hayvan_gubres_miktar}</td></tr>
-    <tr><td>Kompoze Gübre 20-20-0</td><td>TL/kg × kg/da</td><td class="r">${fmt(p.kompoze_fiyat)} × ${p.kompoze_miktar}</td></tr>
+    <tr><td>Yükleme Baz (1.200 kg'a kadar)</td><td>TL</td><td class="r">${fmt(p.yukleme_baz)}</td></tr>
+    <tr><td>Yükleme İlave (her 60 kg)</td><td>TL/torba</td><td class="r">${fmt(p.yukleme_ilave_torba)}</td></tr>
+    <tr><td colspan="3" style="background:#eaf3ee;font-weight:bold;font-size:8px;padding:3px 5px">GÜBRELEME</td></tr>
+    <tr><td>Amonyum Sülfat %21 N (2 yıl)</td><td>TL/kg × kg/da</td><td class="r">${fmt(p.amonyum_sulfat_fiyat)} × ${p.amonyum_sulfat_miktar}</td></tr>
+    <tr><td>Yanmış Hayvan Gübresi (1 yıl)</td><td>TL/kg × kg/da</td><td class="r">${fmt(p.hayvan_gubres_fiyat)} × ${p.hayvan_gubres_miktar}</td></tr>
+    <tr><td>Kompoze Gübre 20-20-0 (2 yıl)</td><td>TL/kg × kg/da</td><td class="r">${fmt(p.kompoze_fiyat)} × ${p.kompoze_miktar}</td></tr>
   </table>
+</div>
+
+<div class="aciklama-kutu">
+  <div class="aciklama-baslik">Tohum Karışımı (${p.tohum_miktar_da||12} kg/da)</div>
+  <table>
+    <tr><th>Bitki Adı</th><th class="r">%</th><th class="r">kg/da</th><th class="r">TL/kg</th></tr>
+    ${(p.tohumlar||[]).map(t=>`<tr><td>${t.ad}</td><td class="r">%${(t.oran*100).toFixed(0)}</td><td class="r">${(t.oran*(p.tohum_miktar_da||12)).toFixed(2)}</td><td class="r">${fmt(t.fiyat)}</td></tr>`).join('')}
+    <tr class="grup"><td colspan="2"><strong>Toplam</strong></td><td class="r"><strong>${p.tohum_miktar_da||12} kg/da</strong></td><td></td></tr>
+  </table>
+  <p style="font-size:7.5px;color:#555;margin-top:4px;line-height:1.4">
+    * Tohum karışımı, 2021/12 sayılı Çayır Mera Islah ve Amenajman Projeleri Uygulama Talimatı kapsamında proje koordinatörü olarak belirlenen danışman(lar) tarafından belirlenmiştir.
+  </p>
 </div>
 
 </div><!-- /sağ -->
@@ -639,138 +651,13 @@ Toplam = Sefer Başı × Sefer Sayısı</div>
 
 <script>window.print();<\/script>
 </body></html>`;
-
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
-  } catch (err) { next(err); }
-};
-
-// ── Word Raporu ───────────────────────────────────────────
-const raporWord = async (req, res, next) => {
-  try {
-    const { Document, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel,
-      AlignmentType, BorderStyle, WidthType, PageBreak } = require('docx');
-
-    const hesap = await EhgbHesap.findById(req.params.id);
-    if (!hesap) return res.status(404).json({ success: false, message: 'Hesaplama bulunamadı' });
-
-    const Ayarlar = require('../ayarlar/ayarlar.model');
-    const ayarlar = await Ayarlar.findOne();
-    const teknikEkipler = ayarlar?.teknik_ekipler || [];
-    const aktifEkip = teknikEkipler.sort((a,b)=>(b.yil||0)-(a.yil||0))[0];
-    let personel = [];
-    if (hesap.secilen_personel && hesap.secilen_personel.length > 0) {
-      personel = hesap.secilen_personel;
-    } else {
-      const ekipUyeleri = (aktifEkip?.uyeler || []).filter(u => u.aktif !== false);
-      const kullanicilar = (ayarlar?.kullanicilar || []).filter(u => u.aktif !== false);
-      personel = [...ekipUyeleri, ...kullanicilar.filter(k => !ekipUyeleri.some(e => e.ad === k.ad))];
-    }
-
-    const s = hesap.sonuc || {};
-    const p = hesap.kullanilan_parametreler || {};
-    const fmt = n => n != null ? Number(n).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
-    const kararTarih = hesap.karar_tarihi ? new Date(hesap.karar_tarihi).toLocaleDateString('tr-TR') : '-';
-    const titrMap = { 'Doktor Ziraat Mühendisi':'Dr. ', 'Doçent Doktor Ziraat Mühendisi':'Doç. Dr. ', 'Profesör Doktor Ziraat Mühendisi':'Prof. Dr. ' };
-    const tamAd = (ad, unvan) => (titrMap[unvan]||'') + (ad||'');
-
-    const baslik = (text, bold=true, size=24) => new Paragraph({
-      children: [new TextRun({ text, bold, size })],
-      alignment: AlignmentType.CENTER, spacing: { after: 100 },
-    });
-
-    const satir = (etiket, deger) => new TableRow({ children: [
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: etiket, bold: true, size: 18 })] })], width: { size: 35, type: WidthType.PERCENTAGE } }),
-      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(deger||'-'), size: 18 })] })] }),
-    ]});
-
-    const tablo = (basliklar, satirlar) => new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [
-        new TableRow({ children: basliklar.map(b => new TableCell({
-          children: [new Paragraph({ children: [new TextRun({ text: b, bold: true, size: 18, color: 'FFFFFF' })] })],
-          shading: { fill: '1a6b4a' },
-        })), tableHeader: true }),
-        ...satirlar,
-      ],
-    });
-
-    const children = [
-      baslik('4342 SAYILI MERA KANUNU KAPSAMINDA', true, 26),
-      baslik('ESKİ HALİNE GETİRME BEDELİ HESAP RAPORU', true, 24),
-      baslik(`Hesap No: ${hesap.hesap_no||'-'}  |  ${hesap.hesaplama_yili} Yılı`, false, 20),
-      new Paragraph({ children: [], spacing: { after: 200 } }),
-
-      new Paragraph({ children: [new TextRun({ text: 'İşgalci Bilgileri', bold: true, size: 22, color: '1a6b4a' })], heading: HeadingLevel.HEADING_2 }),
-      tablo([], [
-        satir('Adı Soyadı / Unvanı', hesap.isgalci_ad_soyad),
-        satir('T.C. Kimlik / V.K.N.', hesap.isgalci_tc),
-        satir('Adresi', hesap.isgalci_adres),
-      ]),
-      new Paragraph({ children: [], spacing: { after: 100 } }),
-
-      new Paragraph({ children: [new TextRun({ text: 'Parsel ve Karar Bilgileri', bold: true, size: 22, color: '1a6b4a' })], heading: HeadingLevel.HEADING_2 }),
-      tablo([], [
-        satir('İl / İlçe', `${hesap.il_ad||'-'} / ${hesap.ilce_ad||'-'}`),
-        satir('Mahalle / Köy', hesap.mahalle_ad),
-        satir('Ada / Parsel', `${hesap.ada||'-'} / ${hesap.parsel||'-'}`),
-        satir('Karar Tarihi', kararTarih),
-        satir('Hesaplama Yılı', String(hesap.hesaplama_yili||'-')),
-        satir('Toplam Islah Alanı', `${(s.toplam_alan_m2||0).toLocaleString('tr-TR')} m² (${fmt(s.toplam_alan_da)} da)`),
-        satir('Hafriyat Hacmi', s.hacim_m3 > 0 ? `${fmt(s.hacim_m3)} m³` : '—'),
-      ]),
-      new Paragraph({ children: [], spacing: { after: 100 } }),
-
-      new Paragraph({ children: [new TextRun({ text: 'Hesap Özeti', bold: true, size: 22, color: '1a6b4a' })], heading: HeadingLevel.HEADING_2 }),
-      tablo(['Kalem', 'Tutar (TL)'], [
-        new TableRow({ children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'İşçilik Toplam', size: 18 })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmt(s.iscilik_toplam), size: 18 })] })], alignment: AlignmentType.RIGHT }),
-        ]}),
-        new TableRow({ children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Tohum Toplam', size: 18 })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmt(s.tohum_toplam), size: 18 })] })], alignment: AlignmentType.RIGHT }),
-        ]}),
-        new TableRow({ children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Gübreleme Toplam', size: 18 })] })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: fmt(s.gubre_toplam), size: 18 })] })], alignment: AlignmentType.RIGHT }),
-        ]}),
-        new TableRow({ children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ESKİ HALİNE GETİRME BEDELİ TOPLAMI', bold: true, size: 20 })] })], shading: { fill: '1a6b4a' }, children: [new Paragraph({ children: [new TextRun({ text: 'ESKİ HALİNE GETİRME BEDELİ TOPLAMI', bold: true, size: 20, color: 'FFFFFF' })] })] }),
-          new TableCell({ shading: { fill: '1a6b4a' }, children: [new Paragraph({ children: [new TextRun({ text: fmt(hesap.toplam_bedel) + ' TL', bold: true, size: 20, color: 'FFFFFF' })] })], alignment: AlignmentType.RIGHT }),
-        ]}),
-      ]),
-
-      new Paragraph({ children: [], spacing: { after: 300 } }),
-      new Paragraph({ children: [new TextRun({ text: 'Tarih: .......................', size: 20 })] }),
-      new Paragraph({ children: [], spacing: { after: 100 } }),
-      new Paragraph({ children: [new TextRun({ text: 'HAZIRLAYANLAR', bold: true, size: 20, color: '1a6b4a' })] }),
-      new Paragraph({ children: [], spacing: { after: 400 } }),
-      ...personel.map(u => new Paragraph({ children: [
-        new TextRun({ text: '________________________________    ', size: 18 }),
-      ]})).reduce((acc, _, i, arr) => { if (i % 3 === 0) acc.push(new TableRow({ children: arr.slice(i, i+3) })); return acc; }, []),
-      ...personel.map(u => new Paragraph({
-        children: [new TextRun({ text: tamAd(u.ad, u.unvan) + (u.unvan ? `  (${u.unvan})` : ''), size: 18 })],
-      })),
-    ];
-
-    const doc = new Document({
-      sections: [{ properties: {}, children }],
-      creator: 'MİS - Mera İzleme Sistemi',
-      title: `EHGB Raporu - ${hesap.hesap_no}`,
-    });
-
-    const { Packer } = require('docx');
-    const buffer = await Packer.toBuffer(doc);
-    const dosyaAd = `EHGB-${hesap.hesap_no}-${hesap.hesaplama_yili}-RAPOR.docx`;
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="${dosyaAd}"`);
-    res.send(buffer);
   } catch (err) { next(err); }
 };
 
 module.exports = {
   parametreListele, parametreGetir, parametreKaydet, parametreSil,
   hesapListele, hesapGetir, hesapOlustur, hesapGuncelle, hesapSil,
-  canliHesapla, istatistik, rapor, raporWord,
+  canliHesapla, istatistik, rapor,
 };
