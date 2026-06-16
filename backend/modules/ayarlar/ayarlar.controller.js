@@ -142,7 +142,8 @@ const guncelle = async (req, res, next) => {
     const izinliAlanlar = [
       'dosya_kategorileri', 'not_renkleri', 'toprak_siniflari',
       'yagis_kusaklari', 'yararlanilabilir_yesil_ot',
-      'uretilen_yesil_ot', 'uretilen_kuru_ot'
+      'uretilen_yesil_ot', 'uretilen_kuru_ot',
+      'teknik_ekipler', 'komisyonlar', 'kullanicilar',
     ];
     const ayarlar = await Ayarlar.findOne() || await Ayarlar.create(VARSAYILAN);
     izinliAlanlar.forEach(alan => {

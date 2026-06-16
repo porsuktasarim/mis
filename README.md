@@ -14,13 +14,8 @@ Tarım ve Orman Bakanlığı İl/İlçe Müdürlükleri için geliştirilmiş me
 | Zamanlama | node-cron |
 | Raporlama | ExcelJS, docx |
 
-## Canlı URL
-
-`https://mis.pors.uk`
-
-## Repo
-
-`https://github.com/porsuktasarim/mis.git`
+**Canlı URL:** `https://mis.pors.uk`  
+**Repo:** `https://github.com/porsuktasarim/mis.git`
 
 ---
 
@@ -28,34 +23,24 @@ Tarım ve Orman Bakanlığı İl/İlçe Müdürlükleri için geliştirilmiş me
 
 ```
 mis-app/
-├── docker-compose.yml
-├── .env
+├── docker-compose.yml / .env
 ├── backend/
 │   ├── server.js
 │   ├── config/db.js
 │   ├── middleware/errorHandler.js
 │   ├── data/Il-ilce-Semt-Mahalle-PostaKodu.xml
 │   └── modules/
-│       ├── bbhb/
-│       ├── bbhb-yukle/
-│       ├── mera/
-│       ├── ayarlar/
-│       ├── idari/
-│       ├── isgal/
-│       ├── mevzuat/
-│       └── ehgb/
-└── frontend/
-    ├── nginx.conf
-    └── public/
-        ├── index.html
-        ├── css/main.css
-        ├── js/sidebar.js
-        ├── bbhb/
-        ├── mera/
-        ├── isgal/
-        ├── mevzuat/
-        ├── ehgb/
-        └── ayarlar/
+│       ├── bbhb/          BBHB Hesaplayıcı
+│       ├── bbhb-yukle/    Toplu XLS yükleme
+│       ├── mera/          Mera modülü
+│       ├── isgal/         İşgal modülü
+│       ├── mevzuat/       Mevzuat modülü
+│       ├── ehgb/          EHGB Hesaplama modülü
+│       ├── ayarlar/       Sistem ayarları
+│       └── idari/         İl/ilçe/mahalle
+└── frontend/public/
+    ├── index.html / css/main.css / js/sidebar.js
+    ├── mera/ / isgal/ / bbhb/ / mevzuat/ / ehgb/ / ayarlar/
 ```
 
 ---
@@ -63,17 +48,9 @@ mis-app/
 ## Sidebar Yapısı
 
 ```
-Modüller
-  └─ Mera
-  └─ İşgal
-
-Araçlar
-  └─ BBHB Hesaplayıcı
-  └─ EHGB Hesaplama
-  └─ Mevzuat
-
-Sistem
-  └─ Ayarlar
+Modüller:  Mera | İşgal
+Araçlar:   BBHB Hesaplayıcı | EHGB Hesaplama | Mevzuat
+Sistem:    Ayarlar
 ```
 
 ---
@@ -81,112 +58,103 @@ Sistem
 ## Modüller
 
 ### Mera (`/mera/`)
-Mera parsellerinin kayıt ve takip modülü.
-
-**Özellikler:**
 - İl/ilçe/mahalle filtreli liste (47.649 mahalle)
-- Parsel detayları: nitelik, vasıf, toprak sınıfı, tapu/kadastral alan
-- Mülkiyet bilgileri: cilt/sayfa/kayıt, malik, pay/payda, şerhler
-- KML/KMZ yükleme → Drive'a kaydedilir, Leaflet haritada gösterilir
-- Vasıf belgesi (1 yıl) ve tahsis belgesi (5 yıl) takibi → uyarı
+- Parsel, mülkiyet, vasıf, toprak sınıfı bilgileri
+- KML/KMZ yükleme → Leaflet harita
+- Vasıf (1 yıl) ve tahsis belgesi (5 yıl) süresi takibi
 - Otlatma kapasitesi (BBHB), renkli notlar, dosya yükleme
-- PDF raporu (çok sayfalı)
+- PDF raporu
 
-**API:** `GET|POST /api/mera`, `GET|PUT|DELETE /api/mera/:id`, `/api/mera/istatistik`, `/:id/kml`, `/:id/notlar`, `/:id/dosyalar`, `/:id/rapor/pdf`
+**API:** `/api/mera` — CRUD, `/istatistik`, `/:id/kml`, `/:id/notlar`, `/:id/dosyalar`, `/:id/rapor/pdf`
 
 ---
 
 ### İşgal (`/isgal/`)
-Mera parseline yapılan işgal kayıt ve süreç takip modülü.
-
-**Özellikler:**
-- İşgal no: `ISG-YY-NNNN` (otomatik)
-- İşgal türü: Tarla / Yapılaşma / Yol-Hafriyat
-- 11 adımlı tıklamalı süreç takibi: Tespit → Komisyon → 3091 (15 gün sayacı) → 2886/75 → Dava → Suç Duyurusu → Eski Hale → Tazminat → Sonuç
+- İşgal no: `ISG-YY-NNNN` otomatik
+- 11 adımlı süreç: Tespit → Komisyon → 3091 (15 gün sayacı) → 2886/75 → Dava → Suç Duyurusu → Eski Hale → Tazminat → Sonuç
+- Aktif adım yoksa → ilk tamamlanmamış adım otomatik set edilir
 - Her adımda belge yükleme, açıklama
-- `aktif_adim` yoksa → ilk tamamlanmamış adım otomatik aktif
-- KML: işgal + mera üst üste, farklı renkler
-- "Eski Hale Getirme" adımında **EHGB Hesapla** bağlantısı
+- KML: işgal + mera üst üste
+- **Eski Hale Getirme** adımında EHGB Hesapla butonu
+- **EHGB sekmesi:** işgale bağlı EHGB hesapları, kesinleşmişse ıslak imza uyarısı
+- **Sonuç/Kapatma** tamamlandığında tüm adım dosyaları bağlı mera parseline otomatik kopyalanır
 - Dosya adı formatı: `ISGAL-[no]-[YYYYMMDD]-[adim]-[sira].uzanti`
-- Raporlar: tekil HTML/PDF/Word, tüm liste HTML/PDF/Excel
+- Raporlar: HTML/PDF/Word (tekil), Excel (liste)
 
-**API:** `GET|POST /api/isgal`, `GET|PUT|DELETE /api/isgal/:id`, `/istatistik`, `/:id/adim`, `/:id/adim-dosya`, `/:id/kml`, `/:id/rapor`, `/:id/rapor/word`, `/rapor/excel`
+**API:** `/api/isgal` — CRUD, `/istatistik`, `/:id/adim`, `/:id/adim-dosya`, `/:id/kml`, `/:id/rapor`, `/rapor/excel`
 
 ---
 
 ### BBHB Hesaplayıcı (`/bbhb/`)
-Büyükbaş Hayvan Birimi hesaplama aracı.
-
-**Özellikler:**
-- 17 hayvan türü (kültür inek, kültür melezi, yerli, koyun, keçi, manda, at, eşek, katır vb.)
-- Çiftçi adı soyadı alanı
-- Hesaplama geçmişi, raporlar (Excel, PDF, Word)
+- 17 hayvan türü (kültür inek, kültür melezi, yerli, koyun, keçi, kuzu-oğlak, manda, boğa, öküz, at, eşek, katır)
+- Çiftçi adı soyadı alanı — geçmişte ve raporlarda gösterilir
+- Hesaplama geçmişi, Excel/PDF/Word raporları
 - XLS dosya yükleme (Türkvet formatı)
-- Geçmiş listesinde çiftçi adı sütunu
 
-**API:** `GET /api/bbhb/turler`, `GET|DELETE /api/bbhb/gecmis`, `POST /api/bbhb/kaydet`, `GET /api/bbhb/:id/rapor/excel|pdf|word`
+**API:** `/api/bbhb` — `/turler`, `/kaydet`, `/gecmis`, `/:id/rapor/excel|pdf|word`
 
 ---
 
 ### EHGB Hesaplama (`/ehgb/`)
-Eski Haline Getirme Bedeli hesaplama modülü. 4342 sayılı Mera Kanunu kapsamında.
+**Eski Haline Getirme Bedeli** hesaplama modülü. 4342 sayılı Mera Kanunu.
 
-**Özellikler:**
-- Alan tipleri: A (tarla), B (inşaat/hafriyat), C (asfalt/beton), tel örgü, döküm uzaklığı
-- Canlı hesaplama (400ms debounce) — alan girilince anında sonuç
-- Kalem kalem detaylı breakdown: işçilik, hafriyat (işçilik+nakliye+depolama), tohum, gübre
-- İşgalden yönlendirme: parsel ve işgalci bilgileri otomatik aktarılır
+- Hesap no: `EHGB-YY-NNNN` (yıla göre otomatik, unique)
+- Alan tipleri: **A** Tarla, **B** Hafriyat, **C** Asfalt/Beton + tel örgü + döküm uzaklığı
+- Canlı hesaplama (alan girilince anında)
+- Kalem kalem detay: işçilik, hafriyat (işçilik+nakliye+depolama sahası), tohum, gübre
 - İşgal seçici (opsiyonel bağlantı)
-- Yıllık parametreler Ayarlar'dan güncellenir
-- **2 sayfalı rapor:**
-  - 1. Sayfa: hesaplamalar + teknik personel imzaları
-  - 2. Sayfa: yasal dayanak, alan tipi açıklamaları, formüller, birim fiyat tablosu
+- **Hazırlayanlar seçici:** 2–6 personel, checkbox ile seçim
+- Yıllık parametreler **Ayarlar → EHGB** sekmesinden güncellenir
 
 **Hesaplama Formülleri:**
 - İşçilik: 7 işlem × TL/da × toplam alan (A+B+C)
 - Hafriyat: yükleme işçiliği + nakliye (km×2yön) + depolama sahası girişi
+  - Yükleme: `(araç_kg − 1200) / 60 × 11` TL/sefer + baz 162 TL
+  - Nakliye: `sefer × nakliye_km × araç_kap × 2 × uzaklık`
+  - Depolama: `sefer × 5771 TL/araç`
 - Tohum: 7 tür karışımı × 12 kg/da × alan
 - Gübre: amonyum+kompoze 2 yıl, hayvan gübresi 1 yıl × alan
 
-**API:** `GET|POST /api/ehgb`, `GET|PUT|DELETE /api/ehgb/:id`, `/:id/rapor`, `POST /api/ehgb/hesapla` (canlı), `/parametreler` (CRUD)
+**Rapor (2 sayfa):**
+- 1. Sayfa: hesaplamalar + personel imzaları (titır: Dr., Doç. Dr., Prof. Dr. adın önüne gelir)
+- 2. Sayfa: yasal dayanak, alan tipleri, formüller, birim fiyat tablosu (2 sütun)
+- Tarih alanı elle doldurulacak şekilde boş
+
+**API:** `/api/ehgb` — CRUD, `/:id/rapor`, `POST /hesapla` (canlı), `/parametreler`
 
 ---
 
 ### Mevzuat (`/mevzuat/`)
-Kanun, yönetmelik ve diğer mevzuatların kayıt ve takip modülü.
-
-**Özellikler:**
-- 4 ekleme yöntemi: PDF, metin, harici link, mevzuat.gov.tr URL
+- 4 ekleme yöntemi: PDF, metin, link, mevzuat.gov.tr URL
 - mevzuat.gov.tr: `bedesten.adalet.gov.tr` API ile içerik otomatik çekilir
-- Türe göre sekmeler: Kanun / Yönetmelik / Tebliğ / Genelge / Yönerge / Karar / Diğer / Notlar
-- Metin içinde kelime/kelime grubu arama (notlar dahil)
-- Renkli notlar, madde referansı; tüm notlar "Notlar" sekmesinde listelenir
-- Günlük 04:00 cron: değişiklik takibi, sürüm arşivi
-- Ana sayfada güncelleme uyarısı
+- Türe göre sekmeler + "Notlar" sekmesi
+- Metin ve notlarda kelime/kelime grubu arama
+- Renkli notlar, madde referansı
+- Günlük 04:00 cron: değişiklik takibi
 
-**API:** `GET|POST /api/mevzuat`, `GET|PUT|DELETE /api/mevzuat/:id`, `/istatistik`, `/notlar`, `/:id/ara`, `/:id/yenile`, `/:id/onayla`, `/:id/notlar`
+**API:** `/api/mevzuat` — CRUD, `/notlar`, `/:id/ara`, `/:id/yenile`, `/:id/notlar`
 
 ---
 
 ### Ayarlar (`/ayarlar/`)
-Şifre korumalı sistem ayarları (varsayılan: `123456`).
-
-**Sekmeler:**
+Şifre korumalı (varsayılan: `123456`).
 
 | Sekme | İçerik |
 |---|---|
-| Google Drive | OAuth2 bağlantısı (hesap ekle, yetkilendir) |
-| Dosya Kategorileri | Bootstrap Icons seçicili, özelleştirilebilir kategoriler |
-| Not Renkleri | Not renk tanımları |
-| Toprak Sınıfları | I-VIII sınıf tanımları |
-| Yağış Kuşakları | 81 il, EK-2 |
-| Verim Tabloları | EK-1, 3 tablo |
-| İdari Yönetim | İl/ilçe/mahalle ara, düzenle, ekle, sil |
-| Personel | Teknik ekipler (ad+yıl+üyeler), İl Mera Komisyonları (yıl+üyeler), Kullanıcılar (yakında) |
-| EHGB | Yıllık birim fiyat parametreleri (işçilik, hafriyat, tohum, gübre) |
+| Google Drive | OAuth2 bağlantısı |
+| Dosya Kategorileri | Bootstrap Icons seçicili kategoriler |
+| Not Renkleri | Renk tanımları |
+| Toprak Sınıfları | I-VIII |
+| Yağış Kuşakları | 81 il |
+| Verim Tabloları | EK-1 |
+| İdari Yönetim | İl/ilçe/mahalle |
+| Personel | Teknik ekipler (ad+yıl+üyeler), Komisyonlar (yıl+üyeler), Kullanıcılar/Teknik Personel |
+| EHGB | Yıllık birim fiyat parametreleri |
 | Güvenlik | Admin şifre değiştirme |
 
-**Personel → Teknik Ekip:** EHGB raporunda otomatik imza olarak kullanılır.
+**Personel → Ünvan seçici:** Ziraat Teknikeri / Mühendisi / Yüksek Mühendisi / Doktor / Doçent Doktor / Profesör Doktor. Dr., Doç. Dr., Prof. Dr. titırları adın önüne otomatik eklenir.
+
+**Personel → Kullanıcılar:** EHGB raporlarında "Hazırlayanlar" imzası olarak kullanılır.
 
 ---
 
@@ -222,8 +190,7 @@ NODE_ENV=production
 | backend | Node.js 5000 (internal) |
 | frontend | Nginx 80 — static + `/api/` proxy |
 
-### Tarih Formatı
-Tüm dosya adlarında tarih **YYYYMMDD** formatında (ör: `20260615`).
+**Tarih formatı:** Tüm dosya adlarında `YYYYMMDD`
 
 ---
 
@@ -231,7 +198,7 @@ Tüm dosya adlarında tarih **YYYYMMDD** formatında (ör: `20260615`).
 
 | Zamanlama | İşlem |
 |---|---|
-| Her gün 04:00 (UTC) | mevzuat.gov.tr bağlantılı mevzuatları kontrol et |
+| Her gün 04:00 (UTC) | mevzuat.gov.tr değişiklik kontrolü |
 
 ---
 
@@ -239,18 +206,20 @@ Tüm dosya adlarında tarih **YYYYMMDD** formatında (ör: `20260615`).
 
 | Versiyon | Değişiklik |
 |---|---|
+| v1.8.8 | Ayarlar personel kaydetme düzeltmesi (controller izinli alan güncellemesi) |
+| v1.8.7 | Personel ünvan dropdown, işgal EHGB sekmesi, sonuç→mera dosya kopyalama, EHGB parametreler sekmesi kaldırıldı |
+| v1.8.6 | EHGB hesap no (EHGB-YY-NNNN), personel seçici, tıklanabilir liste, rapor düzeltme |
+| v1.8.5 | EHGB rapor 2 sayfa düzeltme, ayarlar kullanıcı bölümü |
 | v1.8.4 | EHGB rapor 2 sayfa (hesaplar+imzalar / açıklamalar+formüller) |
 | v1.8.3 | EHGB: ayarlar EHGB parametreler sekmesi, işgal seçici, rapor butonu |
 | v1.8.2 | EHGB hesaplama motoru ve detay formu (canlı hesaplama) |
 | v1.8.1 | BBHB çiftçi adı alanı, rapor güncelleme |
 | v1.8.0 | EHGB modülü iskelet |
 | v1.7.3 | Ayarlar personel sekmesi (teknik ekip, komisyon, yıl) |
-| v1.7.2 | README güncelle, Drive OAuth2 rehberi, kategori ikon seçici |
+| v1.7.2 | README, Drive OAuth2 rehberi, kategori ikon seçici |
 | v1.7.1 | Mevzuat: not ekleme, içinde arama, notlar sekmesi |
-| v1.7.0 | Mevzuat modülü, sidebar yeniden yapılandırma |
-| v1.6.2 | İşgal: süreç düzeltme, belge yükleme, Excel/Word rapor |
-| v1.6.0 | İşgal modülü |
-| v1.5.x | Mülkiyet bilgileri, istatistik, PDF rapor |
+| v1.7.0 | Mevzuat modülü |
+| v1.6.x | İşgal: süreç, belge yükleme, raporlar |
 | v1.0.0 | İlk yayın: Mera, BBHB, Ayarlar |
 
-**Güncel: v1.8.4**
+**Güncel: v1.8.8**
