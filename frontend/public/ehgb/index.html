@@ -235,18 +235,16 @@ const loadHesaplar = async (sayfa=1) => {
   document.getElementById('hesap-tablo').innerHTML = `
     <div class="table-responsive">
       <table class="table table-sm mis-table mb-0">
-        <thead><tr><th>Parsel</th><th>İşgalci</th><th>Alan (m²)</th><th>Karar Tarihi</th><th>Yıl</th><th>Toplam Bedel</th><th>Durum</th><th></th></tr></thead>
-        <tbody>${hesaplar.map(h=>`<tr>
+        <thead><tr><th>No</th><th>Parsel</th><th>İşgalci</th><th class="text-end">Alan (m²)</th><th>Karar Tarihi</th><th class="text-end">Toplam Bedel</th><th></th></tr></thead>
+        <tbody>${hesaplar.map(h=>`<tr style="cursor:pointer" onclick="window.location='/ehgb/detay.html?id=${h._id}'">
+          <td class="fw-semibold text-success small" style="white-space:nowrap">${h.hesap_no||'-'}</td>
           <td class="small"><strong>${h.il_ad||'-'}</strong><br><span class="text-muted">${h.mahalle_ad||'-'} Ada:${h.ada||'-'} P:${h.parsel||'-'}</span></td>
           <td class="small">${h.isgalci_ad_soyad||'-'}</td>
-          <td class="text-end small">${h.isgal_alani_m2?fmt(h.isgal_alani_m2):'-'}</td>
+          <td class="text-end small">${h.isgal_alani_m2?Number(h.isgal_alani_m2).toLocaleString('tr-TR'):'-'}</td>
           <td class="small">${h.karar_tarihi?new Date(h.karar_tarihi).toLocaleDateString('tr-TR'):'-'}</td>
-          <td class="text-center small fw-semibold">${h.hesaplama_yili||'-'}</td>
-          <td class="text-end small fw-semibold">${h.toplam_bedel!=null?fmt(h.toplam_bedel)+' ₺':'<span class="text-muted">Hesaplanmadı</span>'}</td>
-          <td><span class="px-2 py-1 rounded-pill small fw-semibold ${DURUM_CLS[h.durum]||''}">${DURUM_ETIKET[h.durum]||'-'}</span></td>
-          <td><div class="d-flex gap-1">
-            <a href="/ehgb/detay.html?id=${h._id}" class="btn btn-xs btn-mis"><i class="bi bi-eye"></i></a>
-            <a href="/api/ehgb/${h._id}/rapor" target="_blank" class="btn btn-xs btn-outline-success" title="Rapor Al"><i class="bi bi-printer"></i></a>
+          <td class="text-end small fw-semibold">${h.toplam_bedel!=null?fmt(h.toplam_bedel)+' ₺':'<span class="text-muted">—</span>'}</td>
+          <td onclick="event.stopPropagation()"><div class="d-flex gap-1">
+            <a href="/api/ehgb/${h._id}/rapor" target="_blank" class="btn btn-xs btn-outline-success" title="Rapor"><i class="bi bi-printer"></i></a>
             <button class="btn btn-xs btn-outline-danger" onclick="hesapSil('${h._id}')"><i class="bi bi-trash"></i></button>
           </div></td>
         </tr>`).join('')}</tbody>

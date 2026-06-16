@@ -12,6 +12,8 @@ const EhgbParametreSchema = new mongoose.Schema({
 
 // Hesaplama kaydı
 const EhgbHesapSchema = new mongoose.Schema({
+  hesap_no: { type: String, unique: true },
+
   // Bağlantılar
   isgal_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Isgal' },
   mera_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Mera' },
@@ -42,6 +44,12 @@ const EhgbHesapSchema = new mongoose.Schema({
   sonuc: { type: mongoose.Schema.Types.Mixed },
   toplam_bedel: { type: Number },
   aciklama: { type: String },
+
+  // Seçilen personel (ad+ünvan snapshot)
+  secilen_personel: [{
+    ad: { type: String },
+    unvan: { type: String },
+  }],
 
   // Durum
   durum: {

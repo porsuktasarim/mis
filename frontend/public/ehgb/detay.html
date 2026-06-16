@@ -175,6 +175,13 @@
                   </select>
                 </div>
                 <div class="col-12">
+                  <label class="form-label small fw-semibold">Hazırlayanlar <span class="text-muted">(2–6 kişi seçin)</span></label>
+                  <div id="personel-secici" class="border rounded p-2" style="max-height:160px;overflow-y:auto;background:#f8faf8">
+                    <div class="text-muted small text-center py-2">Yükleniyor...</div>
+                  </div>
+                  <div class="form-text text-danger d-none" id="personel-uyari">En az 2, en fazla 6 kişi seçin.</div>
+                </div>
+                <div class="col-12">
                   <label class="form-label small fw-semibold">Açıklama</label>
                   <textarea class="form-control form-control-sm" id="kaydet-aciklama" rows="2"></textarea>
                 </div>
@@ -437,7 +444,51 @@ const renderSonuc = (s) => {
   document.getElementById('kalem-tablo').innerHTML = html;
 };
 
-window.kararTarihiDegisti = () => {
+// ── Personel Seçici ──────────────────────────────────────
+let tumPersonel = [];
+const loadPersonel = async () => {
+  try {
+    const r = await fetch('/api/ayarlar');
+    const j = await r.json();
+    const a = j.data;
+    const ekipler = a?.teknik_ekipler || [];
+    const aktifEkip = ekipler.sort((x,y)=>(y.yil||0)-(x.yil||0))[0];
+    const ekipUyeleri = (aktifEkip?.uyeler||[]).filter(u=>u.aktif!==false);
+    const kullanicilar = (a?.kullanicilar||[]).filter(u=>u.aktif!==false);
+    tumPersonel = [...ekipUyeleri, ...kullanicilar.filter(k=>!ekipUyeleri.some(e=>e.ad===k.ad))];
+
+    const mevcutSecili = new Set((hesap?.secilen_personel||[]).map(p=>p.ad));
+
+    document.getElementById('personel-secici').innerHTML = tumPersonel.length
+      ? tumPersonel.map((p,i) => `
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="checkbox" id="p-${i}" value="${i}"
+            ${mevcutSecili.has(p.ad)?'checked':''}
+            onchange="personelSecimKontrol()"/>
+          <label class="form-check-label small" for="p-${i}">
+            <strong>${p.ad}</strong>${p.unvan?` — ${p.unvan}`:''}
+          </label>
+        </div>`).join('')
+      : '<p class="text-muted small mb-0">Ayarlar → Personel\'den personel ekleyin.</p>';
+  } catch(e) { console.error(e); }
+};
+
+const personelSecimKontrol = () => {
+  const secili = document.querySelectorAll('#personel-secici input:checked').length;
+  const uyari = document.getElementById('personel-uyari');
+  if (secili < 2 || secili > 6) {
+    uyari.classList.remove('d-none');
+  } else {
+    uyari.classList.add('d-none');
+  }
+};
+
+const seciliPersonelGetir = () => {
+  return [...document.querySelectorAll('#personel-secici input:checked')]
+    .map(el => tumPersonel[parseInt(el.value)])
+    .filter(Boolean)
+    .map(p => ({ ad: p.ad, unvan: p.unvan || '' }));
+};
   const tarih = document.getElementById('karar_tarihi').value;
   if (tarih) {
     const yil = new Date(tarih).getFullYear();
@@ -450,6 +501,13 @@ window.hesapKaydet = async () => {
   const karar = document.getElementById('karar_tarihi').value;
   if (!karar) { showToast('Karar tarihi zorunlu.','warning'); return; }
 
+  const seciliPersonel = seciliPersonelGetir();
+  if (seciliPersonel.length < 2 || seciliPersonel.length > 6) {
+    document.getElementById('personel-uyari').classList.remove('d-none');
+    showToast('En az 2, en fazla 6 personel seçin.','warning');
+    return;
+  }
+
   const veri = {
     isgal_id: hesap?.isgal_id || null,
     il_ad: hesap?.il_ad || '', ilce_ad: hesap?.ilce_ad || '',
@@ -459,6 +517,7 @@ window.hesapKaydet = async () => {
     isgal_alani_m2: hesap?.isgal_alani_m2 || null, isgal_turu: hesap?.isgal_turu || '',
     karar_tarihi: karar,
     aciklama: document.getElementById('kaydet-aciklama').value,
+    secilen_personel: seciliPersonel,
     a_alan: sonucVerisi.a_alan, b_alan: sonucVerisi.b_alan,
     b_derinlik: sonucVerisi.b_derinlik, c_alan: sonucVerisi.c_alan,
     c_kalinlik: sonucVerisi.c_kalinlik, tel_orgu_m: sonucVerisi.tel_orgu_m,
@@ -474,6 +533,7 @@ window.hesapKaydet = async () => {
     showToast('Kaydedildi.');
     renderBilgiler();
     if (!id) window.location.href = `/ehgb/detay.html?id=${j.data._id}`;
+    else { const rb = document.getElementById('btn-rapor'); if(rb){ rb.href=`/api/ehgb/${id}/rapor`; rb.classList.remove('d-none'); } }
   } else showToast(j.message||'Hata.','danger');
 };
 
@@ -651,7 +711,7 @@ window.duzenleKaydet = async () => {
   } else showToast(j.message,'danger');
 };
 
-document.addEventListener('DOMContentLoaded', loadHesap);
+document.addEventListener('DOMContentLoaded', () => { loadHesap(); loadPersonel(); });
 </script>
 </body>
 </html>
