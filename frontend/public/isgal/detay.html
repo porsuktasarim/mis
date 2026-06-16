@@ -208,12 +208,21 @@
         <div class="col-md-6"><label class="form-label small fw-semibold">İşgalci Adı</label><input type="text" class="form-control form-control-sm" id="e-isgalci-ad"/></div>
         <div class="col-md-3"><label class="form-label small fw-semibold">TC</label><input type="text" class="form-control form-control-sm" id="e-isgalci-tc"/></div>
         <div class="col-md-3">
-          <label class="form-label small fw-semibold">İşgal Türü</label>
-          <select class="form-select form-select-sm" id="e-isgal-turu">
-            <option value="tarla_isgali">Tarla/Yapılaşmasız</option>
-            <option value="yapilasma">Yapılaşma</option>
-            <option value="yol_hafriyat">Yol/Hafriyat</option>
-          </select>
+          <label class="form-label small fw-semibold">İşgal Türü (çoklu seçim)</label>
+          <div class="border rounded p-2 bg-light">
+            <div class="form-check form-check-sm mb-1">
+              <input class="form-check-input" type="checkbox" id="e-tur-tarla" value="tarla_isgali">
+              <label class="form-check-label small" for="e-tur-tarla">Tarla/Yapılaşmasız</label>
+            </div>
+            <div class="form-check form-check-sm mb-1">
+              <input class="form-check-input" type="checkbox" id="e-tur-yapilasma" value="yapilasma">
+              <label class="form-check-label small" for="e-tur-yapilasma">Yapılaşma</label>
+            </div>
+            <div class="form-check form-check-sm">
+              <input class="form-check-input" type="checkbox" id="e-tur-yol" value="yol_hafriyat">
+              <label class="form-check-label small" for="e-tur-yol">Yol/Hafriyat</label>
+            </div>
+          </div>
         </div>
         <div class="col-12"><label class="form-label small fw-semibold">Açıklama</label><textarea class="form-control form-control-sm" id="e-aciklama" rows="2"></textarea></div>
       </div>
@@ -303,7 +312,10 @@ const renderGenel = () => {
   const no = isgal.kullanici_no ? `${isgal.kullanici_no} <small class="text-muted">(${isgal.isgal_no})</small>` : isgal.isgal_no;
   document.getElementById('d-no').innerHTML = no;
   document.getElementById('d-mera').innerHTML = `<strong>${isgal.mera_il_ad}</strong>/${isgal.mera_ilce_ad}/${isgal.mera_mahalle_ad}<br><small class="text-muted">Ada:${isgal.mera_ada||'-'} P:${isgal.mera_parsel}</small>`;
-  document.getElementById('d-tur').innerHTML = `<span class="grup-badge">${TUR_ETIKET[isgal.isgal_turu]||'-'}</span>`;
+  const turler = Array.isArray(isgal.isgal_turu) ? isgal.isgal_turu : (isgal.isgal_turu ? [isgal.isgal_turu] : []);
+  document.getElementById('d-tur').innerHTML = turler.length
+    ? turler.map(t => `<span class="grup-badge me-1">${TUR_ETIKET[t]||t}</span>`).join('')
+    : '<span class="text-muted small">-</span>';
   document.getElementById('d-tur-aciklama').textContent = isgal.isgal_turu_aciklama || '-';
   document.getElementById('d-alan').textContent = isgal.isgal_alani_m2 ? Number(isgal.isgal_alani_m2).toLocaleString('tr-TR') + ' m²' : '-';
   document.getElementById('d-tespit').textContent = `${TESPIT_ETIKET[isgal.tespit_sekli]||'-'} — ${isgal.tespit_tarihi ? new Date(isgal.tespit_tarihi).toLocaleDateString('tr-TR') : '-'}`;
@@ -511,24 +523,70 @@ window.dosyaYukle = async () => {
 
 // KML
 const renderKml = () => {
-  const katmanlar = isgal.kml_katmanlar || [];
-  document.getElementById('kml-listesi').innerHTML = katmanlar.map(k => `
-    <div class="d-flex align-items-center gap-2 mt-1 p-1 border-top small">
-      <span class="kml-renk" style="background:${k.renk}"></span>
+  const katmanlar = [...(isgal.kml_katmanlar || [])].sort((a,b) => (a.sira||0)-(b.sira||0));
+  document.getElementById('kml-listesi').innerHTML = katmanlar.length
+    ? katmanlar.map((k,i) => `
+    <div class="d-flex align-items-center gap-2 mt-1 p-1 border-top small" id="kml-satir-${k._id}">
+      <span class="kml-renk" style="background:${k.renk};cursor:pointer" onclick="haritaGoster('${k._id}')" title="Haritada göster"></span>
       <span class="flex-grow-1 text-truncate small">${k.dosya_adi}</span>
-      <a href="${k.drive_web_link}" target="_blank" class="btn btn-xs btn-outline-secondary"><i class="bi bi-eye"></i></a>
-    </div>`).join('');
+      <button class="btn btn-xs btn-outline-secondary p-0 px-1" title="Yukarı" ${i===0?'disabled':''} onclick="kmlSiraGuncelle('${k._id}',-1)"><i class="bi bi-arrow-up"></i></button>
+      <button class="btn btn-xs btn-outline-secondary p-0 px-1" title="Aşağı" ${i===katmanlar.length-1?'disabled':''} onclick="kmlSiraGuncelle('${k._id}',1)"><i class="bi bi-arrow-down"></i></button>
+      <button class="btn btn-xs btn-outline-success p-0 px-1" title="Haritada Göster" onclick="haritaGoster('${k._id}')"><i class="bi bi-map"></i></button>
+      <button class="btn btn-xs btn-outline-danger p-0 px-1" title="Sil" onclick="kmlSil('${k._id}')"><i class="bi bi-trash"></i></button>
+    </div>`).join('')
+    : '<p class="text-muted small text-center py-2 mb-0">Henüz KML yüklenmedi.</p>';
 };
 
-const haritaYukle = () => {
-  if (!isgal.kml_katmanlar?.length) return;
+window.kmlSil = async (kmlId) => {
+  if (!confirm('Bu KML dosyasını silmek istediğinizden emin misiniz?')) return;
+  const r = await fetch(`${API}/${id}/kml/${kmlId}`, { method: 'DELETE' });
+  const j = await r.json();
+  if (j.success) { showToast('KML silindi.'); await loadIsgal(); if (harita) { harita.remove(); harita = null; } haritaYukle(); }
+  else showToast(j.message, 'danger');
+};
+
+window.kmlSiraGuncelle = async (kmlId, yon) => {
+  const katmanlar = [...(isgal.kml_katmanlar || [])].sort((a,b) => (a.sira||0)-(b.sira||0));
+  const idx = katmanlar.findIndex(k => String(k._id) === String(kmlId));
+  if (idx < 0) return;
+  const hedef = idx + yon;
+  if (hedef < 0 || hedef >= katmanlar.length) return;
+  // Sıraları değiştir
+  const siralar = katmanlar.map((k, i) => ({ id: k._id, sira: i }));
+  [siralar[idx].sira, siralar[hedef].sira] = [siralar[hedef].sira, siralar[idx].sira];
+  const r = await fetch(`${API}/${id}/kml-sira`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sira_listesi: siralar }) });
+  const j = await r.json();
+  if (j.success) { isgal.kml_katmanlar = j.data; renderKml(); if (harita) { harita.remove(); harita = null; } haritaYukle(); }
+};
+
+let aktifKmlLayer = null;
+window.haritaGoster = (kmlId) => {
+  const katman = isgal.kml_katmanlar?.find(k => String(k._id) === String(kmlId));
+  if (!katman) return;
   document.getElementById('harita-placeholder').style.display = 'none';
   document.getElementById('harita').style.display = '';
   if (!harita) {
     harita = L.map('harita').setView([39.0, 35.0], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(harita);
   }
-  // Mera sınırı
+  if (aktifKmlLayer) { harita.removeLayer(aktifKmlLayer); }
+  aktifKmlLayer = omnivore.kml(`/api/isgal/${id}/kml/${kmlId}`).addTo(harita);
+  aktifKmlLayer.on('ready', () => {
+    aktifKmlLayer.eachLayer(l => { if (l.setStyle) l.setStyle({ color: katman.renk, fillColor: katman.renk, fillOpacity: .3, weight: 2 }); });
+    if (aktifKmlLayer.getBounds().isValid()) harita.fitBounds(aktifKmlLayer.getBounds(), { padding: [20, 20] });
+  });
+  setTimeout(() => harita.invalidateSize(), 200);
+};
+
+const haritaYukle = () => {
+  if (!isgal.kml_katmanlar?.length && !isgal.mera_id) return;
+  document.getElementById('harita-placeholder').style.display = 'none';
+  document.getElementById('harita').style.display = '';
+  if (!harita) {
+    harita = L.map('harita').setView([39.0, 35.0], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(harita);
+  }
+  // Mera sınırı EN ALTA (önce eklenir)
   if (isgal.mera_id) {
     try {
       const ml = omnivore.kml(`/api/mera/${isgal.mera_id}/kml`).addTo(harita);
@@ -538,8 +596,9 @@ const haritaYukle = () => {
       });
     } catch {}
   }
-  // İşgal katmanları
-  isgal.kml_katmanlar.forEach(k => {
+  // İşgal KML katmanları — sıra'ya göre (düşük sıra = alt katman)
+  const sirali = [...(isgal.kml_katmanlar||[])].sort((a,b) => (a.sira||0)-(b.sira||0));
+  sirali.forEach(k => {
     const layer = omnivore.kml(`/api/isgal/${id}/kml/${k._id}`).addTo(harita);
     layer.on('ready', () => {
       layer.eachLayer(l => { if (l.setStyle) l.setStyle({ color: k.renk, fillColor: k.renk, fillOpacity: .3, weight: 2 }); });
@@ -568,19 +627,31 @@ window.duzenleAc = () => {
   document.getElementById('e-alan').value = isgal.isgal_alani_m2 || '';
   document.getElementById('e-isgalci-ad').value = isgal.isgalci_ad_soyad || '';
   document.getElementById('e-isgalci-tc').value = isgal.isgalci_tc || '';
-  document.getElementById('e-isgal-turu').value = isgal.isgal_turu || 'tarla_isgali';
   document.getElementById('e-aciklama').value = isgal.aciklama || '';
+  // Çoklu tür — array veya string uyumlu
+  const seciliTurler = Array.isArray(isgal.isgal_turu) ? isgal.isgal_turu : (isgal.isgal_turu ? [isgal.isgal_turu] : []);
+  ['tarla_isgali','yapilasma','yol_hafriyat'].forEach(t => {
+    const el = document.getElementById('e-tur-' + (t==='tarla_isgali'?'tarla':t==='yapilasma'?'yapilasma':'yol'));
+    if (el) el.checked = seciliTurler.includes(t);
+  });
   new bootstrap.Modal(document.getElementById('duzenleModal')).show();
 };
 
 window.duzenleKaydet = async () => {
+  // Çoklu tür seçimi
+  const seciliTurler = [
+    document.getElementById('e-tur-tarla')?.checked     ? 'tarla_isgali' : null,
+    document.getElementById('e-tur-yapilasma')?.checked ? 'yapilasma'    : null,
+    document.getElementById('e-tur-yol')?.checked       ? 'yol_hafriyat' : null,
+  ].filter(Boolean);
+
   const veri = {
     kullanici_no: document.getElementById('e-kullanici-no').value,
     durum: document.getElementById('e-durum').value,
     isgal_alani_m2: document.getElementById('e-alan').value || null,
     isgalci_ad_soyad: document.getElementById('e-isgalci-ad').value,
     isgalci_tc: document.getElementById('e-isgalci-tc').value,
-    isgal_turu: document.getElementById('e-isgal-turu').value,
+    isgal_turu: seciliTurler,
     aciklama: document.getElementById('e-aciklama').value,
   };
   const r = await fetch(`${API}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(veri) });

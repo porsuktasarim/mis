@@ -317,6 +317,19 @@ const hesapGuncelle = async (req, res, next) => {
 
     if (req.body.karar_tarihi) hesap.hesaplama_yili = new Date(req.body.karar_tarihi).getFullYear();
 
+    // Geçmişe ekle
+    if (!hesap.gecmis) hesap.gecmis = [];
+    hesap.gecmis.push({
+      tarih: new Date(),
+      aciklama: hesap.aciklama || '',
+      toplam_bedel: hesap.toplam_bedel,
+      durum: hesap.durum,
+      secilen_personel: hesap.secilen_personel || [],
+      sonuc: hesap.sonuc,
+    });
+    // En fazla 50 kayıt tut
+    if (hesap.gecmis.length > 50) hesap.gecmis = hesap.gecmis.slice(-50);
+
     await hesap.save();
     res.json({ success: true, data: hesap });
   } catch (err) { next(err); }
@@ -406,7 +419,7 @@ const rapor = async (req, res, next) => {
     const imzaKutu = (ad, unvan) => `
       <div style="width:${Math.floor(100/pSay)}%;display:inline-block;text-align:center;vertical-align:top;padding:0 6px">
         <div style="position:relative;height:70px;display:flex;align-items:center;justify-content:center;margin-bottom:6px">
-          <span style="font-size:26px;font-weight:900;color:rgba(204,204,204,0.9);letter-spacing:6px;user-select:none">İMZA</span>
+          <span style="font-size:28px;font-weight:900;color:rgba(204,204,204,0.05);letter-spacing:6px;user-select:none;-webkit-user-select:none">İMZA</span>
         </div>
         <div style="font-weight:bold;font-size:9.5px">${tamAd(ad, unvan)}</div>
         <div style="font-size:8.5px;color:#444;margin-top:2px">${unvan||''}</div>
@@ -665,7 +678,17 @@ Toplam Yükleme = Sefer Başı × Sefer Sayısı</div>
   } catch (err) { next(err); }
 };
 
-// ── Word (docx) Raporu ───────────────────────────────────
+// ── Geçmiş Silme ─────────────────────────────────────────
+const gecmisSil = async (req, res, next) => {
+  try {
+    const hesap = await EhgbHesap.findById(req.params.id);
+    if (!hesap) return res.status(404).json({ success: false, message: 'Bulunamadı' });
+    const { gecmis_id } = req.params;
+    hesap.gecmis = (hesap.gecmis || []).filter(g => String(g._id) !== String(gecmis_id));
+    await hesap.save();
+    res.json({ success: true });
+  } catch (err) { next(err); }
+};
 const raporWord = async (req, res, next) => {
   try {
     const { Document, Paragraph, Table, TableRow, TableCell, TextRun,
@@ -804,5 +827,5 @@ const raporWord = async (req, res, next) => {
 module.exports = {
   parametreListele, parametreGetir, parametreKaydet, parametreSil,
   hesapListele, hesapGetir, hesapOlustur, hesapGuncelle, hesapSil,
-  canliHesapla, istatistik, rapor, raporWord,
+  canliHesapla, istatistik, rapor, raporWord, gecmisSil,
 };

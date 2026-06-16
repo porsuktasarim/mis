@@ -51,6 +51,16 @@ const EhgbHesapSchema = new mongoose.Schema({
     unvan: { type: String },
   }],
 
+  // Kayıt geçmişi
+  gecmis: [{
+    tarih: { type: Date, default: Date.now },
+    aciklama: { type: String },
+    toplam_bedel: { type: Number },
+    durum: { type: String },
+    secilen_personel: [{ ad: String, unvan: String }],
+    sonuc: { type: mongoose.Schema.Types.Mixed },
+  }],
+
   // Durum
   durum: {
     type: String,

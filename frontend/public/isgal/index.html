@@ -240,7 +240,7 @@ const loadIsgaller = async (sayfa=1) => {
             return `<tr class="${TUR_RENK[i.isgal_turu]||''}">
               <td><span class="isgal-no-link" onclick="window.location='/isgal/detay.html?id=${i._id}'">${gorunurNo}</span></td>
               <td><strong>${i.mera_il_ad}</strong><br><small class="text-muted">${i.mera_mahalle_ad} P:${i.mera_parsel}</small></td>
-              <td><span class="grup-badge">${TUR_ETIKET[i.isgal_turu]||'-'}</span></td>
+              <td>${(Array.isArray(i.isgal_turu)?i.isgal_turu:(i.isgal_turu?[i.isgal_turu]:[])).map(t=>`<span class="grup-badge me-1">${TUR_ETIKET[t]||t}</span>`).join('')||'-'}</td>
               <td class="small">${i.isgalci_ad_soyad||'-'}</td>
               <td class="text-end small">${i.isgal_alani_m2?Number(i.isgal_alani_m2).toLocaleString('tr-TR'):'-'}</td>
               <td class="small">${i.tespit_tarihi?new Date(i.tespit_tarihi).toLocaleDateString('tr-TR'):'-'}</td>

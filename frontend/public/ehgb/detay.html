@@ -47,6 +47,7 @@
     <div class="detay-topbar">
       <button class="detay-sekme active" data-tab="hesap"><i class="bi bi-calculator me-1"></i>Hesaplama</button>
       <button class="detay-sekme" data-tab="bilgi"><i class="bi bi-info-circle me-1"></i>Bilgiler</button>
+      <button class="detay-sekme" data-tab="gecmis"><i class="bi bi-clock-history me-1"></i>Geçmiş</button>
     </div>
 
     <main class="mis-main p-4">
@@ -235,6 +236,18 @@
                 <tr id="b-isgal-satir" style="display:none"><td class="text-muted small">Bağlı İşgal</td><td id="b-isgal-link">-</td></tr>
               </table>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GEÇMİŞ -->
+      <div class="detay-tab" id="tab-gecmis">
+        <div class="mis-card">
+          <div class="mis-card-header"><i class="bi bi-clock-history"></i><span class="title">Kayıt Geçmişi</span>
+            <span class="text-muted small ms-2">(Her kaydet işlemi burada görünür)</span>
+          </div>
+          <div id="gecmis-listesi">
+            <p class="text-muted text-center py-3 small">Henüz kayıt yok.</p>
           </div>
         </div>
       </div>
@@ -480,7 +493,39 @@ const seciliPersonelGetir = () => {
     .map(p => ({ ad: p.ad, unvan: p.unvan || '' }));
 };
 
-window.kararTarihiDegisti = () => {
+const renderGecmis = () => {
+  if (!hesap || !id) return;
+  const liste = (hesap.gecmis || []).slice().reverse(); // en yeni önce
+  const el = document.getElementById('gecmis-listesi');
+  if (!el) return;
+  if (!liste.length) { el.innerHTML = '<p class="text-muted text-center py-3 small">Henüz kayıt yok.</p>'; return; }
+  const DURUM_CLS = { taslak:'bg-warning text-dark', kesinlesti:'bg-success', itiraz:'bg-danger', iptal:'bg-secondary' };
+  const DURUM_AD  = { taslak:'Taslak', kesinlesti:'Kesinleşti', itiraz:'İtiraz', iptal:'İptal' };
+  el.innerHTML = liste.map(g => `
+    <div class="d-flex align-items-start gap-3 p-2 border-bottom">
+      <div class="flex-grow-1">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="small text-muted">${new Date(g.tarih).toLocaleString('tr-TR')}</span>
+          <span class="badge ${DURUM_CLS[g.durum]||'bg-secondary'}">${DURUM_AD[g.durum]||g.durum}</span>
+          ${g.toplam_bedel ? `<span class="small fw-semibold text-success">${numFmt(g.toplam_bedel)} ₺</span>` : ''}
+        </div>
+        ${g.aciklama ? `<div class="small text-muted">${g.aciklama}</div>` : ''}
+        ${g.secilen_personel?.length ? `<div class="small text-muted">Personel: ${g.secilen_personel.map(p=>p.ad).join(', ')}</div>` : ''}
+      </div>
+      <button class="btn btn-xs btn-outline-danger" onclick="gecmisSilFn('${g._id}')"><i class="bi bi-trash"></i></button>
+    </div>`).join('');
+};
+
+window.gecmisSilFn = async (gecmisId) => {
+  if (!confirm('Bu geçmiş kaydını silmek istiyor musunuz?')) return;
+  const r = await fetch(`${API}/${id}/gecmis/${gecmisId}`, { method: 'DELETE' });
+  const j = await r.json();
+  if (j.success) {
+    hesap.gecmis = (hesap.gecmis || []).filter(g => String(g._id) !== String(gecmisId));
+    renderGecmis();
+    showToast('Geçmiş kaydı silindi.');
+  } else showToast(j.message, 'danger');
+};
   const tarih = document.getElementById('karar_tarihi').value;
   if (tarih) {
     const yil = new Date(tarih).getFullYear();
@@ -568,7 +613,6 @@ const loadHesap = async () => {
     `EHGB — ${hesap.il_ad||''} ${hesap.mahalle_ad||''} Ada:${hesap.ada||'-'} P:${hesap.parsel||'-'}`;
   document.getElementById('hesap-yili-badge').textContent = hesap.hesaplama_yili + ' yılı';
   document.getElementById('sonuc-yil').textContent = hesap.hesaplama_yili + ' yılı parametreleri';
-  document.getElementById('param-yil-badge').textContent = hesap.hesaplama_yili + ' yılı';
 
   if (hesap.durum === 'taslak') document.getElementById('btn-kesinlestir').classList.remove('d-none');
   if (id) {
@@ -592,13 +636,17 @@ const loadHesap = async () => {
     renderSonuc(s);
   }
 
+  // Form alanlarını doldur (veri kaybolmaması için)
+  if (hesap.durum) document.getElementById('kaydet-durum').value = hesap.durum;
+  if (hesap.aciklama) document.getElementById('kaydet-aciklama').value = hesap.aciklama;
+
   // Toplam bedeli göster
   if (hesap.toplam_bedel) {
     document.getElementById('sonuc-tutar').textContent = numFmt(hesap.toplam_bedel) + ' ₺';
   }
 
   renderBilgiler();
-  renderParametreler();
+  renderGecmis();
 };
 
 const renderBilgiler = () => {
