@@ -16,5 +16,8 @@ router.post('/:id/adim',          ...ctrl.adimEkle);
 router.post('/:id/adim-dosya',    ...ctrl.adimDosyaEkle);
 router.post('/:id/kml',           ...ctrl.kmlYukle);
 router.get('/:id/kml/:kmlId',     ctrl.kmlGetir);
+router.delete('/:id/kml/:kmlId',  ctrl.kmlSil);
+router.patch('/:id/kml/:kmlId',   ctrl.kmlRenkGuncelle);
+router.put('/:id/kml-sira',       ctrl.kmlSiraGuncelle);
 
 module.exports = router;

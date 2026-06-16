@@ -526,6 +526,8 @@ window.gecmisSilFn = async (gecmisId) => {
     showToast('Geçmiş kaydı silindi.');
   } else showToast(j.message, 'danger');
 };
+
+window.kararTarihiDegisti = () => {
   const tarih = document.getElementById('karar_tarihi').value;
   if (tarih) {
     const yil = new Date(tarih).getFullYear();

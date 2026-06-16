@@ -125,13 +125,14 @@ const olustur = async (req, res, next) => {
     const mera = await Mera.findById(mera_id).select('il_ad ilce_ad mahalle_ad ada parsel nitelik');
     if (!mera) return res.status(404).json({ success: false, message: 'Mera bulunamadı' });
     const isgal_no = await isgalNoUret();
+    const turArr = Array.isArray(isgal_turu) ? isgal_turu : (isgal_turu ? [isgal_turu] : []);
     const isgal = await Isgal.create({
       mera_id, isgal_no,
       mera_il_ad: mera.il_ad, mera_ilce_ad: mera.ilce_ad,
       mera_mahalle_ad: mera.mahalle_ad, mera_ada: mera.ada, mera_parsel: mera.parsel,
       mera_nitelik: mera.nitelik,
       tespit_sekli, tespit_tarihi, tespit_eden, isgal_tarihi,
-      isgal_turu, isgal_turu_aciklama, isgal_alani_m2,
+      isgal_turu: turArr, isgal_turu_aciklama, isgal_alani_m2,
       isgalci_ad_soyad, isgalci_tc, isgalci_adres, aciklama,
       aktif_adim: 'tespit_tutanak',
     });
@@ -143,10 +144,13 @@ const guncelle = async (req, res, next) => {
   try {
     const isgal = await Isgal.findById(req.params.id);
     if (!isgal) return res.status(404).json({ success: false, message: 'İşgal bulunamadı' });
-    const alanlar = ['tespit_sekli','tespit_tarihi','tespit_eden','isgal_tarihi','isgal_turu',
+    const alanlar = ['tespit_sekli','tespit_tarihi','tespit_eden','isgal_tarihi',
       'isgal_turu_aciklama','isgal_alani_m2','isgalci_ad_soyad','isgalci_tc','isgalci_adres',
       'durum','komisyon_karar_tipi','aciklama','kullanici_no'];
     alanlar.forEach(alan => { if (req.body[alan] !== undefined) isgal[alan] = req.body[alan]; });
+    if (req.body.isgal_turu !== undefined) {
+      isgal.isgal_turu = Array.isArray(req.body.isgal_turu) ? req.body.isgal_turu : (req.body.isgal_turu ? [req.body.isgal_turu] : []);
+    }
     await isgal.save();
     res.json({ success: true, data: isgal });
   } catch (err) { next(err); }
@@ -293,6 +297,53 @@ const kmlGetir = async (req, res, next) => {
     res.setHeader('Content-Type', 'application/vnd.google-earth.kml+xml');
     res.setHeader('Content-Disposition', 'inline; filename="isgal.kml"');
     res.send(Buffer.from(response.data));
+  } catch (err) { next(err); }
+};
+
+const kmlSil = async (req, res, next) => {
+  try {
+    const isgal = await Isgal.findById(req.params.id);
+    if (!isgal) return res.status(404).json({ success: false, message: 'İşgal bulunamadı' });
+    const kmlId = req.params.kmlId;
+    const katman = isgal.kml_katmanlar?.find(k => String(k._id) === String(kmlId));
+    if (!katman) return res.status(404).json({ success: false, message: 'KML bulunamadı' });
+    // Drive'dan sil (hata olsa devam)
+    if (katman.drive_file_id) {
+      try {
+        const drive = await getDriveClient();
+        await drive.files.delete({ fileId: katman.drive_file_id });
+      } catch(e) { console.warn('[KML sil] Drive hatası:', e.message); }
+    }
+    isgal.kml_katmanlar = isgal.kml_katmanlar.filter(k => String(k._id) !== String(kmlId));
+    await isgal.save();
+    res.json({ success: true });
+  } catch (err) { next(err); }
+};
+
+const kmlRenkGuncelle = async (req, res, next) => {
+  try {
+    const isgal = await Isgal.findById(req.params.id);
+    if (!isgal) return res.status(404).json({ success: false, message: 'İşgal bulunamadı' });
+    const katman = isgal.kml_katmanlar?.find(k => String(k._id) === String(req.params.kmlId));
+    if (!katman) return res.status(404).json({ success: false, message: 'KML bulunamadı' });
+    katman.renk = req.body.renk || katman.renk;
+    await isgal.save();
+    res.json({ success: true, data: isgal.kml_katmanlar });
+  } catch (err) { next(err); }
+};
+
+const kmlSiraGuncelle = async (req, res, next) => {
+  try {
+    const isgal = await Isgal.findById(req.params.id);
+    if (!isgal) return res.status(404).json({ success: false, message: 'İşgal bulunamadı' });
+    const { sira_listesi } = req.body; // [{id, sira}]
+    if (!Array.isArray(sira_listesi)) return res.status(400).json({ success: false, message: 'sira_listesi gerekli' });
+    sira_listesi.forEach(({ id, sira }) => {
+      const k = isgal.kml_katmanlar?.id(id);
+      if (k) k.sira = sira;
+    });
+    await isgal.save();
+    res.json({ success: true, data: isgal.kml_katmanlar });
   } catch (err) { next(err); }
 };
 
@@ -643,5 +694,6 @@ module.exports = {
   adimEkle: [upload.single('belge'), adimEkle],
   adimDosyaEkle: [upload.single('belge'), adimDosyaEkle],
   kmlYukle: [upload.single('kml'), kmlYukle],
-  kmlGetir, tekRapor, tumRapor, excelRapor, wordRapor, istatistik,
+  kmlGetir, kmlSil, kmlSiraGuncelle, kmlRenkGuncelle,
+  tekRapor, tumRapor, excelRapor, wordRapor, istatistik,
 };

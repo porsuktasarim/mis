@@ -527,7 +527,7 @@ const renderKml = () => {
   document.getElementById('kml-listesi').innerHTML = katmanlar.length
     ? katmanlar.map((k,i) => `
     <div class="d-flex align-items-center gap-2 mt-1 p-1 border-top small" id="kml-satir-${k._id}">
-      <span class="kml-renk" style="background:${k.renk};cursor:pointer" onclick="haritaGoster('${k._id}')" title="Haritada göster"></span>
+      <input type="color" value="${k.renk||'#FF0000'}" class="form-control-color" style="width:22px;height:22px;padding:0;border:1px solid #ccc;border-radius:3px;cursor:pointer" title="Rengi Değiştir" onchange="kmlRenkGuncelle('${k._id}',this.value)"/>
       <span class="flex-grow-1 text-truncate small">${k.dosya_adi}</span>
       <button class="btn btn-xs btn-outline-secondary p-0 px-1" title="Yukarı" ${i===0?'disabled':''} onclick="kmlSiraGuncelle('${k._id}',-1)"><i class="bi bi-arrow-up"></i></button>
       <button class="btn btn-xs btn-outline-secondary p-0 px-1" title="Aşağı" ${i===katmanlar.length-1?'disabled':''} onclick="kmlSiraGuncelle('${k._id}',1)"><i class="bi bi-arrow-down"></i></button>
@@ -535,6 +535,21 @@ const renderKml = () => {
       <button class="btn btn-xs btn-outline-danger p-0 px-1" title="Sil" onclick="kmlSil('${k._id}')"><i class="bi bi-trash"></i></button>
     </div>`).join('')
     : '<p class="text-muted small text-center py-2 mb-0">Henüz KML yüklenmedi.</p>';
+};
+
+window.kmlRenkGuncelle = async (kmlId, yeniRenk) => {
+  const r = await fetch(`${API}/${id}/kml/${kmlId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ renk: yeniRenk }),
+  });
+  const j = await r.json();
+  if (j.success) {
+    isgal.kml_katmanlar = j.data;
+    showToast('Renk güncellendi.');
+    if (harita) { harita.remove(); harita = null; }
+    haritaYukle();
+  } else showToast(j.message, 'danger');
 };
 
 window.kmlSil = async (kmlId) => {
