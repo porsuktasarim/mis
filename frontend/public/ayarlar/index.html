@@ -357,9 +357,15 @@
 
           <!-- Kullanıcılar -->
           <div class="col-12">
-            <div class="mis-card" style="border:1px dashed #ccc;opacity:.7">
-              <div class="mis-card-header"><i class="bi bi-person-lock"></i><span class="title">Kullanıcılar</span><span class="badge bg-secondary ms-2">Yakında</span></div>
-              <p class="text-muted small p-3 mb-0">Kullanıcı yönetimi (e-posta/şifre girişi, Drive bağlantısı) geliştirme aşamasındadır. Şu an sistem tek admin şifresiyle çalışmaktadır.</p>
+            <div class="mis-card">
+              <div class="mis-card-header">
+                <i class="bi bi-person-lock"></i><span class="title">Kullanıcılar / Teknik Personel</span>
+                <button class="btn btn-sm btn-mis ms-auto" onclick="kullaniciEkle()"><i class="bi bi-plus-lg me-1"></i>Ekle</button>
+              </div>
+              <p class="small text-muted px-3 pt-2 mb-1">Bu listede yer alan personel, EHGB raporlarında "Hazırlayanlar" olarak imza alanında gösterilir.</p>
+              <div id="kullanicilar-listesi">
+                <p class="text-muted small text-center py-2">Henüz personel yok.</p>
+              </div>
             </div>
           </div>
 
@@ -769,6 +775,18 @@ const renderPersonel = () => {
           : '<p class="text-muted small text-center py-2 mb-0">Henüz üye yok.</p>'}
       </div>`).join('')
     : '<p class="text-muted small text-center py-3">Henüz komisyon yok.</p>';
+
+  // Kullanıcılar
+  const kullanicilar = ayarlar.kullanicilar || [];
+  document.getElementById('kullanicilar-listesi').innerHTML = kullanicilar.length
+    ? kullanicilar.map((k, i) => `
+      <div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap">
+        <input type="text" class="form-control form-control-sm" style="min-width:160px;flex:2" placeholder="Ad Soyad *" value="${k.ad||''}" oninput="ayarlar.kullanicilar[${i}].ad=this.value"/>
+        <input type="text" class="form-control form-control-sm" style="min-width:140px;flex:2" placeholder="Ünvan" value="${k.unvan||''}" oninput="ayarlar.kullanicilar[${i}].unvan=this.value"/>
+        <div class="form-check mb-0" title="Aktif"><input class="form-check-input" type="checkbox" ${k.aktif!==false?'checked':''} onchange="ayarlar.kullanicilar[${i}].aktif=this.checked"/></div>
+        <button class="btn btn-xs btn-outline-danger" onclick="kullaniciSil(${i})"><i class="bi bi-trash"></i></button>
+      </div>`).join('')
+    : '<p class="text-muted small text-center py-2">Henüz personel yok.</p>';
 };
 
 window.teknikEkipEkle = () => {
@@ -793,7 +811,12 @@ window.komisyonUyeEkle = (ki) => {
   ayarlar.komisyonlar[ki].uyeler.push({ ad:'', kurum:'', unvan:'', asil_yedek:'asil', aktif:true });
   renderPersonel();
 };
-window.uyeSilPersonel = (listeAdi, ekipIdx, uyeIdx) => {
+window.kullaniciEkle = () => {
+  if (!ayarlar.kullanicilar) ayarlar.kullanicilar = [];
+  ayarlar.kullanicilar.push({ ad: '', unvan: '', aktif: true });
+  renderPersonel();
+};
+window.kullaniciSil = (i) => { ayarlar.kullanicilar.splice(i, 1); renderPersonel(); };
   if (ekipIdx !== null) ayarlar[listeAdi][ekipIdx].uyeler.splice(uyeIdx,1);
   else ayarlar[listeAdi].splice(uyeIdx,1);
   renderPersonel();

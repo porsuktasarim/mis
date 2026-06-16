@@ -94,13 +94,11 @@ const KomisyonSchema = new mongoose.Schema({
   uyeler: [KomisyonUyeSchema],
 });
 
-// Kullanıcı (ileride aktifleştirilecek)
+// Kullanıcı — ad ve ünvan (şifre/mail ileride)
 const KullaniciSchema = new mongoose.Schema({
-  ad: { type: String },
-  eposta: { type: String },
-  sifre_hash: { type: String },
-  rol: { type: String, enum: ['admin', 'kullanici'], default: 'kullanici' },
-  aktif: { type: Boolean, default: false },
+  ad: { type: String, required: true },
+  unvan: { type: String },
+  aktif: { type: Boolean, default: true },
 }, { timestamps: true });
 
 const AyarlarSchema = new mongoose.Schema({

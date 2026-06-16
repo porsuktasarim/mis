@@ -348,23 +348,24 @@ const rapor = async (req, res, next) => {
     const hesap = await EhgbHesap.findById(req.params.id);
     if (!hesap) return res.status(404).json({ success: false, message: 'Hesaplama bulunamadı' });
 
-    // Ayarlardan aktif teknik ekip ve personeli çek
+    // Ayarlardan personeli çek: teknik ekip ÜYELERİ + kullanıcılar birleşik
     const Ayarlar = require('../ayarlar/ayarlar.model');
     const ayarlar = await Ayarlar.findOne();
     const teknikEkipler = ayarlar?.teknik_ekipler || [];
-    // En son yıllı ekibi bul, yoksa ilkini al
     const aktifEkip = teknikEkipler.sort((a,b)=>(b.yil||0)-(a.yil||0))[0];
-    const personel = (aktifEkip?.uyeler || []).filter(u => u.aktif !== false);
+    const ekipUyeleri = (aktifEkip?.uyeler || []).filter(u => u.aktif !== false);
+    const kullanicilar = (ayarlar?.kullanicilar || []).filter(u => u.aktif !== false);
+    // Birleştir — önce ekip üyeleri, sonra kullanıcılar (tekrar olmaması için)
+    const personel = [...ekipUyeleri, ...kullanicilar.filter(k =>
+      !ekipUyeleri.some(e => e.ad === k.ad)
+    )];
 
     const s = hesap.sonuc || {};
     const p = hesap.kullanilan_parametreler || {};
-    const tarih = new Date().toLocaleDateString('tr-TR');
     const kararTarih = hesap.karar_tarihi ? new Date(hesap.karar_tarihi).toLocaleDateString('tr-TR') : '-';
     const fmt = n => n != null ? Number(n).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
-    const DURUM = { taslak:'TASLAK (TASLAK)', kesinlesti:'KESİNLEŞMİŞ', itiraz:'İTİRAZ', iptal:'İPTAL' };
-    const damgaRenk = hesap.durum === 'kesinlesti' ? '#0a3622' : '#856404';
 
-    // İmza kutuları — personel varsa personel, yoksa genel
+    // İmza kutuları — personel varsa personel, yoksa genel hazırlayan
     const imzaKutulari = personel.length > 0
       ? personel.map(u => `
           <div class="imza-kutu">
@@ -372,8 +373,7 @@ const rapor = async (req, res, next) => {
             <div class="imza-ad">${u.ad}</div>
             <div class="imza-unvan">${u.unvan||''}</div>
           </div>`).join('')
-      : `<div class="imza-kutu"><div class="imza-cizgi"></div><div class="imza-ad">HAZIRLAYAN</div></div>
-         <div class="imza-kutu"><div class="imza-cizgi"></div><div class="imza-ad">ONAYLAYAN</div></div>`;
+      : `<div class="imza-kutu"><div class="imza-cizgi"></div><div class="imza-ad">HAZIRLAYAN</div></div>`;
 
     const html = `<!DOCTYPE html>
 <html lang="tr">
@@ -391,8 +391,6 @@ body{font-family:Arial,sans-serif;font-size:10.5px;color:#111;background:#fff}
 }
 h1{font-size:13px;text-align:center;font-weight:bold;margin-bottom:3px;text-transform:uppercase}
 h2{font-size:11px;text-align:center;color:#333;margin-bottom:14px;font-weight:normal}
-.durum-damga{border:2.5px solid ${damgaRenk};color:${damgaRenk};padding:3px 14px;
-  font-size:11px;font-weight:bold;display:inline-block;float:right;margin-top:-6px}
 .bolum-baslik{font-size:11px;font-weight:bold;color:#1a6b4a;border-bottom:1.5px solid #1a6b4a;
   padding-bottom:3px;margin:10px 0 5px}
 table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:10px}
@@ -417,12 +415,23 @@ tr:nth-child(even) td{background:#f5faf6}
 .imza-cizgi{border-top:1px solid #333;margin-bottom:5px;width:100%}
 .imza-ad{font-weight:bold;font-size:10px}
 .imza-unvan{font-size:9px;color:#444}
-/* Sayfa 2 */
 .aciklama-kutu{border:1px solid #ccd8cc;border-radius:4px;padding:10px;margin-bottom:10px;background:#fafff8}
 .aciklama-baslik{font-weight:bold;color:#1a6b4a;margin-bottom:5px;font-size:11px}
 .formul-satir{font-family:monospace;background:#f0f4f0;border:1px solid #dde;padding:6px 8px;
   border-radius:3px;margin:4px 0;font-size:10px;white-space:pre-wrap}
 .parametre-tablo td{padding:3px 6px;border-bottom:1px solid #eee}
+.sayfa-2{font-size:9px}
+.sayfa-2 h1{font-size:11px}
+.sayfa-2 h2{font-size:10px}
+.sayfa-2 .aciklama-kutu{padding:6px 8px;margin-bottom:7px}
+.sayfa-2 .aciklama-baslik{font-size:10px;margin-bottom:3px}
+.sayfa-2 table{font-size:8.5px;margin-bottom:6px}
+.sayfa-2 th{padding:3px 5px}
+.sayfa-2 td{padding:2px 5px}
+.sayfa-2 .formul-satir{font-size:8.5px;padding:4px 6px;margin:3px 0}
+.sayfa-2 .bolum-baslik{font-size:10px;margin:7px 0 4px}
+.sayfa-2 ul{padding-left:14px}
+.sayfa-2 li{margin-bottom:2px}
 </style>
 </head>
 <body>
@@ -432,7 +441,6 @@ tr:nth-child(even) td{background:#f5faf6}
 
 <h1>4342 Sayılı Mera Kanunu Kapsamında</h1>
 <h2>Eski Haline Getirme Bedeli Hesap Raporu</h2>
-<span class="durum-damga">${DURUM[hesap.durum]||hesap.durum.toUpperCase()}</span>
 
 <div class="bilgi-grid">
   <div class="bilgi-kart">
@@ -518,8 +526,12 @@ tr:nth-child(even) td{background:#f5faf6}
   Yukarıda hesaplanan bedel, 4342 sayılı Mera Kanunu'nun ilgili hükümleri çerçevesinde mera alanının eski haline getirilmesi amacıyla köy sandığına veya belediye bütçesinde ayrı bir hesaba yatırılacaktır.
 </p>
 
-<div style="font-size:9.5px;margin-bottom:8px"><strong>Tarih:</strong> ${tarih}${aktifEkip?.ad ? ` &nbsp;|&nbsp; <strong>Teknik Ekip:</strong> ${aktifEkip.ad}${aktifEkip.yil?' ('+aktifEkip.yil+')':''}` : ''}</div>
+<div style="font-size:9.5px;margin-bottom:12px">
+  <strong>Tarih:</strong> .......................
+  ${aktifEkip?.ad ? ` &nbsp;|&nbsp; <strong>Teknik Ekip:</strong> ${aktifEkip.ad}${aktifEkip.yil?' ('+aktifEkip.yil+')':''}` : ''}
+</div>
 
+<div style="font-size:10px;font-weight:bold;margin-bottom:8px;color:#1a6b4a">HAZIRLAYANLAR</div>
 <div class="imza-alani">
   ${imzaKutulari}
 </div>
@@ -528,7 +540,7 @@ tr:nth-child(even) td{background:#f5faf6}
 
 
 <!-- ═══════════════ 2. SAYFA: AÇIKLAMALAR & FORMÜLLER ═══════════════ -->
-<div class="sayfa">
+<div class="sayfa sayfa-2">
 
 <h1>Eki — Hesaplama Yöntemi ve Birim Fiyatlar</h1>
 <h2 style="margin-bottom:14px">Eski Haline Getirme Bedeli — ${hesap.hesaplama_yili} Yılı</h2>
