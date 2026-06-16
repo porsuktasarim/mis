@@ -162,7 +162,7 @@
               <div class="mis-card-header"><i class="bi bi-save"></i><span class="title">Kaydet</span></div>
               <div class="row g-2">
                 <div class="col-12">
-                  <label class="form-label small fw-semibold">Kaymakamlık/Mahkeme Karar Tarihi *</label>
+                  <label class="form-label small fw-semibold">Hesaplama Tarihi (Kaymakamlık/Mahkeme Kararı)</label>
                   <input type="date" class="form-control form-control-sm" id="karar_tarihi" onchange="kararTarihiDegisti()"/>
                   <div class="form-text" id="yil-bilgi"></div>
                 </div>
@@ -224,7 +224,8 @@
             <div class="mis-card mb-3">
               <div class="mis-card-header"><i class="bi bi-calendar3"></i><span class="title">Hesaplama Bilgileri</span></div>
               <table class="table table-sm mb-0">
-                <tr><td class="text-muted small" style="width:40%">Karar Tarihi</td><td id="b-karar">-</td></tr>
+                <tr><td class="text-muted small" style="width:40%">Tespit Tarihi</td><td id="b-isgal-tarihi2">-</td></tr>
+                <tr><td class="text-muted small">Hesaplama Tarihi</td><td id="b-karar">-</td></tr>
                 <tr><td class="text-muted small">Hesaplama Yılı</td><td id="b-hesap-yili" class="fw-semibold">-</td></tr>
                 <tr><td class="text-muted small">Toplam Bedel</td><td id="b-toplam" class="fw-bold text-success fs-5">-</td></tr>
                 <tr><td class="text-muted small">Durum</td><td id="b-durum">-</td></tr>
@@ -488,7 +489,10 @@ window.kararTarihiDegisti = () => {
 window.hesapKaydet = async () => {
   if (!sonucVerisi) { showToast('Önce alan bilgilerini girin.','warning'); return; }
   const karar = document.getElementById('karar_tarihi').value;
-  if (!karar) { showToast('Karar tarihi zorunlu.','warning'); return; }
+  const durum = document.getElementById('kaydet-durum').value;
+  if (durum === 'kesinlesti' && !karar) {
+    showToast('Kesinleşti durumunda hesaplama tarihi zorunlu.','warning'); return;
+  }
 
   const seciliPersonel = seciliPersonelGetir();
   if (seciliPersonel.length < 2 || seciliPersonel.length > 6) {
@@ -563,7 +567,10 @@ const loadHesap = async () => {
     raporBtn.href = `/api/ehgb/${id}/rapor`;
     raporBtn.classList.remove('d-none');
   }
-  if (hesap.karar_tarihi) document.getElementById('karar_tarihi').value = new Date(hesap.karar_tarihi).toISOString().slice(0,10);
+  if (hesap.karar_tarihi) {
+    document.getElementById('karar_tarihi').value = new Date(hesap.karar_tarihi).toISOString().slice(0,10);
+    kararTarihiDegisti();
+  }
 
   // Alan değerlerini forma yükle
   if (hesap.sonuc) {
@@ -592,7 +599,8 @@ const renderBilgiler = () => {
   document.getElementById('b-ada-parsel').textContent = `${hesap.ada||'-'} / ${hesap.parsel||'-'}`;
   document.getElementById('b-alan').textContent = hesap.isgal_alani_m2 ? hesap.isgal_alani_m2.toLocaleString('tr-TR')+' m²' : '-';
   document.getElementById('b-tur').textContent = TUR_ETIKET[hesap.isgal_turu]||'-';
-  document.getElementById('b-isgal-tarihi').textContent = hesap.isgal_tarihi ? new Date(hesap.isgal_tarihi).toLocaleDateString('tr-TR') : '-';
+  if (document.getElementById('b-isgal-tarihi2'))
+    document.getElementById('b-isgal-tarihi2').textContent = hesap.isgal_tarihi ? new Date(hesap.isgal_tarihi).toLocaleDateString('tr-TR') : '-';
   document.getElementById('b-isgalci').textContent = hesap.isgalci_ad_soyad||'-';
   document.getElementById('b-tc').textContent = hesap.isgalci_tc||'-';
   document.getElementById('b-adres').textContent = hesap.isgalci_adres||'-';

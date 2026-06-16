@@ -359,26 +359,31 @@ const rapor = async (req, res, next) => {
     const hesap = await EhgbHesap.findById(req.params.id);
     if (!hesap) return res.status(404).json({ success: false, message: 'Hesaplama bulunamadı' });
 
-    // Personel: önce seçilen personel, yoksa ayarlardan çek
-    // Teknik ekip üyeleri daima önce
+    // Ayarlardan personeli çek
+    const Ayarlar = require('../ayarlar/ayarlar.model');
+    const ayarlar = await Ayarlar.findOne();
+    const teknikEkipler = ayarlar?.teknik_ekipler || [];
+    const aktifEkip = teknikEkipler.sort((a,b) => (b.yil||0) - (a.yil||0))[0];
+    const ekipAdlari = new Set((aktifEkip?.uyeler || []).map(u => u.ad));
+
+    // Personel listesi: teknik ekip üyeleri önce
     let personel = [];
-    const ekipAdlari = new Set((aktifEkip?.uyeler||[]).map(u=>u.ad));
     if (hesap.secilen_personel && hesap.secilen_personel.length > 0) {
       const ekipSecili = hesap.secilen_personel.filter(pp => ekipAdlari.has(pp.ad));
-      const diger = hesap.secilen_personel.filter(pp => !ekipAdlari.has(pp.ad));
+      const diger     = hesap.secilen_personel.filter(pp => !ekipAdlari.has(pp.ad));
       personel = [...ekipSecili, ...diger];
     } else {
-      const ekipUyeleri = (aktifEkip?.uyeler || []).filter(u => u.aktif !== false);
+      const ekipUyeleri  = (aktifEkip?.uyeler || []).filter(u => u.aktif !== false);
       const kullanicilar = (ayarlar?.kullanicilar || []).filter(u => u.aktif !== false);
       personel = [...ekipUyeleri, ...kullanicilar.filter(k => !ekipUyeleri.some(e => e.ad === k.ad))];
     }
 
     const s = hesap.sonuc || {};
     const p = hesap.kullanilan_parametreler || {};
-    const kararTarih = hesap.karar_tarihi ? new Date(hesap.karar_tarihi).toLocaleDateString('tr-TR') : '-';
+    const tespitTarih  = hesap.isgal_tarihi ? new Date(hesap.isgal_tarihi).toLocaleDateString('tr-TR') : '-';
+    const hesapTarih   = hesap.karar_tarihi  ? new Date(hesap.karar_tarihi).toLocaleDateString('tr-TR')  : '-';
     const fmt = n => n != null ? Number(n).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
 
-    // İmza kutuları
     const titrMap = {
       'Doktor Ziraat Mühendisi': 'Dr. ',
       'Doçent Doktor Ziraat Mühendisi': 'Doç. Dr. ',
@@ -386,23 +391,21 @@ const rapor = async (req, res, next) => {
     };
     const tamAd = (ad, unvan) => (titrMap[unvan] || '') + (ad || '');
 
-    // Eşit aralıklı, ortalanmış imza kutuları (imza boşluğu üstte)
+    // Eşit aralıklı, ortalanmış imza kutuları
+    // İmza alanı: 2 satır boşluk + %60 opaklıkta "İMZA" arka plan yazısı, çizgi yok
     const pSay = personel.length || 1;
+    const imzaKutu = (ad, unvan) => `
+      <div style="width:${Math.floor(100/pSay)}%;display:inline-block;text-align:center;vertical-align:top;padding:0 4px">
+        <div style="position:relative;height:60px;display:flex;align-items:center;justify-content:center">
+          <span style="position:absolute;font-size:22px;font-weight:900;color:#cccccc;opacity:0.6;letter-spacing:4px;user-select:none">İMZA</span>
+        </div>
+        <div style="font-weight:bold;font-size:9.5px;margin-top:4px">${tamAd(ad, unvan)}</div>
+        <div style="font-size:8.5px;color:#444">${unvan||''}</div>
+      </div>`;
+
     const imzaKutulari = personel.length > 0
-      ? personel.map(u => `
-          <div style="width:${Math.floor(100/pSay)}%;text-align:center;padding:0 6px;display:inline-block;vertical-align:top">
-            <div style="height:45px"></div>
-            <div style="border-top:1px solid #333;padding-top:4px">
-              <div style="font-weight:bold;font-size:9.5px">${tamAd(u.ad, u.unvan)}</div>
-              <div style="font-size:8.5px;color:#444">${u.unvan||''}</div>
-            </div>
-          </div>`).join('')
-      : `<div style="width:40%;text-align:center;padding:0 6px;display:inline-block">
-           <div style="height:45px"></div>
-           <div style="border-top:1px solid #333;padding-top:4px">
-             <div style="font-weight:bold;font-size:9.5px">HAZIRLAYAN</div>
-           </div>
-         </div>`;
+      ? personel.map(u => imzaKutu(u.ad, u.unvan)).join('')
+      : imzaKutu('HAZIRLAYAN', '');
 
     const html = `<!DOCTYPE html>
 <html lang="tr">
@@ -468,8 +471,8 @@ tr:nth-child(even) td{background:#f5faf6}
     <div class="bilgi-satir"><span class="etiket">İl / İlçe:</span><span class="deger">${hesap.il_ad||'-'} / ${hesap.ilce_ad||'-'}</span></div>
     <div class="bilgi-satir"><span class="etiket">Mahalle / Köy:</span><span class="deger">${hesap.mahalle_ad||'-'}</span></div>
     <div class="bilgi-satir"><span class="etiket">Ada / Parsel:</span><span class="deger">${hesap.ada||'-'} / ${hesap.parsel||'-'}</span></div>
-    <div class="bilgi-satir"><span class="etiket">Kaymakamlık Karar Tarihi:</span><span class="deger">${kararTarih}</span></div>
-    <div class="bilgi-satir"><span class="etiket">Hesaplama Yılı:</span><span class="deger"><strong>${hesap.hesaplama_yili}</strong></span></div>
+    <div class="bilgi-satir"><span class="etiket">Tespit Tarihi:</span><span class="deger">${tespitTarih}</span></div>
+    <div class="bilgi-satir"><span class="etiket">Hesaplama Tarihi:</span><span class="deger">${hesapTarih}</span></div>
   </div>
 </div>
 
