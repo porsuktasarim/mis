@@ -489,6 +489,8 @@ const seciliPersonelGetir = () => {
     .filter(Boolean)
     .map(p => ({ ad: p.ad, unvan: p.unvan || '' }));
 };
+
+window.kararTarihiDegisti = () => {
   const tarih = document.getElementById('karar_tarihi').value;
   if (tarih) {
     const yil = new Date(tarih).getFullYear();

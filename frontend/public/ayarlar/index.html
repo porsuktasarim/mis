@@ -817,6 +817,8 @@ window.kullaniciEkle = () => {
   renderPersonel();
 };
 window.kullaniciSil = (i) => { ayarlar.kullanicilar.splice(i, 1); renderPersonel(); };
+
+window.uyeSilPersonel = (listeAdi, ekipIdx, uyeIdx) => {
   if (ekipIdx !== null) ayarlar[listeAdi][ekipIdx].uyeler.splice(uyeIdx,1);
   else ayarlar[listeAdi].splice(uyeIdx,1);
   renderPersonel();
