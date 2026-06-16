@@ -215,7 +215,29 @@ const adimEkle = async (req, res, next) => {
 
     const siradakiIdx = ADIM_SIRASI.indexOf(tip) + 1;
     if (siradakiIdx < ADIM_SIRASI.length) isgal.aktif_adim = ADIM_SIRASI[siradakiIdx];
-    if (tip === 'sonuc') isgal.durum = 'cozuldu';
+    if (tip === 'sonuc') {
+      isgal.durum = 'cozuldu';
+      // Tüm adım dosyalarını mera parseline ekle
+      if (isgal.mera_id) {
+        try {
+          const Mera = require('../mera/mera.model');
+          const mera = await Mera.findById(isgal.mera_id);
+          if (mera) {
+            const tumDosyalar = isgal.adimlar.flatMap(a => (a.dosyalar || []).map(d => ({
+              ad: d.ad, drive_file_id: d.drive_file_id,
+              drive_web_link: d.drive_web_link, drive_download_link: d.drive_download_link,
+              kategori: 'İşgal Dosyası', aciklama: `İşgal No: ${isgal.isgal_no}`,
+              tarih: new Date(),
+            })));
+            if (tumDosyalar.length > 0) {
+              if (!mera.dosyalar) mera.dosyalar = [];
+              mera.dosyalar.push(...tumDosyalar);
+              await mera.save();
+            }
+          }
+        } catch(e) { console.error('[İşgal Sonuç] Mera dosyaları eklenemedi:', e.message); }
+      }
+    }
     if (tip === 'dava_men_mudahale') isgal.durum = 'mahkemede';
 
     await isgal.save();

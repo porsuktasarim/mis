@@ -378,12 +378,19 @@ const rapor = async (req, res, next) => {
     const kararTarih = hesap.karar_tarihi ? new Date(hesap.karar_tarihi).toLocaleDateString('tr-TR') : '-';
     const fmt = n => n != null ? Number(n).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
 
-    // İmza kutuları — personel varsa personel, yoksa genel hazırlayan
+    // İmza kutuları
+    const titrMap = {
+      'Doktor Ziraat Mühendisi': 'Dr. ',
+      'Doçent Doktor Ziraat Mühendisi': 'Doç. Dr. ',
+      'Profesör Doktor Ziraat Mühendisi': 'Prof. Dr. ',
+    };
+    const tamAd = (ad, unvan) => (titrMap[unvan] || '') + (ad || '');
+
     const imzaKutulari = personel.length > 0
       ? personel.map(u => `
           <div class="imza-kutu">
             <div class="imza-cizgi"></div>
-            <div class="imza-ad">${u.ad}</div>
+            <div class="imza-ad">${tamAd(u.ad, u.unvan)}</div>
             <div class="imza-unvan">${u.unvan||''}</div>
           </div>`).join('')
       : `<div class="imza-kutu"><div class="imza-cizgi"></div><div class="imza-ad">HAZIRLAYAN</div></div>`;

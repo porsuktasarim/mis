@@ -721,14 +721,35 @@ window.ehgbKaydet = async () => {
   if (j.success) { await ehgbYillariYukle(); document.getElementById('ehgb-yil-sec').value=ehgbAktifYil; showToast(`${ehgbAktifYil} yılı parametreleri kaydedildi.`); }
   else showToast(j.message,'danger');
 };
+const UNVANLAR = [
+  { deger:'', etiket:'— Ünvan seçin —', titr:'' },
+  { deger:'Ziraat Teknikeri', etiket:'Ziraat Teknikeri', titr:'' },
+  { deger:'Ziraat Mühendisi', etiket:'Ziraat Mühendisi', titr:'' },
+  { deger:'Ziraat Yüksek Mühendisi', etiket:'Ziraat Yüksek Mühendisi', titr:'' },
+  { deger:'Doktor Ziraat Mühendisi', etiket:'Doktor Ziraat Mühendisi', titr:'Dr. ' },
+  { deger:'Doçent Doktor Ziraat Mühendisi', etiket:'Doçent Doktor Ziraat Mühendisi', titr:'Doç. Dr. ' },
+  { deger:'Profesör Doktor Ziraat Mühendisi', etiket:'Profesör Doktor Ziraat Mühendisi', titr:'Prof. Dr. ' },
+];
+
+const unvanSelect = (path, uyeIdx, mevcutUnvan) =>
+  `<select class="form-select form-select-sm" style="min-width:160px;flex:2"
+    onchange="ayarlar.${path}[${uyeIdx}].unvan=this.value">
+    ${UNVANLAR.map(u=>`<option value="${u.deger}" ${mevcutUnvan===u.deger?'selected':''}>${u.etiket}</option>`).join('')}
+  </select>`;
+
+const adTamHali = (ad, unvan) => {
+  const u = UNVANLAR.find(x=>x.deger===unvan);
+  return u?.titr ? u.titr + ad : ad;
+};
+
 const uyeSatiriPersonel = (uyeler, listeAdi, ekipIdx, uyeIdx) => {
   const u = uyeler[uyeIdx];
   const path = ekipIdx !== null ? `${listeAdi}[${ekipIdx}].uyeler` : listeAdi;
   return `<div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap">
     <input type="text" class="form-control form-control-sm" style="min-width:140px;flex:2" placeholder="Ad Soyad *" value="${u.ad||''}" oninput="ayarlar.${path}[${uyeIdx}].ad=this.value"/>
-    <input type="text" class="form-control form-control-sm" style="min-width:130px;flex:2" placeholder="Kurum" value="${u.kurum||''}" oninput="ayarlar.${path}[${uyeIdx}].kurum=this.value"/>
-    <input type="text" class="form-control form-control-sm" style="min-width:110px;flex:1.5" placeholder="Ünvan" value="${u.unvan||''}" oninput="ayarlar.${path}[${uyeIdx}].unvan=this.value"/>
-    <select class="form-select form-select-sm" style="width:88px;flex:none" onchange="ayarlar.${path}[${uyeIdx}].asil_yedek=this.value">
+    <input type="text" class="form-control form-control-sm" style="min-width:120px;flex:1.5" placeholder="Kurum" value="${u.kurum||''}" oninput="ayarlar.${path}[${uyeIdx}].kurum=this.value"/>
+    ${unvanSelect(path, uyeIdx, u.unvan||'')}
+    <select class="form-select form-select-sm" style="width:80px;flex:none" onchange="ayarlar.${path}[${uyeIdx}].asil_yedek=this.value">
       <option value="asil" ${u.asil_yedek!=='yedek'?'selected':''}>Asıl</option>
       <option value="yedek" ${u.asil_yedek==='yedek'?'selected':''}>Yedek</option>
     </select>
@@ -782,7 +803,7 @@ const renderPersonel = () => {
     ? kullanicilar.map((k, i) => `
       <div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap">
         <input type="text" class="form-control form-control-sm" style="min-width:160px;flex:2" placeholder="Ad Soyad *" value="${k.ad||''}" oninput="ayarlar.kullanicilar[${i}].ad=this.value"/>
-        <input type="text" class="form-control form-control-sm" style="min-width:140px;flex:2" placeholder="Ünvan" value="${k.unvan||''}" oninput="ayarlar.kullanicilar[${i}].unvan=this.value"/>
+        ${unvanSelect('kullanicilar', i, k.unvan||'')}
         <div class="form-check mb-0" title="Aktif"><input class="form-check-input" type="checkbox" ${k.aktif!==false?'checked':''} onchange="ayarlar.kullanicilar[${i}].aktif=this.checked"/></div>
         <button class="btn btn-xs btn-outline-danger" onclick="kullaniciSil(${i})"><i class="bi bi-trash"></i></button>
       </div>`).join('')
@@ -876,6 +897,9 @@ document.getElementById('btnKaydet').addEventListener('click', async () => {
       toprak_siniflari:ayarlar.toprak_siniflari, yagis_kusaklari:ayarlar.yagis_kusaklari,
       yararlanilabilir_yesil_ot:ayarlar.yararlanilabilir_yesil_ot,
       uretilen_yesil_ot:ayarlar.uretilen_yesil_ot, uretilen_kuru_ot:ayarlar.uretilen_kuru_ot,
+      teknik_ekipler:ayarlar.teknik_ekipler||[],
+      komisyonlar:ayarlar.komisyonlar||[],
+      kullanicilar:ayarlar.kullanicilar||[],
     })});
     const j = await r.json();
     if(j.success) showToast('Ayarlar kaydedildi.');
