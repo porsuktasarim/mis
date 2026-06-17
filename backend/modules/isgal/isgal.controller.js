@@ -151,6 +151,10 @@ const guncelle = async (req, res, next) => {
     if (req.body.isgal_turu !== undefined) {
       isgal.isgal_turu = Array.isArray(req.body.isgal_turu) ? req.body.isgal_turu : (req.body.isgal_turu ? [req.body.isgal_turu] : []);
     }
+    // isgal_turu her zaman array olmalı (eski String kayıtları için)
+    if (!Array.isArray(isgal.isgal_turu)) {
+      isgal.isgal_turu = isgal.isgal_turu ? [isgal.isgal_turu] : [];
+    }
     await isgal.save();
     res.json({ success: true, data: isgal });
   } catch (err) { next(err); }
@@ -244,10 +248,16 @@ const adimEkle = async (req, res, next) => {
     }
     if (tip === 'dava_men_mudahale') isgal.durum = 'mahkemede';
 
+    // isgal_turu her zaman array olmalı (eski String kayıtları için)
+    if (!Array.isArray(isgal.isgal_turu)) {
+      isgal.isgal_turu = isgal.isgal_turu ? [isgal.isgal_turu] : [];
+    }
+
     await isgal.save();
     res.json({ success: true, data: isgal });
   } catch (err) { next(err); }
 };
+
 // ── KML ───────────────────────────────────────────────────
 const kmlYukle = async (req, res, next) => {
   try {

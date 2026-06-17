@@ -46,6 +46,7 @@ const KmlSchema = new mongoose.Schema({
   drive_download_link: { type: String },
   dosya_adi: { type: String },
   renk: { type: String, default: '#FF0000' },
+  sira: { type: Number, default: 0 },
   yukleme_tarihi: { type: Date, default: Date.now },
 });
 
@@ -66,8 +67,8 @@ const IsgalSchema = new mongoose.Schema({
   tespit_eden: { type: String },
   isgal_tarihi: { type: Date },
 
-  isgal_turu: { type: String, enum: ['tarla_isgali', 'yapilasma', 'yol_hafriyat'], required: true },
-  isgal_turu_aciklama: { type: String, required: true },
+  isgal_turu: { type: [String], default: [] },
+  isgal_turu_aciklama: { type: String },
   isgal_alani_m2: { type: Number },
 
   isgalci_ad_soyad: { type: String },
@@ -90,5 +91,13 @@ const IsgalSchema = new mongoose.Schema({
 IsgalSchema.index({ mera_id: 1 });
 IsgalSchema.index({ durum: 1 });
 IsgalSchema.index({ tespit_tarihi: -1 });
+
+// isgal_turu her zaman array olmalı (eski String kayıtlarını otomatik düzelt)
+IsgalSchema.pre('save', function(next) {
+  if (!Array.isArray(this.isgal_turu)) {
+    this.isgal_turu = this.isgal_turu ? [this.isgal_turu] : [];
+  }
+  next();
+});
 
 module.exports = mongoose.model('Isgal', IsgalSchema);
