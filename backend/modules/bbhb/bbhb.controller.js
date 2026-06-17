@@ -259,83 +259,131 @@ const pdfRapor = async (req, res, next) => {
     const kayit = await BBHBHesaplama.findById(req.params.id);
     if (!kayit) return res.status(404).json({ success: false, message: 'Kayıt bulunamadı' });
 
+    // Ayarlardan yararlanılabilir yeşil ot verimi ortalaması
+    const Ayarlar = require('../ayarlar/ayarlar.model');
+    const ayarlar = await Ayarlar.findOne().select('yararlanilabilir_yesil_ot');
+    const verimTablosu = ayarlar?.yararlanilabilir_yesil_ot || [];
+
+    // "İyi" vasıf mera verimi ortalaması (kg/da)
+    let verimOrtalama = null;
+    let verimMin = null;
+    let verimMax = null;
+    if (verimTablosu.length > 0) {
+      const iyiDegerler = verimTablosu.map(s => s.iyi).filter(v => v != null && v > 0);
+      if (iyiDegerler.length > 0) {
+        verimOrtalama = iyiDegerler.reduce((a,b) => a+b, 0) / iyiDegerler.length;
+        verimMin = Math.min(...iyiDegerler);
+        verimMax = Math.max(...iyiDegerler);
+      }
+    }
+
+    // Gerekli mera alanı = BBHB × 180 gün × 50 kg/gün ÷ verim (kg/da)
+    // verim yoksa 10-12 da/BBHB sabit aralık kullan
+    const gunlukYem = 50; // kg/BBHB/gün
+    const otlatmaSuresi = 180; // gün
+    const toplamYemKg = kayit.toplam_bbhb * gunlukYem * otlatmaSuresi;
+
+    let meraAlanMetni;
+    if (verimOrtalama && verimMin && verimMax) {
+      const alanMin = (toplamYemKg / verimMax).toFixed(1);
+      const alanMax = (toplamYemKg / verimMin).toFixed(1);
+      const alanOrt = (toplamYemKg / verimOrtalama).toFixed(1);
+      meraAlanMetni = `${Number(alanMin).toLocaleString('tr-TR')} – ${Number(alanMax).toLocaleString('tr-TR')} da
+        <span class="aciklama">(verim: ${verimMin}–${verimMax} kg/da; ort. ${alanOrt.toLocaleString('tr-TR')} da)</span>`;
+    } else {
+      const alanMin = (kayit.toplam_bbhb * 10).toLocaleString('tr-TR', {minimumFractionDigits:1, maximumFractionDigits:1});
+      const alanMax = (kayit.toplam_bbhb * 12).toLocaleString('tr-TR', {minimumFractionDigits:1, maximumFractionDigits:1});
+      meraAlanMetni = `${alanMin} – ${alanMax} da <span class="aciklama">(10–12 da/BBHB, sabit oran)</span>`;
+    }
+
     const aktif = kayit.hayvanlar.filter(h => h.adet > 0);
     const tarih = new Date(kayit.createdAt).toLocaleDateString('tr-TR');
-    const satirlar = aktif.map(h => `
-      <tr>
-        <td>${h.tur_adi}</td>
-        <td class="center">${h.katsayi}</td>
-        <td class="center">${h.adet}</td>
-        <td class="right">${h.bbhb.toFixed(2)}</td>
-      </tr>`).join('');
 
     const html = `<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8"/>
-  <title>BBHB Raporu - ${kayit.baslik}</title>
+  <title>BBHB Raporu</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&display=swap');
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Noto Sans', Arial, sans-serif; font-size:11pt; color:#222; padding:20mm; }
-    h1 { font-size:15pt; text-align:center; margin-bottom:8mm; color:#0F6E56; }
-    .meta { margin-bottom:6mm; font-size:10pt; }
-    .meta span { display:inline-block; margin-right:15mm; }
-    table { width:100%; border-collapse:collapse; margin-bottom:6mm; }
-    th { background:#0F6E56; color:#fff; padding:5pt 8pt; font-size:10pt; }
-    td { padding:4pt 8pt; border-bottom:1px solid #ddd; font-size:10pt; }
-    tr:nth-child(even) td { background:#f5faf7; }
-    .center { text-align:center; }
-    .right { text-align:right; }
-    .toplam { font-weight:bold; border-top:2px solid #0F6E56; }
-    .toplam td { padding-top:6pt; }
-    .ozet { margin-top:6mm; padding:5mm; background:#e1f5ee; border-radius:4px; }
-    .ozet table { margin:0; }
-    .ozet td { border:none; background:none; font-size:10pt; }
-    .footer { margin-top:10mm; font-size:9pt; color:#888; text-align:center; border-top:1px solid #ddd; padding-top:4mm; }
-    @media print { .no-print { display:none; } }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial,sans-serif;font-size:11pt;color:#222;padding:16mm 20mm}
+    h1{font-size:13pt;text-align:center;margin-bottom:6mm;color:#0F6E56;text-transform:uppercase;border-bottom:2px solid #0F6E56;padding-bottom:3mm}
+    .meta{margin-bottom:5mm;font-size:10pt;display:flex;gap:20mm;flex-wrap:wrap}
+    .meta div{display:flex;gap:4px}
+    .meta strong{color:#333;min-width:80px}
+    table{width:100%;border-collapse:collapse;margin-bottom:4mm;font-size:10pt}
+    th{background:#0F6E56;color:#fff;padding:5pt 8pt;text-align:left}
+    th.r{text-align:right}th.c{text-align:center}
+    td{padding:4pt 8pt;border-bottom:1px solid #e0e0e0}
+    td.c{text-align:center}td.r{text-align:right}
+    tr:nth-child(even) td{background:#f5faf7}
+    .toplam td{font-weight:bold;border-top:2px solid #0F6E56;background:#e1f5ee}
+    .ozet{margin-top:5mm;padding:5mm 6mm;background:#e1f5ee;border-radius:5px;border-left:4px solid #0F6E56}
+    .ozet-baslik{font-weight:bold;color:#0F6E56;font-size:10.5pt;margin-bottom:4mm}
+    .ozet-tablo{width:100%;border-collapse:collapse}
+    .ozet-tablo td{border:none;background:none;padding:2pt 6pt;vertical-align:top}
+    .etiket{display:block;font-size:8pt;color:#555;margin-bottom:1pt}
+    .deger{display:block;font-weight:bold;font-size:10.5pt;color:#0a3622}
+    .mera-satir td{padding-top:5pt;border-top:1px solid #c0ddd0}
+    .mera-deger{font-size:12pt !important;color:#0F6E56 !important}
+    .aciklama{font-size:8pt;color:#666;font-weight:normal;margin-left:4px}
+    .footer{margin-top:8mm;font-size:9pt;color:#aaa;text-align:center;border-top:1px solid #ddd;padding-top:3mm}
+    @media print{body{padding:10mm 14mm}}
   </style>
 </head>
 <body>
-  <div class="no-print" style="text-align:center;margin-bottom:8mm;">
-    <button onclick="window.print()" style="background:#0F6E56;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-size:12pt;cursor:pointer;">
-      PDF Olarak Yazdır / Kaydet
-    </button>
-  </div>
-  <h1>BÜYÜK BAŞ HAYVAN BİRİMİ (BBHB) RAPORU</h1>
+  <h1>Büyükbaş Hayvan Birimi (BBHB) Raporu</h1>
   <div class="meta">
-    ${kayit.baslik ? `<span><strong>Başlık:</strong> ${kayit.baslik}</span>` : ''}
-    ${kayit.ciftci_ad ? `<span><strong>İşletmeci:</strong> ${kayit.ciftci_ad}</span>` : ''}
-    <span><strong>Tarih:</strong> ${tarih}</span>
+    ${kayit.baslik ? `<div><strong>Başlık:</strong><span>${kayit.baslik}</span></div>` : ''}
+    ${kayit.ciftci_ad ? `<div><strong>İşletmeci:</strong><span>${kayit.ciftci_ad}</span></div>` : ''}
+    <div><strong>Tarih:</strong><span>${tarih}</span></div>
   </div>
   <table>
     <thead>
-      <tr><th>Hayvan Türü</th><th class="center">Katsayı</th><th class="center">Adet</th><th class="right">BBHB</th></tr>
+      <tr>
+        <th>Hayvan Türü</th>
+        <th class="c">Katsayı</th>
+        <th class="c">Adet</th>
+        <th class="r">BBHB</th>
+      </tr>
     </thead>
     <tbody>
-      ${satirlar}
+      ${aktif.map(h => `<tr>
+        <td>${h.tur_adi}</td>
+        <td class="c">${h.katsayi}</td>
+        <td class="c">${h.adet}</td>
+        <td class="r">${h.bbhb.toFixed(2)}</td>
+      </tr>`).join('')}
       <tr class="toplam">
-        <td colspan="2"><strong>TOPLAM</strong></td>
-        <td class="center"><strong>${kayit.toplam_adet}</strong></td>
-        <td class="right"><strong>${kayit.toplam_bbhb.toFixed(2)}</strong></td>
+        <td colspan="2">TOPLAM</td>
+        <td class="c">${kayit.toplam_adet}</td>
+        <td class="r">${kayit.toplam_bbhb.toFixed(2)}</td>
       </tr>
     </tbody>
   </table>
   <div class="ozet">
-    <table>
+    <div class="ozet-baslik">Özet Bilgiler</div>
+    <table class="ozet-tablo">
       <tr>
-        <td><strong>Toplam Hayvan:</strong> ${kayit.toplam_adet}</td>
-        <td><strong>Toplam BBHB:</strong> ${kayit.toplam_bbhb.toFixed(2)}</td>
-        <td><strong>Aktif Tür:</strong> ${aktif.length}</td>
-        <td><strong>Canlı Ağırlık:</strong> ${(kayit.toplam_bbhb * 500).toFixed(0)} kg</td>
+        <td><span class="etiket">Toplam Hayvan Sayısı</span><span class="deger">${kayit.toplam_adet.toLocaleString('tr-TR')} baş</span></td>
+        <td><span class="etiket">Toplam BBHB</span><span class="deger">${kayit.toplam_bbhb.toFixed(2)}</span></td>
+        <td><span class="etiket">Aktif Tür Sayısı</span><span class="deger">${aktif.length}</span></td>
       </tr>
       <tr>
-        <td><strong>Yeşil Kaba Yem (180 gün):</strong> ${(kayit.toplam_bbhb * 50 * 180).toLocaleString('tr-TR')} kg</td>
-        <td colspan="3"><strong>Kuru Kaba Yem (180 gün):</strong> ${(kayit.toplam_bbhb * 12.5 * 180).toLocaleString('tr-TR')} kg</td>
+        <td><span class="etiket">Tahmini Canlı Ağırlık</span><span class="deger">${(kayit.toplam_bbhb * 500).toLocaleString('tr-TR')} kg</span></td>
+        <td><span class="etiket">Yeşil Kaba Yem (180 gün)</span><span class="deger">${(kayit.toplam_bbhb * 50 * 180).toLocaleString('tr-TR')} kg</span></td>
+        <td><span class="etiket">Kuru Kaba Yem (180 gün)</span><span class="deger">${(kayit.toplam_bbhb * 12.5 * 180).toLocaleString('tr-TR')} kg</span></td>
+      </tr>
+      <tr>
+        <td colspan="3" class="mera-satir">
+          <span class="etiket">180 Günlük Dönem İçin Gerekli İyi Vasıf Mera Miktarı (${otlatmaSuresi} gün × ${gunlukYem} kg/BBHB/gün)</span>
+          <span class="deger mera-deger">${meraAlanMetni}</span>
+        </td>
       </tr>
     </table>
   </div>
-  <div class="footer">MİS - Mera İzleme Sistemi &nbsp;|&nbsp; ${new Date().toLocaleString('tr-TR')}</div>
+  <div class="footer">MİS – Mera İzleme Sistemi</div>
+  <script>window.onload=()=>window.print();<\/script>
 </body>
 </html>`;
 
