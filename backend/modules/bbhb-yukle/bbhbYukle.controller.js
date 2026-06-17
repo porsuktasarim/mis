@@ -34,9 +34,12 @@ const parseSatir = (satir, kolonlar, dosyaAdi) => {
   const cinsiyet     = get(['cinsiyet']);
   const dogum_tarihi = get(['doğum tarihi', 'dogum']);
   const durum        = get(['durumu', 'durum']);
-  const sahip        = get(['işletme sahibi', 'sahibi']);
-  const isletme      = get(['bulunduğu işletme', 'isletme']);
+  const sahip        = get(['işletme sahibi', 'sahibi', 'kişi', 'firma', 'işletmeci']);
+  const isletme      = get(['bulunduğu işletme', 'isletme', 'işletme adı']);
   const suru_no      = get(['sürü no', 'suru']);
+  const il           = get(['il adı', 'il adi', 'il', 'province']);
+  const ilce         = get(['ilçe adı', 'ilce adi', 'ilçe', 'ilce', 'district']);
+  const mahalle      = get(['mahalle', 'köy', 'mahalle/köy']);
 
   if (!kupe_no || !tur) return null;
   if (durum && durum.toUpperCase() !== 'CANLI') return null;
@@ -49,6 +52,7 @@ const parseSatir = (satir, kolonlar, dosyaAdi) => {
     yas_ay: yas_ay !== null ? yas_ay : -1,
     kategori, bbhb,
     sahip, isletme, suru_no,
+    il, ilce, mahalle,
     kaynak_dosya: dosyaAdi,
   };
 };
@@ -115,6 +119,36 @@ const dosyalariisle = async (req, res, next) => {
       kategoriler[h.kategori].bbhb = parseFloat((kategoriler[h.kategori].bbhb + h.bbhb).toFixed(4));
     });
 
+    // İl/ilçe/mahalle — en çok geçeni al
+    const modDeger = (arr) => {
+      const say = {};
+      arr.forEach(v => { if (v) say[v] = (say[v]||0)+1; });
+      return Object.entries(say).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
+    };
+    const il       = modDeger(tumHayvanlar.map(h => h.il));
+    const ilce     = modDeger(tumHayvanlar.map(h => h.ilce));
+    const mahalle  = modDeger(tumHayvanlar.map(h => h.mahalle));
+
+    // İşletmeci bazlı gruplama (B sütunu için)
+    const isletmeciler = {};
+    tumHayvanlar.forEach(h => {
+      const sahip = h.sahip || '—';
+      if (!isletmeciler[sahip]) {
+        isletmeciler[sahip] = {
+          sahip, il: h.il, ilce: h.ilce, mahalle: h.mahalle,
+          kategoriler: {}, toplam_adet: 0, toplam_bbhb: 0,
+        };
+      }
+      isletmeciler[sahip].toplam_adet++;
+      isletmeciler[sahip].toplam_bbhb = parseFloat((isletmeciler[sahip].toplam_bbhb + h.bbhb).toFixed(4));
+      if (!isletmeciler[sahip].kategoriler[h.kategori]) isletmeciler[sahip].kategoriler[h.kategori] = { adet:0, bbhb:0 };
+      isletmeciler[sahip].kategoriler[h.kategori].adet++;
+      isletmeciler[sahip].kategoriler[h.kategori].bbhb = parseFloat(
+        (isletmeciler[sahip].kategoriler[h.kategori].bbhb + h.bbhb).toFixed(4)
+      );
+    });
+    const isletmecilerArr = Object.values(isletmeciler).sort((a,b) => b.toplam_bbhb - a.toplam_bbhb);
+
     const BBHBHesaplama = require('../bbhb/bbhb.model');
     const { HAYVAN_TURLERI } = require('../bbhb/bbhb.controller');
 
@@ -133,7 +167,10 @@ const dosyalariisle = async (req, res, next) => {
     }).filter(Boolean);
 
     await BBHBHesaplama.create({
-      baslik,
+      baslik: baslik || `${il||''} ${ilce||''} BBHB`.trim(),
+      ciftci_ad: isletmecilerArr.length === 1 ? isletmecilerArr[0].sahip : '',
+      il, ilce, mahalle,
+      isletmeciler: isletmecilerArr,
       aciklama: `Dosya yüklemesinden otomatik oluşturuldu: ${dosyaAdlari.join(', ')}`,
       hayvanlar: hesaplamaHayvanlari,
       toplam_adet: tumHayvanlar.length,

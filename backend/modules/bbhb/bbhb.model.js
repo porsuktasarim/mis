@@ -10,14 +10,18 @@ const HayvanKalemiSchema = new mongoose.Schema({
 
 const BBHBHesaplamaSchema = new mongoose.Schema(
   {
-    baslik:        { type: String, required: true, trim: true },
-    ciftci_ad:     { type: String, default: '', trim: true },
-    aciklama:      { type: String, default: '' },
-    hayvanlar:     { type: [HayvanKalemiSchema], default: [] },
-    toplam_adet:   { type: Number, default: 0 },
-    toplam_bbhb:   { type: Number, default: 0 },
-    tur_sayisi:    { type: Number, default: 0 },
-    durum:         { type: String, enum: ['taslak', 'tamamlandi'], default: 'taslak' },
+    baslik:            { type: String, trim: true },
+    ciftci_ad:         { type: String, default: '', trim: true },
+    aciklama:          { type: String, default: '' },
+    il:                { type: String, default: '' },
+    ilce:              { type: String, default: '' },
+    mahalle:           { type: String, default: '' },
+    isletmeciler:      { type: mongoose.Schema.Types.Mixed, default: [] }, // [{sahip, il, ilce, hayvanlar, bbhb}]
+    hayvanlar:         { type: [HayvanKalemiSchema], default: [] },
+    toplam_adet:       { type: Number, default: 0 },
+    toplam_bbhb:       { type: Number, default: 0 },
+    tur_sayisi:        { type: Number, default: 0 },
+    durum:             { type: String, enum: ['taslak', 'tamamlandi'], default: 'taslak' },
   },
   { timestamps: true }
 );
