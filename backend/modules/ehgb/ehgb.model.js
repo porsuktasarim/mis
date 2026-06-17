@@ -32,7 +32,7 @@ const EhgbHesapSchema = new mongoose.Schema({
 
   // İşgal bilgileri
   isgal_alani_m2: { type: Number },
-  isgal_turu: { type: String },
+  isgal_turu: { type: mongoose.Schema.Types.Mixed },
   isgal_tarihi: { type: Date },
 
   // Hesaplama parametreleri

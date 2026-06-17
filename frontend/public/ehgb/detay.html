@@ -556,7 +556,8 @@ window.hesapKaydet = async () => {
     mahalle_ad: hesap?.mahalle_ad || '', ada: hesap?.ada || '', parsel: hesap?.parsel || '',
     isgalci_ad_soyad: hesap?.isgalci_ad_soyad || '', isgalci_tc: hesap?.isgalci_tc || '',
     isgalci_adres: hesap?.isgalci_adres || '',
-    isgal_alani_m2: hesap?.isgal_alani_m2 || null, isgal_turu: hesap?.isgal_turu || '',
+    isgal_alani_m2: hesap?.isgal_alani_m2 || null,
+    isgal_turu: Array.isArray(hesap?.isgal_turu) ? hesap.isgal_turu : (hesap?.isgal_turu ? [hesap.isgal_turu] : []),
     isgal_tarihi: hesap?.isgal_tarihi || null,
     karar_tarihi: karar || null,
     aciklama: document.getElementById('kaydet-aciklama').value,
@@ -658,7 +659,9 @@ const renderBilgiler = () => {
   document.getElementById('b-mahalle').textContent = hesap.mahalle_ad||'-';
   document.getElementById('b-ada-parsel').textContent = `${hesap.ada||'-'} / ${hesap.parsel||'-'}`;
   document.getElementById('b-alan').textContent = hesap.isgal_alani_m2 ? hesap.isgal_alani_m2.toLocaleString('tr-TR')+' m²' : '-';
-  document.getElementById('b-tur').textContent = TUR_ETIKET[hesap.isgal_turu]||'-';
+  const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+  const turMetin = (t) => Array.isArray(t) ? t.map(x=>TUR_ETIKET[x]||x).join(', ') : (TUR_ETIKET[t]||t||'-');
+  document.getElementById('b-tur').textContent = turMetin(hesap.isgal_turu);
   if (document.getElementById('b-isgal-tarihi2'))
     document.getElementById('b-isgal-tarihi2').textContent = hesap.isgal_tarihi ? new Date(hesap.isgal_tarihi).toLocaleDateString('tr-TR') : '-';
   document.getElementById('b-isgalci').textContent = hesap.isgalci_ad_soyad||'-';
