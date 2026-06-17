@@ -351,6 +351,7 @@ const kmlSiraGuncelle = async (req, res, next) => {
 const raporHtml = (isgal) => {
   const gorunurNo = isgal.kullanici_no ? `${isgal.kullanici_no} (${isgal.isgal_no})` : isgal.isgal_no;
   const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+  const turEtiket = (t) => Array.isArray(t) ? t.map(x=>TUR_ETIKET[x]||x).join(', ') : (TUR_ETIKET[t]||t||'-');
   const TESPIT_ETIKET = { teknik_ekip:'Teknik Ekip', sikayet:'Şikayet', ihbar:'İhbar' };
   const DURUM_ETIKET = { aktif:'Aktif', mahkemede:'Mahkemede', cozuldu:'Çözüldü', arsiv:'Arşiv' };
 
@@ -396,7 +397,7 @@ const raporHtml = (isgal) => {
   <table><tbody>
     <tr><td class="label">İşgal No</td><td><strong>${gorunurNo}</strong></td><td class="label">Durum</td><td>${DURUM_ETIKET[isgal.durum]||'-'}</td></tr>
     <tr><td class="label">Mera</td><td>${isgal.mera_il_ad} / ${isgal.mera_ilce_ad} / ${isgal.mera_mahalle_ad}</td><td class="label">Ada / Parsel</td><td>${isgal.mera_ada||'-'} / ${isgal.mera_parsel}</td></tr>
-    <tr><td class="label">İşgal Türü</td><td>${TUR_ETIKET[isgal.isgal_turu]||'-'}</td><td class="label">Alan</td><td>${isgal.isgal_alani_m2?Number(isgal.isgal_alani_m2).toLocaleString('tr-TR')+' m²':'-'}</td></tr>
+    <tr><td class="label">İşgal Türü</td><td>${turEtiket(isgal.isgal_turu)}</td><td class="label">Alan</td><td>${isgal.isgal_alani_m2?Number(isgal.isgal_alani_m2).toLocaleString('tr-TR')+' m²':'-'}</td></tr>
     <tr><td class="label">Açıklama</td><td colspan="3">${isgal.isgal_turu_aciklama||'-'}</td></tr>
     <tr><td class="label">Tespit Şekli</td><td>${TESPIT_ETIKET[isgal.tespit_sekli]||'-'}</td><td class="label">Tespit Tarihi</td><td>${isgal.tespit_tarihi?new Date(isgal.tespit_tarihi).toLocaleDateString('tr-TR'):'-'}</td></tr>
     <tr><td class="label">Tespit Eden</td><td>${isgal.tespit_eden||'-'}</td><td class="label">İşgal Başlangıcı</td><td>${isgal.isgal_tarihi?new Date(isgal.isgal_tarihi).toLocaleDateString('tr-TR'):'-'}</td></tr>
@@ -435,6 +436,7 @@ const tumRapor = async (req, res, next) => {
     if (!isgaller.length) return res.status(404).json({ success: false, message: 'Kayıt yok' });
 
     const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+  const turEtiket = (t) => Array.isArray(t) ? t.map(x=>TUR_ETIKET[x]||x).join(', ') : (TUR_ETIKET[t]||t||'-');
     const DURUM_ETIKET = { aktif:'Aktif', mahkemede:'Mahkemede', cozuldu:'Çözüldü', arsiv:'Arşiv' };
 
     const satirlar = isgaller.map(ig => {
@@ -442,7 +444,7 @@ const tumRapor = async (req, res, next) => {
       return `<tr>
         <td style="font-size:8.5pt"><strong>${no}</strong></td>
         <td style="font-size:8.5pt">${ig.mera_il_ad}/${ig.mera_mahalle_ad}<br><small>${ig.mera_ada||'-'}/${ig.mera_parsel}</small></td>
-        <td style="font-size:8.5pt">${TUR_ETIKET[ig.isgal_turu]||'-'}</td>
+        <td style="font-size:8.5pt">${turEtiket(ig.isgal_turu)}</td>
         <td style="font-size:8.5pt">${ig.isgalci_ad_soyad||'-'}</td>
         <td style="font-size:8.5pt;text-align:right">${ig.isgal_alani_m2?Number(ig.isgal_alani_m2).toLocaleString('tr-TR'):'-'}</td>
         <td style="font-size:8.5pt">${ig.tespit_tarihi?new Date(ig.tespit_tarihi).toLocaleDateString('tr-TR'):'-'}</td>
@@ -550,6 +552,7 @@ const excelRapor = async (req, res, next) => {
     const ws = wb.addWorksheet('İşgal Kayıtları');
 
     const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+  const turEtiket = (t) => Array.isArray(t) ? t.map(x=>TUR_ETIKET[x]||x).join(', ') : (TUR_ETIKET[t]||t||'-');
     const DURUM_ETIKET = { aktif:'Aktif', mahkemede:'Mahkemede', cozuldu:'Çözüldü', arsiv:'Arşiv' };
     const TESPIT_ETIKET = { teknik_ekip:'Teknik Ekip', sikayet:'Şikayet', ihbar:'İhbar' };
     const ADIM_ET = { tespit_tutanak:'Tespit', komisyon_intikal:'Komisyon İntikal', komisyon_karar:'Komisyon Karar', ucuncu_yol_3091:'3091', uc_bin_doksan_bir_sonuc:'3091 Sonuç', iki_bin_sekiz_yuz_seksen_alti:'2886/75', dava_men_mudahale:'Dava', suc_duyurusu:'Suç Duyurusu', eski_hale_getirme:'Eski Hale', tazminat_davasi:'Tazminat', sonuc:'Sonuç', diger:'Diğer' };
@@ -583,7 +586,7 @@ const excelRapor = async (req, res, next) => {
         sistem_no: ig.kullanici_no ? ig.isgal_no : '',
         il: ig.mera_il_ad, ilce: ig.mera_ilce_ad, mahalle: ig.mera_mahalle_ad,
         ada: ig.mera_ada||'', parsel: ig.mera_parsel,
-        tur: TUR_ETIKET[ig.isgal_turu]||ig.isgal_turu,
+        tur: turEtiket(ig.isgal_turu),
         alan: ig.isgal_alani_m2||'',
         isgalci: ig.isgalci_ad_soyad||'', tc: ig.isgalci_tc||'',
         tespit_sekli: TESPIT_ETIKET[ig.tespit_sekli]||'',
@@ -609,6 +612,7 @@ const wordRapor = async (req, res, next) => {
 
     const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, HeadingLevel, AlignmentType } = require('docx');
     const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+  const turEtiket = (t) => Array.isArray(t) ? t.map(x=>TUR_ETIKET[x]||x).join(', ') : (TUR_ETIKET[t]||t||'-');
     const DURUM_ETIKET = { aktif:'Aktif', mahkemede:'Mahkemede', cozuldu:'Çözüldü', arsiv:'Arşiv' };
     const TESPIT_ETIKET = { teknik_ekip:'Teknik Ekip', sikayet:'Şikayet', ihbar:'İhbar' };
     const TIP_ETIKET = { tespit_tutanak:'Tespit Tutanağı', komisyon_intikal:'Komisyona İntikal', komisyon_karar:'Komisyon Kararı', ucuncu_yol_3091:'3091 - Kaymakamlık/Valilik', uc_bin_doksan_bir_sonuc:'3091 Sonucu', iki_bin_sekiz_yuz_seksen_alti:'2886/75 - Jandarma/Kaymakamlık', dava_men_mudahale:'Men-i Müdahale ve Kal Davası', suc_duyurusu:'Suç Duyurusu', eski_hale_getirme:'Eski Hale Getirme', tazminat_davasi:'Tazminat Davası', sonuc:'Sonuç/Kapatma', diger:'Diğer' };
@@ -666,7 +670,7 @@ const wordRapor = async (req, res, next) => {
           bilgiSatiri('İşgal No', gorunurNo),
           bilgiSatiri('Mera', `${isgal.mera_il_ad} / ${isgal.mera_ilce_ad} / ${isgal.mera_mahalle_ad}`),
           bilgiSatiri('Ada / Parsel', `${isgal.mera_ada||'-'} / ${isgal.mera_parsel}`),
-          bilgiSatiri('İşgal Türü', TUR_ETIKET[isgal.isgal_turu]||'-'),
+          bilgiSatiri('İşgal Türü', turEtiket(isgal.isgal_turu)),
           bilgiSatiri('Alan', isgal.isgal_alani_m2 ? `${Number(isgal.isgal_alani_m2).toLocaleString('tr-TR')} m²` : '-'),
           bilgiSatiri('Açıklama', isgal.isgal_turu_aciklama),
           bilgiSatiri('Tespit Şekli', TESPIT_ETIKET[isgal.tespit_sekli]||'-'),

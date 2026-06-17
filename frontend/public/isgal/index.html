@@ -123,12 +123,21 @@
             <input type="date" class="form-control form-control-sm" id="m-isgal-tarihi"/>
           </div>
           <div class="col-md-4">
-            <label class="form-label small fw-semibold">İşgal Türü *</label>
-            <select class="form-select form-select-sm" id="m-isgal-turu">
-              <option value="tarla_isgali">Tarla İşgali / Yapılaşmasız</option>
-              <option value="yapilasma">Yapılaşma İşgali</option>
-              <option value="yol_hafriyat">Yol / Hafriyat Dökme</option>
-            </select>
+            <label class="form-label small fw-semibold">İşgal Türü * <span class="text-muted">(çoklu seçim)</span></label>
+            <div class="border rounded p-2">
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" id="m-tur-tarla" value="tarla_isgali"/>
+                <label class="form-check-label small" for="m-tur-tarla">Tarla / Yapılaşmasız</label>
+              </div>
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" id="m-tur-yapilasma" value="yapilasma"/>
+                <label class="form-check-label small" for="m-tur-yapilasma">Yapılaşma</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="m-tur-yol" value="yol_hafriyat"/>
+                <label class="form-check-label small" for="m-tur-yol">Yol / Hafriyat</label>
+              </div>
+            </div>
           </div>
           <div class="col-md-4">
             <label class="form-label small fw-semibold">İşgal Alanı (m²)</label>
@@ -298,13 +307,21 @@ window.isgalKaydet = async () => {
   const aciklama = document.getElementById('m-isgal-aciklama').value.trim();
   if (!mera_id) { showToast('Mera parseli seçin.','warning'); return; }
   if (!aciklama) { showToast('İşgal açıklaması zorunlu.','warning'); return; }
+
+  const seciliTurler = [
+    document.getElementById('m-tur-tarla')?.checked     ? 'tarla_isgali' : null,
+    document.getElementById('m-tur-yapilasma')?.checked ? 'yapilasma'    : null,
+    document.getElementById('m-tur-yol')?.checked       ? 'yol_hafriyat' : null,
+  ].filter(Boolean);
+  if (seciliTurler.length === 0) { showToast('En az bir işgal türü seçin.','warning'); return; }
+
   const veri = {
     mera_id,
     tespit_sekli: document.getElementById('m-tespit-sekli').value,
     tespit_tarihi: document.getElementById('m-tespit-tarihi').value,
     tespit_eden: document.getElementById('m-tespit-eden').value,
     isgal_tarihi: document.getElementById('m-isgal-tarihi').value || null,
-    isgal_turu: document.getElementById('m-isgal-turu').value,
+    isgal_turu: seciliTurler,
     isgal_turu_aciklama: aciklama,
     isgal_alani_m2: document.getElementById('m-isgal-alani').value || null,
     isgalci_ad_soyad: document.getElementById('m-isgalci-ad').value,
