@@ -16,6 +16,13 @@ const MIS_MENU = [
     ]
   },
   {
+    baslik: 'Defterler',
+    items: [
+      { href: '#', icon: 'bi-book', label: 'Komisyon Defteri', placeholder: true },
+      { href: '#', icon: 'bi-book-half', label: 'Teknik Ekip Defteri', placeholder: true },
+    ]
+  },
+  {
     baslik: 'Sistem',
     items: [
       { href: '/ayarlar/', icon: 'bi-gear', label: 'Ayarlar' },
@@ -33,8 +40,8 @@ const MIS_VERSION = 'v1.7.0';
     <li class="mis-nav-section">${grup.baslik}</li>
     ${grup.items.map(item => `
       <li class="nav-item">
-        <a class="nav-link mis-nav-link ${aktifMi(item.href) ? 'active' : ''}" href="${item.href}">
-          <i class="bi ${item.icon}"></i><span>${item.label}</span>
+        <a class="nav-link mis-nav-link ${aktifMi(item.href) ? 'active' : ''} ${item.placeholder ? 'mis-nav-placeholder' : ''}" href="${item.href}" ${item.placeholder ? 'title="Yakında" onclick="return false"' : ''}>
+          <i class="bi ${item.icon}"></i><span>${item.label}</span>${item.placeholder ? ' <small class="ms-1 opacity-50" style="font-size:9px">(yakında)</small>' : ''}
         </a>
       </li>`).join('')}
   `).join('');

@@ -721,35 +721,102 @@ window.ehgbKaydet = async () => {
   if (j.success) { await ehgbYillariYukle(); document.getElementById('ehgb-yil-sec').value=ehgbAktifYil; showToast(`${ehgbAktifYil} yılı parametreleri kaydedildi.`); }
   else showToast(j.message,'danger');
 };
-const UNVANLAR = [
-  { deger:'', etiket:'— Ünvan seçin —', titr:'' },
-  { deger:'Ziraat Teknikeri', etiket:'Ziraat Teknikeri', titr:'' },
-  { deger:'Ziraat Mühendisi', etiket:'Ziraat Mühendisi', titr:'' },
-  { deger:'Ziraat Yüksek Mühendisi', etiket:'Ziraat Yüksek Mühendisi', titr:'' },
-  { deger:'Doktor Ziraat Mühendisi', etiket:'Doktor Ziraat Mühendisi', titr:'Dr. ' },
-  { deger:'Doçent Doktor Ziraat Mühendisi', etiket:'Doçent Doktor Ziraat Mühendisi', titr:'Doç. Dr. ' },
-  { deger:'Profesör Doktor Ziraat Mühendisi', etiket:'Profesör Doktor Ziraat Mühendisi', titr:'Prof. Dr. ' },
+// Teknik Ekip kurum seçenekleri
+const TE_KURUMLAR = [
+  { deger:'', etiket:'— Kurum seçin —', birim:false },
+  { deger:'İl Tarım ve Orman Müdürlüğü', etiket:'İl Tarım ve Orman Müdürlüğü', birim:false },
+  { deger:'İlçe Tarım ve Orman Müdürlüğü', etiket:'İlçe Tarım ve Orman Müdürlüğü', birim:false },
+  { deger:'Kadastro Müdürlüğü', etiket:'Kadastro Müdürlüğü', birim:true },
+  { deger:'Milli Emlak Dairesi Başkanlığı', etiket:'Milli Emlak Dairesi Başkanlığı', birim:true },
+  { deger:'Milli Emlak Müdürlüğü', etiket:'Milli Emlak Müdürlüğü', birim:true },
+  { deger:'Orman İşletme Müdürlüğü', etiket:'Orman İşletme Müdürlüğü', birim:true },
+  { deger:'Orman Bölge Müdürlüğü', etiket:'Orman Bölge Müdürlüğü', birim:true },
+  { deger:'Belediye', etiket:'Belediye', birim:true },
 ];
 
-const unvanSelect = (path, uyeIdx, mevcutUnvan) =>
-  `<select class="form-select form-select-sm" style="min-width:160px;flex:2"
-    onchange="ayarlar.${path}[${uyeIdx}].unvan=this.value">
-    ${UNVANLAR.map(u=>`<option value="${u.deger}" ${mevcutUnvan===u.deger?'selected':''}>${u.etiket}</option>`).join('')}
-  </select>`;
+// İl Mera Komisyonu kurum seçenekleri
+const KOM_KURUMLAR = [
+  { deger:'', etiket:'— Kurum seçin —', birim:false },
+  { deger:'Valilik', etiket:'Valilik', birim:false },
+  { deger:'İl Tarım ve Orman Müdürlüğü', etiket:'İl Tarım ve Orman Müdürlüğü', birim:false },
+  { deger:'Devlet Su İşleri', etiket:'Devlet Su İşleri', birim:false },
+  { deger:'Orman Genel Müdürlüğü', etiket:'Orman Genel Müdürlüğü', birim:false },
+  { deger:'Orman Bölge Müdürlüğü', etiket:'Orman Bölge Müdürlüğü', birim:false },
+  { deger:'Orman İşletme Müdürlüğü', etiket:'Orman İşletme Müdürlüğü', birim:false },
+  { deger:'Mahalle Muhtarlığı', etiket:'Mahalle Muhtarlığı', birim:true },
+  { deger:'Defterdarlık', etiket:'Defterdarlık', birim:false },
+  { deger:'Muhakemat Müdürlüğü', etiket:'Muhakemat Müdürlüğü', birim:false },
+  { deger:'Kadastro Müdürlüğü', etiket:'Kadastro Müdürlüğü', birim:false },
+  { deger:'Ziraat Odası Başkanlığı', etiket:'Ziraat Odası Başkanlığı', birim:false },
+  { deger:'İl Jandarma Komutanlığı', etiket:'İl Jandarma Komutanlığı', birim:false },
+  { deger:'İl Emniyet Müdürlüğü', etiket:'İl Emniyet Müdürlüğü', birim:false },
+];
 
-const adTamHali = (ad, unvan) => {
-  const u = UNVANLAR.find(x=>x.deger===unvan);
-  return u?.titr ? u.titr + ad : ad;
+// Belgede görünecek kurum adı
+const kurumTamAd = (kurum, birim) => {
+  if (!kurum) return '';
+  if (kurum === 'Belediye' && birim) {
+    // "Kağıthane" → "Kağıthane Belediye Başkanlığı"
+    return `${birim} Belediye Başkanlığı`;
+  }
+  if (kurum === 'Mahalle Muhtarlığı' && birim) return birim;
+  if (birim) return `${birim} ${kurum}`;
+  return kurum;
 };
 
-const uyeSatiriPersonel = (uyeler, listeAdi, ekipIdx, uyeIdx) => {
+// Ünvan: serbest metin girişi
+const unvanInput = (path, uyeIdx, mevcutUnvan) =>
+  `<input type="text" class="form-control form-control-sm" style="min-width:160px;flex:2"
+    placeholder="Ünvan (serbest)" value="${mevcutUnvan||''}"
+    oninput="ayarlar.${path}[${uyeIdx}].unvan=this.value"/>`;
+
+// Kurum dropdown + birim alanı
+const kurumSelect = (path, uyeIdx, mevcutKurum, mevcutBirim, kurumListesi) => {
+  const secilenKurum = kurumListesi.find(k => k.deger === mevcutKurum);
+  const birimGerekli = secilenKurum?.birim || false;
+  return `<div style="display:flex;gap:4px;flex:3;min-width:200px">
+    <select class="form-select form-select-sm" style="flex:2"
+      onchange="kurumDegisti(this,'${path}',${uyeIdx},'${kurumListesi===KOM_KURUMLAR?'kom':'te'}')">
+      ${kurumListesi.map(k=>`<option value="${k.deger}" ${mevcutKurum===k.deger?'selected':''}>${k.etiket}</option>`).join('')}
+    </select>
+    <input type="text" class="form-control form-control-sm birim-input" style="flex:1.5;min-width:80px;${birimGerekli?'':'display:none'}"
+      placeholder="Birim..." value="${mevcutBirim||''}"
+      oninput="ayarlar.${path}[${uyeIdx}].birim=this.value"
+      title="Birim (örn: İstanbul, Kağıthane)"/>
+  </div>`;
+};
+
+window.kurumDegisti = (sel, path, uyeIdx, tip) => {
+  const liste = tip==='kom' ? KOM_KURUMLAR : TE_KURUMLAR;
+  const secilenKurum = liste.find(k => k.deger === sel.value);
+  const birimInput = sel.parentElement.querySelector('.birim-input');
+  if (birimInput) birimInput.style.display = secilenKurum?.birim ? '' : 'none';
+  // Veriyi güncelle
+  const pathParts = path.split('.');
+  let obj = ayarlar;
+  for (let i=0; i<pathParts.length-1; i++) {
+    const part = pathParts[i];
+    const m = part.match(/(\w+)\[(\d+)\]/);
+    obj = m ? obj[m[1]][parseInt(m[2])] : obj[part];
+  }
+  const lastKey = pathParts[pathParts.length-1];
+  const m = lastKey.match(/(\w+)\[(\d+)\]/);
+  const arr = m ? (m[1]==='uyeler'?obj:ayarlar[m[1]]) : obj[lastKey];
+  if (m) (m[1]==='uyeler'?obj[m[1]]:ayarlar[m[1]])[parseInt(m[2])].kurum = sel.value;
+  else obj[lastKey][uyeIdx].kurum = sel.value;
+  // Basit yol
+  try { eval(`ayarlar.${path}[${uyeIdx}].kurum = sel.value`); } catch(e){}
+};
+
+const uyeSatiriPersonel = (uyeler, listeAdi, ekipIdx, uyeIdx, kurumListesi) => {
   const u = uyeler[uyeIdx];
   const path = ekipIdx !== null ? `${listeAdi}[${ekipIdx}].uyeler` : listeAdi;
+  const liste = kurumListesi || TE_KURUMLAR;
   return `<div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap">
-    <input type="text" class="form-control form-control-sm" style="min-width:140px;flex:2" placeholder="Ad Soyad *" value="${u.ad||''}" oninput="ayarlar.${path}[${uyeIdx}].ad=this.value"/>
-    <input type="text" class="form-control form-control-sm" style="min-width:120px;flex:1.5" placeholder="Kurum" value="${u.kurum||''}" oninput="ayarlar.${path}[${uyeIdx}].kurum=this.value"/>
-    ${unvanSelect(path, uyeIdx, u.unvan||'')}
-    <select class="form-select form-select-sm" style="width:80px;flex:none" onchange="ayarlar.${path}[${uyeIdx}].asil_yedek=this.value">
+    <input type="text" class="form-control form-control-sm" style="min-width:130px;flex:2" placeholder="Ad Soyad *" value="${u.ad||''}" oninput="ayarlar.${path}[${uyeIdx}].ad=this.value"/>
+    ${unvanInput(path, uyeIdx, u.unvan||'')}
+    ${kurumSelect(path, uyeIdx, u.kurum||'', u.birim||'', liste)}
+    <select class="form-select form-select-sm" style="width:75px;flex:none" onchange="ayarlar.${path}[${uyeIdx}].asil_yedek=this.value">
       <option value="asil" ${u.asil_yedek!=='yedek'?'selected':''}>Asıl</option>
       <option value="yedek" ${u.asil_yedek==='yedek'?'selected':''}>Yedek</option>
     </select>
@@ -773,7 +840,7 @@ const renderPersonel = () => {
           </div>
         </div>
         ${(ekip.uyeler||[]).length
-          ? (ekip.uyeler||[]).map((_,ui) => uyeSatiriPersonel(ekip.uyeler, 'teknik_ekipler', ei, ui)).join('')
+          ? (ekip.uyeler||[]).map((_,ui) => uyeSatiriPersonel(ekip.uyeler, 'teknik_ekipler', ei, ui, TE_KURUMLAR)).join('')
           : '<p class="text-muted small text-center py-2 mb-0">Henüz üye yok.</p>'}
       </div>`).join('')
     : '<p class="text-muted small text-center py-3">Henüz ekip yok.</p>';
@@ -792,7 +859,7 @@ const renderPersonel = () => {
           </div>
         </div>
         ${(kom.uyeler||[]).length
-          ? (kom.uyeler||[]).map((_,ui) => uyeSatiriPersonel(kom.uyeler, 'komisyonlar', ki, ui)).join('')
+          ? (kom.uyeler||[]).map((_,ui) => uyeSatiriPersonel(kom.uyeler, 'komisyonlar', ki, ui, KOM_KURUMLAR)).join('')
           : '<p class="text-muted small text-center py-2 mb-0">Henüz üye yok.</p>'}
       </div>`).join('')
     : '<p class="text-muted small text-center py-3">Henüz komisyon yok.</p>';
@@ -803,7 +870,7 @@ const renderPersonel = () => {
     ? kullanicilar.map((k, i) => `
       <div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap">
         <input type="text" class="form-control form-control-sm" style="min-width:160px;flex:2" placeholder="Ad Soyad *" value="${k.ad||''}" oninput="ayarlar.kullanicilar[${i}].ad=this.value"/>
-        ${unvanSelect('kullanicilar', i, k.unvan||'')}
+        <input type="text" class="form-control form-control-sm" style="min-width:140px;flex:2" placeholder="Ünvan (serbest)" value="${k.unvan||''}" oninput="ayarlar.kullanicilar[${i}].unvan=this.value"/>
         <div class="form-check mb-0" title="Aktif"><input class="form-check-input" type="checkbox" ${k.aktif!==false?'checked':''} onchange="ayarlar.kullanicilar[${i}].aktif=this.checked"/></div>
         <button class="btn btn-xs btn-outline-danger" onclick="kullaniciSil(${i})"><i class="bi bi-trash"></i></button>
       </div>`).join('')

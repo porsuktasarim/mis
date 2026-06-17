@@ -406,23 +406,26 @@ const rapor = async (req, res, next) => {
     const hesapTarih   = hesap.karar_tarihi  ? new Date(hesap.karar_tarihi).toLocaleDateString('tr-TR')  : '-';
     const fmt = n => n != null ? Number(n).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
 
-    const titrMap = {
-      'Doktor Ziraat Mühendisi': 'Dr. ',
-      'Doçent Doktor Ziraat Mühendisi': 'Doç. Dr. ',
-      'Profesör Doktor Ziraat Mühendisi': 'Prof. Dr. ',
+    const tamAd = (ad, unvan) => {
+      // Ünvan serbest metin - Dr./Doç.Dr./Prof.Dr. içeriyorsa önüne koy
+      if (!unvan) return ad || '';
+      const u = unvan.toLowerCase();
+      if (u.includes('doçent') || u.includes('doç.')) return `Doç. Dr. ${ad}`;
+      if (u.includes('profesör') || u.includes('prof.')) return `Prof. Dr. ${ad}`;
+      if (u.includes('doktor') || u.includes('dr.')) return `Dr. ${ad}`;
+      return ad || '';
     };
-    const tamAd = (ad, unvan) => (titrMap[unvan] || '') + (ad || '');
 
     // Eşit aralıklı, ortalanmış imza kutuları
     // İmza alanı: 2 satır boşluk + %60 opaklıkta "İMZA" arka plan yazısı, çizgi yok
     const pSay = personel.length || 1;
     const imzaKutu = (ad, unvan) => `
-      <div style="width:${Math.floor(100/pSay)}%;display:inline-block;text-align:center;vertical-align:top;padding:0 6px">
-        <div style="position:relative;height:70px;display:flex;align-items:center;justify-content:center;margin-bottom:6px">
-          <span style="font-size:28px;font-weight:900;color:rgba(204,204,204,0.05);letter-spacing:6px;user-select:none;-webkit-user-select:none">İMZA</span>
+      <div style="width:${Math.floor(100/pSay)}%;display:inline-block;text-align:center;vertical-align:top;padding:0 4px">
+        <div style="position:relative;height:50px;display:flex;align-items:center;justify-content:center;margin-bottom:4px">
+          <span style="font-size:22px;font-weight:900;color:rgba(204,204,204,0.05);letter-spacing:5px;user-select:none;-webkit-user-select:none">İMZA</span>
         </div>
-        <div style="font-weight:bold;font-size:9.5px">${tamAd(ad, unvan)}</div>
-        <div style="font-size:8.5px;color:#444;margin-top:2px">${unvan||''}</div>
+        <div style="font-weight:bold;font-size:9px">${tamAd(ad, unvan)}</div>
+        <div style="font-size:8px;color:#444;margin-top:1px">${unvan||''}</div>
       </div>`;
 
     const imzaKutulari = personel.length > 0
@@ -436,41 +439,41 @@ const rapor = async (req, res, next) => {
 <title>Eski Haline Getirme Bedeli Hesap Raporu</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;font-size:10.5px;color:#111;background:#fff}
-.sayfa{padding:12mm 14mm}
+body{font-family:Arial,sans-serif;font-size:8.5px;color:#111;background:#fff}
+.sayfa{padding:10mm 12mm}
 .page-break{page-break-before:always}
-@media print{.sayfa{padding:8mm 10mm}}
-h1{font-size:13px;text-align:center;font-weight:bold;margin-bottom:3px;text-transform:uppercase}
-h2{font-size:11px;text-align:center;color:#333;margin-bottom:14px;font-weight:normal}
-.bolum-baslik{font-size:11px;font-weight:bold;color:#1a6b4a;border-bottom:1.5px solid #1a6b4a;padding-bottom:3px;margin:10px 0 5px}
-table{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:10px}
-th{background:#1a6b4a;color:#fff;padding:4px 6px;text-align:left;font-weight:bold}
-td{padding:3px 6px;border-bottom:1px solid #e0e0e0}
+@media print{
+  @page{margin:8mm 10mm}
+  .sayfa{padding:0}
+  .imza-blok{page-break-inside:avoid;page-break-before:avoid}
+}
+h1{font-size:11px;text-align:center;font-weight:bold;margin-bottom:2px;text-transform:uppercase}
+h2{font-size:9px;text-align:center;color:#333;margin-bottom:6px;font-weight:normal}
+.bolum-baslik{font-size:10px;font-weight:bold;color:#1a6b4a;border-bottom:1px solid #1a6b4a;padding-bottom:2px;margin:6px 0 3px}
+table{width:100%;border-collapse:collapse;margin-bottom:5px;font-size:9px}
+th{background:#1a6b4a;color:#fff;padding:3px 5px;text-align:left;font-weight:bold}
+td{padding:2px 5px;border-bottom:1px solid #e0e0e0}
 tr:nth-child(even) td{background:#f5faf6}
 .r{text-align:right}.c{text-align:center}
 .grup td{background:#dff0e8 !important;font-weight:bold;color:#0a3622}
 .ara-toplam td{background:#c8e6d8 !important;font-weight:bold}
-.genel-toplam td{background:#1a6b4a !important;color:#fff;font-weight:bold;font-size:12px}
-.bilgi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.bilgi-kart{border:1px solid #ccd8cc;border-radius:4px;padding:8px}
-.bilgi-kart-baslik{font-size:10.5px;font-weight:bold;color:#1a6b4a;border-bottom:1px solid #ccd8cc;padding-bottom:4px;margin-bottom:6px}
-.bilgi-satir{display:flex;gap:4px;margin-bottom:2px;font-size:10px}
-.etiket{color:#555;min-width:135px}.deger{font-weight:500}
-.imza-baslik{font-size:10px;font-weight:bold;color:#1a6b4a;margin:14px 0 8px}
-.imza-alani{display:flex;justify-content:flex-start;flex-wrap:wrap;gap:24px}
-.imza-kutu{text-align:center;min-width:110px}
-.imza-cizgi{border-top:1px solid #333;margin-bottom:4px}
-.imza-ad{font-weight:bold;font-size:9.5px}
-.imza-unvan{font-size:8.5px;color:#444}
-.aciklama-kutu{border:1px solid #ccd8cc;border-radius:4px;padding:7px 9px;margin-bottom:6px;background:#fafff8}
-.aciklama-baslik{font-weight:bold;color:#1a6b4a;margin-bottom:4px;font-size:10px}
-.formul-satir{font-family:monospace;background:#f0f4f0;border:1px solid #dde;padding:4px 7px;border-radius:3px;margin:3px 0;font-size:8.5px;white-space:pre-wrap}
-.iki-sutun{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.sayfa-2{font-size:9px}
-.sayfa-2 table{font-size:8.5px;margin-bottom:5px}
-.sayfa-2 th{padding:2px 4px}.sayfa-2 td{padding:2px 4px}
-.sayfa-2 .aciklama-kutu{padding:5px 7px;margin-bottom:5px}
-.sayfa-2 ul{padding-left:14px}.sayfa-2 li{margin-bottom:1px;line-height:1.4}
+.genel-toplam td{background:#1a6b4a !important;color:#fff;font-weight:bold;font-size:11px}
+.bilgi-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.bilgi-kart{border:1px solid #ccd8cc;border-radius:3px;padding:5px 7px}
+.bilgi-kart-baslik{font-size:9.5px;font-weight:bold;color:#1a6b4a;border-bottom:1px solid #ccd8cc;padding-bottom:2px;margin-bottom:4px}
+.bilgi-satir{display:flex;gap:4px;margin-bottom:1px;font-size:9px}
+.etiket{color:#555;min-width:120px}.deger{font-weight:500}
+.imza-blok{page-break-inside:avoid;page-break-before:avoid;margin-top:8px}
+.imza-baslik{font-size:9.5px;font-weight:bold;color:#1a6b4a;margin-bottom:5px}
+.aciklama-kutu{border:1px solid #ccd8cc;border-radius:3px;padding:5px 7px;margin-bottom:5px;background:#fafff8}
+.aciklama-baslik{font-weight:bold;color:#1a6b4a;margin-bottom:3px;font-size:9px}
+.formul-satir{font-family:monospace;background:#f0f4f0;border:1px solid #dde;padding:3px 6px;border-radius:3px;margin:2px 0;font-size:8px;white-space:pre-wrap}
+.iki-sutun{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sayfa-2{font-size:8.5px}
+.sayfa-2 table{font-size:8px;margin-bottom:4px}
+.sayfa-2 th{padding:2px 4px}.sayfa-2 td{padding:1px 4px}
+.sayfa-2 .aciklama-kutu{padding:4px 6px;margin-bottom:4px}
+.sayfa-2 ul{padding-left:12px}.sayfa-2 li{margin-bottom:1px;line-height:1.3}
 </style>
 </head>
 <body>
@@ -553,24 +556,27 @@ tr:nth-child(even) td{background:#f5faf6}
   </div>
 </div>
 
-<table style="margin-top:6px">
-  <tr><th colspan="2" style="font-size:11px;text-align:center">ÖZET</th></tr>
+<div class="imza-blok">
+
+<table>
+  <tr><th colspan="2" style="font-size:10px;text-align:center">ÖZET</th></tr>
   <tr><td style="width:70%">İşçilik Toplam</td><td class="r">${fmt(s.iscilik_toplam)} TL</td></tr>
   <tr><td>Tohum Toplam</td><td class="r">${fmt(s.tohum_toplam)} TL</td></tr>
   <tr><td>Gübreleme Toplam</td><td class="r">${fmt(s.gubre_toplam)} TL</td></tr>
   <tr class="genel-toplam"><td><strong>ESKİ HALİNE GETİRME BEDELİ TOPLAMI</strong></td><td class="r"><strong>${fmt(hesap.toplam_bedel)} TL</strong></td></tr>
 </table>
 
-<p style="font-size:9.5px;color:#555;margin:8px 0 20px;line-height:1.5">
+<p style="font-size:8.5px;color:#555;margin:5px 0 8px;line-height:1.4">
   Yukarıda hesaplanan bedel, 4342 sayılı Mera Kanunu'nun ilgili hükümleri çerçevesinde mera alanının eski haline getirilmesi amacıyla köy sandığına veya belediye bütçesinde ayrı bir hesaba yatırılacaktır.
 </p>
 
-<div style="font-size:9.5px;margin-bottom:12px"><strong>Tarih:</strong> .......................</div>
-
+<div style="font-size:9px;margin-bottom:8px"><strong>Tarih:</strong> .......................</div>
 <div class="imza-baslik">HAZIRLAYANLAR</div>
 <div style="display:flex;width:100%">
   ${imzaKutulari}
 </div>
+
+</div><!-- /imza-blok -->
 
 </div><!-- /sayfa-1 -->
 
