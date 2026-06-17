@@ -407,12 +407,11 @@ const rapor = async (req, res, next) => {
     const fmt = n => n != null ? Number(n).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00';
 
     const tamAd = (ad, unvan) => {
-      // Ünvan serbest metin - Dr./Doç.Dr./Prof.Dr. içeriyorsa önüne koy
       if (!unvan) return ad || '';
       const u = unvan.toLowerCase();
-      if (u.includes('doçent') || u.includes('doç.')) return `Doç. Dr. ${ad}`;
-      if (u.includes('profesör') || u.includes('prof.')) return `Prof. Dr. ${ad}`;
-      if (u.includes('doktor') || u.includes('dr.')) return `Dr. ${ad}`;
+      if (u.startsWith('profesör') || u.includes('prof.')) return `Prof. Dr. ${ad}`;
+      if (u.startsWith('doçent') || u.includes('doç.')) return `Doç. Dr. ${ad}`;
+      if (u.startsWith('doktor') || u.includes('dr.')) return `Dr. ${ad}`;
       return ad || '';
     };
 

@@ -870,7 +870,15 @@ const renderPersonel = () => {
     ? kullanicilar.map((k, i) => `
       <div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap">
         <input type="text" class="form-control form-control-sm" style="min-width:160px;flex:2" placeholder="Ad Soyad *" value="${k.ad||''}" oninput="ayarlar.kullanicilar[${i}].ad=this.value"/>
-        <input type="text" class="form-control form-control-sm" style="min-width:140px;flex:2" placeholder="Ünvan (serbest)" value="${k.unvan||''}" oninput="ayarlar.kullanicilar[${i}].unvan=this.value"/>
+        <select class="form-select form-select-sm" style="min-width:190px;flex:2" onchange="ayarlar.kullanicilar[${i}].unvan=this.value">
+          <option value="">— Ünvan seçin —</option>
+          <option value="Ziraat Teknikeri" ${k.unvan==='Ziraat Teknikeri'?'selected':''}>Ziraat Teknikeri</option>
+          <option value="Ziraat Mühendisi" ${k.unvan==='Ziraat Mühendisi'?'selected':''}>Ziraat Mühendisi</option>
+          <option value="Ziraat Yüksek Mühendisi" ${k.unvan==='Ziraat Yüksek Mühendisi'?'selected':''}>Ziraat Yüksek Mühendisi</option>
+          <option value="Doktor Ziraat Mühendisi" ${k.unvan==='Doktor Ziraat Mühendisi'?'selected':''}>Doktor Ziraat Mühendisi</option>
+          <option value="Doçent Doktor Ziraat Mühendisi" ${k.unvan==='Doçent Doktor Ziraat Mühendisi'?'selected':''}>Doçent Doktor Ziraat Mühendisi</option>
+          <option value="Profesör Doktor Ziraat Mühendisi" ${k.unvan==='Profesör Doktor Ziraat Mühendisi'?'selected':''}>Profesör Doktor Ziraat Mühendisi</option>
+        </select>
         <div class="form-check mb-0" title="Aktif"><input class="form-check-input" type="checkbox" ${k.aktif!==false?'checked':''} onchange="ayarlar.kullanicilar[${i}].aktif=this.checked"/></div>
         <button class="btn btn-xs btn-outline-danger" onclick="kullaniciSil(${i})"><i class="bi bi-trash"></i></button>
       </div>`).join('')
