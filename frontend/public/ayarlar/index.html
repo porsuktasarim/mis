@@ -48,7 +48,7 @@
     </nav>
 
     <div class="ayar-topbar">
-      <button class="ayar-sekme active" data-tab="drive"><i class="bi bi-google me-1"></i>Google Drive</button>
+      <button class="ayar-sekme active" data-tab="drive"><i class="bi bi-hdd-network me-1"></i>Depolama Alanı</button>
       <button class="ayar-sekme" data-tab="kategoriler"><i class="bi bi-tags me-1"></i>Dosya Kategorileri</button>
       <button class="ayar-sekme" data-tab="renkler"><i class="bi bi-palette me-1"></i>Not Renkleri</button>
       <button class="ayar-sekme" data-tab="toprak"><i class="bi bi-layers me-1"></i>Toprak Sınıfları</button>
@@ -62,11 +62,43 @@
 
     <main class="mis-main p-4">
 
-      <!-- DRIVE -->
+      <!-- DEPOLAMA ALANI -->
       <div class="ayar-tab active" id="tab-drive">
         <div class="row g-4">
-          <div class="col-lg-5">
+          <!-- SOL: Taşıma butonları + hesap seçimi -->
+          <div class="col-lg-4">
             <div class="mis-card mb-3">
+              <div class="mis-card-header"><i class="bi bi-arrow-left-right"></i><span class="title">Dosya Taşıma</span></div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Hedef Drive Hesabı</label>
+                <select class="form-select form-select-sm" id="drive-hedef-sec">
+                  <option value="">— Hesap seçin —</option>
+                </select>
+              </div>
+              <div class="d-grid gap-2">
+                <button class="btn btn-outline-secondary btn-sm" onclick="dosyalariSunucuyaTasi()">
+                  <i class="bi bi-server me-1"></i>Tüm Dosyaları Sunucuya Taşı
+                  <div class="small text-muted fw-normal">Drive'daki dosyalar silinerek sunucuya taşınır</div>
+                </button>
+                <button class="btn btn-mis btn-sm" onclick="dosyalariDriveTasi()">
+                  <i class="bi bi-google me-1"></i>Tüm Dosyaları Seçili Drive'a Taşı
+                  <div class="small fw-normal" style="opacity:.85">Sunucu ve diğer Drive'lardaki dosyalar silinerek seçili Drive'a taşınır</div>
+                </button>
+              </div>
+              <div class="alert alert-warning small mt-3 mb-0 py-2">
+                <i class="bi bi-exclamation-triangle me-1"></i>Bu işlemler geri alınamaz. Taşıma öncesinde yedek almanız önerilir.
+              </div>
+            </div>
+          </div>
+          <!-- SAĞ: Drive hesapları + kurulum -->
+          <div class="col-lg-8">
+            <div class="mis-card mb-3">
+              <div class="mis-card-header"><i class="bi bi-google"></i><span class="title">Ekli Drive Hesapları</span>
+                <button class="btn btn-sm btn-mis ms-auto" onclick="driveEkleModal()"><i class="bi bi-plus-lg me-1"></i>Hesap Ekle</button>
+              </div>
+              <div id="drive-listesi"><div class="text-center py-3 text-muted small">Yükleniyor...</div></div>
+            </div>
+            <div class="mis-card">
               <div class="mis-card-header"><i class="bi bi-info-circle text-success"></i><span class="title">Google Drive Kurulumu (OAuth2 — Önerilen)</span></div>
               <div class="adim-kutu d-flex gap-3">
                 <span class="adim-no">1</span>
@@ -82,28 +114,20 @@
               </div>
               <div class="adim-kutu d-flex gap-3">
                 <span class="adim-no">4</span>
-                <div class="small"><strong>OAuth istemcisi oluşturun</strong><br>APIs & Services → Credentials → <strong>+ Create Credentials → OAuth client ID</strong><br>Application type: <strong>Desktop app</strong> → Ad: <code>MIS</code> → Create<br>Açılan pencereden <strong>JSON İndir</strong> butonuna tıklayın</div>
+                <div class="small"><strong>OAuth istemcisi oluşturun</strong><br>APIs & Services → Credentials → <strong>+ Create Credentials → OAuth client ID</strong><br>Application type: <strong>Desktop app</strong> → Ad: <code>MIS</code> → Create → JSON İndir</div>
               </div>
               <div class="adim-kutu d-flex gap-3">
                 <span class="adim-no">5</span>
-                <div class="small"><strong>MİS'e ekleyin</strong><br>Sağdaki "Hesap Ekle" → Tip: <strong>OAuth2</strong> → İndirilen JSON'ı not defteri ile açıp yapıştırın → Kaydet</div>
+                <div class="small"><strong>MİS'e ekleyin</strong><br>"Hesap Ekle" → Tip: <strong>OAuth2</strong> → JSON'ı yapıştırın → Kaydet</div>
               </div>
               <div class="adim-kutu d-flex gap-3">
                 <span class="adim-no">6</span>
-                <div class="small"><strong>Yetkilendirin</strong><br>Kayıtlı hesabın yanındaki <strong>Yetkilendir</strong> butonuna tıklayın → Açılan Google sayfasında hesabı seçin → İzin verin → Kodu kopyalayın → MİS'e yapıştırın</div>
+                <div class="small"><strong>Yetkilendirin</strong><br><strong>Yetkilendir</strong> butonuna tıklayın → Google sayfasında izin verin → Kodu yapıştırın</div>
               </div>
               <div class="adim-kutu d-flex gap-3" style="border-left:3px solid #ffc107;background:#fffde7">
                 <span class="adim-no" style="background:#ffc107">!</span>
-                <div class="small"><strong>Servis Hesabı Notu:</strong> Service Account yalnızca <em>Shared Drive</em> ile çalışır. Normal Drive'da "storage quota" hatası verir. OAuth2 kullanmanız önerilir.</div>
+                <div class="small"><strong>Not:</strong> Service Account yalnızca <em>Shared Drive</em> ile çalışır. Normal Drive'da "storage quota" hatası verir. OAuth2 kullanın.</div>
               </div>
-            </div>
-          </div>
-          <div class="col-lg-7">
-            <div class="mis-card">
-              <div class="mis-card-header"><i class="bi bi-google"></i><span class="title">Ekli Drive Hesapları</span>
-                <button class="btn btn-sm btn-mis ms-auto" onclick="driveEkleModal()"><i class="bi bi-plus-lg me-1"></i>Hesap Ekle</button>
-              </div>
-              <div id="drive-listesi"><div class="text-center py-3 text-muted small">Yükleniyor...</div></div>
             </div>
           </div>
         </div>
@@ -487,26 +511,75 @@ const loadAyarlar = async () => {
 // Drive
 const renderDrive = () => {
   const el = document.getElementById('drive-listesi');
-  if (!ayarlar.drive_hesaplari?.length) { el.innerHTML = '<p class="text-muted text-center py-3 small">Henüz hesap eklenmedi. Sol taraftaki adımları takip edin.</p>'; return; }
-  el.innerHTML = `<table class="table table-sm mis-table mb-0"><thead><tr><th>Ad</th><th>Tip</th><th>E-posta</th><th>Durum</th><th>İşlemler</th></tr></thead><tbody>
+  const hedefSec = document.getElementById('drive-hedef-sec');
+  if (!ayarlar.drive_hesaplari?.length) {
+    el.innerHTML = '<p class="text-muted text-center py-3 small">Henüz Drive hesabı eklenmedi.</p>';
+    if (hedefSec) hedefSec.innerHTML = '<option value="">— Hesap yok —</option>';
+    return;
+  }
+  // Hedef seçiciyi doldur
+  if (hedefSec) {
+    hedefSec.innerHTML = '<option value="">— Seçin —</option>'
+      + ayarlar.drive_hesaplari.filter(h=>h.yetkili).map(h=>
+          `<option value="${h._id}">${h.ad}${h.email?' ('+h.email+')':''}</option>`
+        ).join('');
+  }
+  el.innerHTML = `<div class="table-responsive"><table class="table table-sm mis-table mb-0">
+    <thead><tr><th>Ad</th><th>Tip</th><th>E-posta</th><th>Boyut</th><th>Durum</th><th></th></tr></thead><tbody>
     ${ayarlar.drive_hesaplari.map(h=>`<tr>
       <td><strong>${h.ad}</strong>${h.aciklama?`<br><small class="text-muted">${h.aciklama}</small>`:''}</td>
       <td><span class="grup-badge">${h.tip==='oauth2'?'OAuth2':'Servis'}</span></td>
-      <td class="small text-truncate" style="max-width:180px">${h.email||'-'}</td>
+      <td class="small" style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${h.email||'-'}</td>
+      <td class="small text-muted" id="drive-boyut-${h._id}">—</td>
       <td>
-        ${h.tip==='oauth2' && !h.yetkili ? '<span class="badge bg-warning text-dark">Yetkilendirilmemiş</span>' : ''}
-        ${h.yetkili ? '<span class="badge bg-success">Aktif</span>' : ''}
-        ${!h.aktif ? '<span class="badge bg-secondary">Pasif</span>' : ''}
+        ${h.tip==='oauth2'&&!h.yetkili?'<span class="badge bg-warning text-dark">Yetkilendirilmemiş</span>':''}
+        ${h.yetkili?'<span class="badge bg-success">Aktif</span>':''}
+        ${!h.aktif?'<span class="badge bg-secondary">Pasif</span>':''}
       </td>
       <td><div class="d-flex gap-1 flex-wrap">
-        ${h.tip==='oauth2' && !h.yetkili ? `<button class="btn btn-xs btn-mis" onclick="driveYetkilendir('${h._id}')"><i class="bi bi-key me-1"></i>Yetkilendir</button>` : ''}
+        ${h.tip==='oauth2'&&!h.yetkili?`<button class="btn btn-xs btn-mis" onclick="driveYetkilendir('${h._id}')"><i class="bi bi-key me-1"></i>Yetkilendir</button>`:''}
         <button class="btn btn-xs btn-outline-success" onclick="driveTesti('${h._id}')"><i class="bi bi-wifi"></i> Test</button>
         <button class="btn btn-xs btn-outline-danger" onclick="driveSil('${h._id}')"><i class="bi bi-trash"></i></button>
       </div></td>
     </tr>`).join('')}
-  </tbody></table>`;
+  </tbody></table></div>`;
+  // Boyut bilgisini asenkron çek
+  ayarlar.drive_hesaplari.filter(h=>h.yetkili).forEach(async h => {
+    try {
+      const r = await fetch(`${API}/drive/${h._id}/boyut`);
+      const j = await r.json();
+      const el2 = document.getElementById(`drive-boyut-${h._id}`);
+      if (el2 && j.success) el2.textContent = j.data?.gb != null ? j.data.gb.toFixed(2)+' GB' : '—';
+    } catch {}
+  });
 };
-window.driveEkleModal = () => {
+window.dosyalariSunucuyaTasi = async () => {
+  const sifre = prompt('Bu işlem geri alınamaz! Tüm Drive dosyaları silinerek sunucuya taşınacak.\n\nDevam etmek için admin şifresi girin:');
+  if (!sifre) return;
+  if (!confirm('Tüm dosyalar sunucuya taşınacak, Drive\'daki kopyalar silinecek. Emin misiniz?')) return;
+  try {
+    showToast('Taşıma başlatıldı, lütfen bekleyin...','info');
+    const r = await fetch(`${API}/dosya-tasi/sunucu`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sifre})});
+    const j = await r.json();
+    if (j.success) showToast(`Taşıma tamamlandı. ${j.data?.tasinan||0} dosya taşındı.`,'success');
+    else showToast(j.message||'Hata.','danger');
+  } catch { showToast('Sunucuya ulaşılamadı.','danger'); }
+};
+
+window.dosyalariDriveTasi = async () => {
+  const hedefId = document.getElementById('drive-hedef-sec').value;
+  if (!hedefId) { showToast('Lütfen hedef Drive hesabı seçin.','warning'); return; }
+  const sifre = prompt('Bu işlem geri alınamaz! Tüm dosyalar seçili Drive\'a taşınacak, diğerleri silinecek.\n\nDevam etmek için admin şifresi girin:');
+  if (!sifre) return;
+  if (!confirm('Sunucu ve diğer Drive\'lardaki dosyalar silinerek seçili Drive\'a taşınacak. Emin misiniz?')) return;
+  try {
+    showToast('Taşıma başlatıldı, lütfen bekleyin...','info');
+    const r = await fetch(`${API}/dosya-tasi/drive`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sifre, hedef_drive_id: hedefId})});
+    const j = await r.json();
+    if (j.success) showToast(`Taşıma tamamlandı. ${j.data?.tasinan||0} dosya taşındı.`,'success');
+    else showToast(j.message||'Hata.','danger');
+  } catch { showToast('Sunucuya ulaşılamadı.','danger'); }
+};
   document.getElementById('drive-ad').value='';
   document.getElementById('drive-aciklama').value='';
   document.getElementById('drive-json').value='';

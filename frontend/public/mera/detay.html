@@ -52,6 +52,7 @@
       <button class="detay-sekme" data-tab="otlatma"><i class="bi bi-grass me-1"></i>Otlatma</button>
       <button class="detay-sekme" data-tab="notlar"><i class="bi bi-journal-text me-1"></i>Notlar <span class="badge bg-secondary ms-1" id="not-sayisi">0</span></button>
       <button class="detay-sekme" data-tab="dosyalar"><i class="bi bi-folder me-1"></i>Dosyalar <span class="badge bg-secondary ms-1" id="dosya-sayisi">0</span></button>
+      <button class="detay-sekme" data-tab="isgaller"><i class="bi bi-exclamation-triangle me-1"></i>İşgaller <span class="badge bg-secondary ms-1" id="isgal-sayisi">0</span></button>
     </div>
 
     <main class="mis-main p-4">
@@ -223,6 +224,20 @@
               <div class="form-text mb-2">Görseller otomatik küçültülür. PDF max 20MB.</div>
               <button class="btn btn-mis w-100 btn-sm" onclick="dosyaYukle()"><i class="bi bi-upload me-1"></i>Yükle</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- İŞGALLER -->
+      <div class="detay-tab" id="tab-isgaller">
+        <div class="row g-3">
+          <div class="col-12">
+            <a id="btn-yeni-isgal" href="#" class="btn btn-mis btn-sm">
+              <i class="bi bi-plus-lg me-1"></i>Bu Parsele İşgal Kaydı Ekle
+            </a>
+          </div>
+          <div class="col-12" id="isgal-listesi-mera">
+            <div class="text-muted text-center py-3 small">Yükleniyor...</div>
           </div>
         </div>
       </div>
@@ -684,7 +699,36 @@ window.mulkiyetKaydet = async () => {
   else showToast(j.message,'danger');
 };
 
+// İşgal listesi
+const loadIsgaller = async () => {
+  try {
+    const r = await fetch(`/api/isgal?mera_id=${id}`);
+    const j = await r.json();
+    const isgaller = j.data || [];
+    document.getElementById('isgal-sayisi').textContent = isgaller.length;
+    document.getElementById('btn-yeni-isgal').href = `/isgal/?mera_id=${id}`;
+    const TUR_ETIKET = { tarla_isgali:'Tarla/Yapılaşmasız', yapilasma:'Yapılaşma', yol_hafriyat:'Yol/Hafriyat' };
+    const turMetin = t => (Array.isArray(t)?t:t?[t]:[]).map(x=>TUR_ETIKET[x]||x).join(', ')||'-';
+    const DURUM = { aktif:'<span class="badge bg-danger">Aktif</span>', cozuldu:'<span class="badge bg-success">Çözüldü</span>', beklemede:'<span class="badge bg-warning text-dark">Beklemede</span>' };
+    document.getElementById('isgal-listesi-mera').innerHTML = isgaller.length
+      ? `<div class="table-responsive"><table class="table table-sm mis-table mb-0">
+          <thead><tr><th>İşgal No</th><th>Tür</th><th>İşgalci</th><th>Alan (m²)</th><th>Tespit Tarihi</th><th>Durum</th><th></th></tr></thead>
+          <tbody>${isgaller.map(ig=>`<tr style="cursor:pointer" onclick="window.location='/isgal/detay.html?id=${ig._id}'">
+            <td class="fw-semibold text-success small">${ig.isgal_no||'-'}</td>
+            <td class="small">${turMetin(ig.isgal_turu)}</td>
+            <td class="small">${ig.isgalci_ad_soyad||'-'}</td>
+            <td class="small">${ig.isgal_alani_m2?Number(ig.isgal_alani_m2).toLocaleString('tr-TR')+' m²':'-'}</td>
+            <td class="small">${ig.tespit_tarihi?new Date(ig.tespit_tarihi).toLocaleDateString('tr-TR'):'-'}</td>
+            <td>${DURUM[ig.durum]||'-'}</td>
+            <td onclick="event.stopPropagation()"><a href="/isgal/detay.html?id=${ig._id}" class="btn btn-xs btn-mis"><i class="bi bi-arrow-right"></i></a></td>
+          </tr>`).join('')}</tbody>
+        </table></div>`
+      : '<p class="text-muted text-center py-3 small">Bu parselde kayıtlı işgal yok.</p>';
+  } catch(e) { console.error(e); }
+};
+
 loadMera();
+loadIsgaller();
 </script>
 <style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
 </body>

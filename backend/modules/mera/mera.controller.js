@@ -281,13 +281,28 @@ const kmlYukle = async (req, res, next) => {
 
 const kmlGetir = async (req, res, next) => {
   try {
-    const mera = await Mera.findById(req.params.id).select('kml_drive_file_id kml_drive_download_link');
+    const mera = await Mera.findById(req.params.id).select('kml_drive_file_id kml_drive_download_link il_ad ilce_ad mahalle_ad ada parsel');
     if (!mera?.kml_drive_file_id) return res.status(404).json({ success: false, message: 'KML bulunamadı' });
     const drive = await getDriveClient();
     const response = await drive.files.get({ fileId: mera.kml_drive_file_id, alt: 'media' }, { responseType: 'arraybuffer' });
-    res.setHeader('Content-Type', 'application/vnd.google-earth.kml+xml');
-    res.setHeader('Content-Disposition', 'inline; filename="parsel.kml"');
-    res.send(Buffer.from(response.data));
+    let kmlStr = Buffer.from(response.data).toString('utf-8');
+
+    // Google Earth uyumu: namespace eksikse ekle
+    if (!kmlStr.includes('xmlns="http://www.opengis.net/kml/2.2"')) {
+      kmlStr = kmlStr.replace(/<kml([^>]*)>/, (match, attrs) => {
+        if (attrs.includes('xmlns')) return match;
+        return `<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2"${attrs}>`;
+      });
+    }
+    // XML declaration eksikse ekle
+    if (!kmlStr.startsWith('<?xml')) {
+      kmlStr = '<?xml version="1.0" encoding="UTF-8"?>\n' + kmlStr;
+    }
+
+    const dosyaAdi = `${mera.il_ad||'mera'}-${mera.ada||'0'}-${mera.parsel||'0'}.kml`;
+    res.setHeader('Content-Type', 'application/vnd.google-earth.kml+xml; charset=UTF-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(dosyaAdi)}"`);
+    res.send(Buffer.from(kmlStr, 'utf-8'));
   } catch (err) { next(err); }
 };
 
