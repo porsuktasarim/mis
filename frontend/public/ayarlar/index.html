@@ -580,6 +580,7 @@ window.dosyalariDriveTasi = async () => {
     else showToast(j.message||'Hata.','danger');
   } catch { showToast('Sunucuya ulaşılamadı.','danger'); }
 };
+window.driveEkleModal = () => {
   document.getElementById('drive-ad').value='';
   document.getElementById('drive-aciklama').value='';
   document.getElementById('drive-json').value='';
