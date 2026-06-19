@@ -61,6 +61,7 @@ const MeraSchema = new mongoose.Schema({
   ada: { type: String },
   parsel: { type: String, required: true },
   tapu_alani_da: { type: Number },
+  kaynak: { type: String, enum: ['5/a','5/b','5/c','5/d',''] , default: '' },
 
   // Nitelik
   nitelik: { type: String },

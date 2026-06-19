@@ -134,6 +134,18 @@
           <div id="toprak-tanim" class="col-12 d-none">
             <div class="p-2 rounded small text-muted" style="background:#f0f9f5;border:1px solid #9FE1CB" id="toprak-tanim-metin"></div>
           </div>
+          <!-- Kaynak -->
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Kaynak (4342/5. Madde) *</label>
+            <select class="form-select form-select-sm" id="m-kaynak" onchange="kaynakDegisti()">
+              <option value="">— Seçin —</option>
+              <option value="5/a">5/a — Kadimden beri mera, yaylak ve kışlak olarak kullanılan yerler</option>
+              <option value="5/b">5/b — Devletin hüküm ve tasarrufunda bulunan arazilerden etüt sonucu mera olarak yararlanılabileceği anlaşılan yerler</option>
+              <option value="5/c">5/c — Mera, yaylak ve kışlak olarak kullanılmak amacıyla kamulaştırılacak yerler</option>
+              <option value="5/d">5/d — Tapu kayıtlarında mera olarak görülen ve hâlen işgal edilen yerler</option>
+            </select>
+            <div id="m-kaynak-aciklama" class="mt-1 small text-muted p-2 rounded d-none" style="background:#f0f9f5;border:1px solid #9FE1CB"></div>
+          </div>
           <div class="col-12">
             <label class="form-label small fw-semibold">Açıklama</label>
             <textarea class="form-control form-control-sm" id="m-aciklama" rows="2"></textarea>
@@ -171,7 +183,22 @@ const showToast = (msg, type='success') => {
 };
 const fmt = n => n != null ? Number(n).toLocaleString('tr-TR') : '-';
 
-window.nitelikDegisti = () => {
+const KAYNAK_ACIKLAMALARI = {
+  '5/a': 'a) Kadimden beri mera, yaylak ve kışlak olarak kullanılan yerler ile aynı amaçla kullanılmak üzere köy veya belediyelere tahsis ya da terk edilen yerler.',
+  '5/b': 'b) Devletin hüküm ve tasarrufunda veya Hazinenin mülkiyetinde bulunan arazilerden etüt sonucu mera, yaylak ve kışlak olarak yararlanılabileceği anlaşılan yerler.',
+  '5/c': 'c) Mera, yaylak ve kışlak olarak kullanılmak amacıyla kamulaştırılacak yerler.',
+  '5/d': 'd) Tapu kayıtlarında mera, yaylak ve kışlak olarak görülen ve halen işgal edilen yerler.',
+};
+window.kaynakDegisti = () => {
+  const val = document.getElementById('m-kaynak').value;
+  const el  = document.getElementById('m-kaynak-aciklama');
+  if (val && KAYNAK_ACIKLAMALARI[val]) {
+    el.textContent = KAYNAK_ACIKLAMALARI[val];
+    el.classList.remove('d-none');
+  } else {
+    el.classList.add('d-none');
+  }
+};
   const val = document.getElementById('m-nitelik').value;
   document.getElementById('m-nitelik-diger').classList.toggle('d-none', val !== 'Diğer');
 };
@@ -183,11 +210,27 @@ document.getElementById('m-vasif').addEventListener('change', function() {
 
 // İl yükle (plaka sırasıyla - backend sıralıyor)
 const loadIller = async (selId, handler) => {
-  const r = await fetch(`${API_AYAR}/idari/iller`);
-  const j = await r.json();
+  const [rIller, rAyar] = await Promise.all([
+    fetch(`${API_AYAR}/idari/iller`),
+    fetch('/api/ayarlar'),
+  ]);
+  const jIller = await rIller.json();
+  const jAyar  = await rAyar.json();
+  const iller = jIller.data || [];
+  const oncelikler = jAyar.data?.idari_oncelik || [];
+
+  // Öncelikli illeri sıraya koy, kalanları alfabetik ekle
+  const oncelikIdler = oncelikler.sort((a,b)=>a.sira-b.sira).map(o=>o.il_id);
+  const oncelikliIller = oncelikIdler.map(id => iller.find(i=>i.xml_id===id)).filter(Boolean);
+  const kalanIller = iller.filter(i=>!oncelikIdler.includes(i.xml_id));
+
+  const ayrac = oncelikliIller.length ? '<option disabled>──────────────</option>' : '';
   const sel = document.getElementById(selId);
   const mevcutVal = sel.value;
-  sel.innerHTML = '<option value="">Seçin</option>' + (j.data||[]).map(il=>`<option value="${il.xml_id}">${il.ad}</option>`).join('');
+  sel.innerHTML = '<option value="">Seçin</option>'
+    + oncelikliIller.map(il=>`<option value="${il.xml_id}">${il.ad}</option>`).join('')
+    + ayrac
+    + kalanIller.map(il=>`<option value="${il.xml_id}">${il.ad}</option>`).join('');
   if (mevcutVal) sel.value = mevcutVal;
   if (!sel._handlerEklendi) {
     sel.addEventListener('change', () => handler(sel.value, sel.options[sel.selectedIndex]?.text));
@@ -257,7 +300,7 @@ const loadMeralar = async (sayfa=1) => {
           <thead><tr><th>Konum</th><th>Ada/Parsel</th><th class="text-end">Alan (da)</th><th>Nitelik</th><th>Vasıf</th><th>Durum</th><th>İşlemler</th></tr></thead>
           <tbody>${meralar.map(m=>`<tr>
             <td><strong>${m.il_ad}</strong><br><small class="text-muted">${m.ilce_ad} / ${m.mahalle_ad}</small></td>
-            <td>${m.ada?m.ada+'/':''}${m.parsel}</td>
+            <td><a href="/mera/detay.html?id=${m._id}" class="text-decoration-none text-dark fw-semibold">${m.ada?m.ada+'/':''}${m.parsel}</a></td>
             <td class="text-end">${fmt(m.tapu_alani_da)}</td>
             <td class="small">${m.nitelik||'-'}</td>
             <td><span class="grup-badge">${m.vasif||'-'}</span></td>
@@ -287,6 +330,8 @@ window.yeniMera = async () => {
   document.getElementById('m-vasif').value='Bilinmiyor';
   document.getElementById('m-toprak').value='';
   document.getElementById('m-durum').value='Aktif';
+  document.getElementById('m-kaynak').value='';
+  document.getElementById('m-kaynak-aciklama').classList.add('d-none');
   document.getElementById('toprak-tanim').classList.add('d-none');
   document.getElementById('vasif-uyari').classList.add('d-none');
   document.getElementById('m-nitelik-diger').classList.add('d-none');
@@ -312,20 +357,26 @@ window.meraKaydet = async () => {
   const ilce = document.getElementById('m-ilce');
   const mahalle = document.getElementById('m-mahalle');
   const parsel = document.getElementById('m-parsel').value.trim();
+  const kaynak = document.getElementById('m-kaynak').value;
   if (!il.value||!ilce.value||!mahalle.value||!parsel) { showToast('İl, ilçe, mahalle ve parsel zorunlu.','warning'); return; }
+  if (!kaynak) { showToast('Kaynak (4342/5. madde) zorunludur.','warning'); return; }
   const nitelikVal = document.getElementById('m-nitelik').value;
+  // tapu_alani_da: boş string yerine null gönder — validasyon tutarsızlığını engeller
+  const alanRaw = document.getElementById('m-alan').value;
+  const tapu_alani_da = alanRaw !== '' ? parseFloat(alanRaw) : null;
   const veri = {
     il_id: il.value, il_ad: il.options[il.selectedIndex].text,
     ilce_id: ilce.value, ilce_ad: ilce.options[ilce.selectedIndex].text,
     mahalle_id: mahalle.value, mahalle_ad: mahalle.options[mahalle.selectedIndex].text,
     ada: document.getElementById('m-ada').value, parsel,
-    tapu_alani_da: document.getElementById('m-alan').value,
+    tapu_alani_da,
     nitelik: nitelikVal === 'Diğer' ? document.getElementById('m-nitelik-diger').value : nitelikVal,
     nitelik_diger: nitelikVal === 'Diğer' ? document.getElementById('m-nitelik-diger').value : '',
     vasif: document.getElementById('m-vasif').value,
     toprak_sinifi: document.getElementById('m-toprak').value,
     durum: document.getElementById('m-durum').value,
     aciklama: document.getElementById('m-aciklama').value,
+    kaynak,
   };
   try {
     const url = meraId ? `${API_MERA}/${meraId}` : API_MERA;
@@ -364,6 +415,9 @@ window.meraDuzenle = async (id) => {
   document.getElementById('m-toprak').value = m.toprak_sinifi||'';
   document.getElementById('m-durum').value = m.durum||'Aktif';
   document.getElementById('m-aciklama').value = m.aciklama||'';
+  // Kaynak
+  document.getElementById('m-kaynak').value = m.kaynak||'';
+  kaynakDegisti();
   new bootstrap.Modal(document.getElementById('meraModal')).show();
 };
 

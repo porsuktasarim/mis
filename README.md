@@ -227,3 +227,25 @@ POST            /api/bbhb-yukle                 (Türkvet XLS)
 | v1.8.6  | EHGB hesap no, personel seçici, tıklanabilir liste |
 
 **Güncel: v1.8.16**
+
+---
+
+## v1.8.17 — Son Değişiklikler
+
+| Alan | Değişiklik |
+|---|---|
+| Menü | "BBHB Hesaplayıcı" → "BBHB Hesaplama" |
+| Mera – Yeni Mera | İl listesi ayarlardaki öncelik sıralamasına göre sıralı (öncelikli iller üstte, ayraç sonrası alfabetik) |
+| Mera – Yeni Mera | **Kaynak** alanı eklendi (zorunlu): 5/a, 5/b, 5/c, 5/d — seçim yapılınca madde açıklaması görünür |
+| Mera – Liste | Ada/Parsel alanı tıklanabilir link → detay sayfasına gider |
+| Mera – Model | `kaynak` alanı eklendi (`5/a` \| `5/b` \| `5/c` \| `5/d`) |
+| Mera – Validasyon | "Tapu Alanı" boş string yerine `null` gönderiliyor → aralıklı validasyon hatası giderildi |
+
+### Mera Kaynak Maddeleri (4342/5)
+
+| Madde | Açıklama |
+|---|---|
+| **5/a** | Kadimden beri mera, yaylak ve kışlak olarak kullanılan yerler ile aynı amaçla köy/belediyelere tahsis/terk edilen yerler |
+| **5/b** | Devletin hüküm ve tasarrufunda veya Hazinenin mülkiyetinde bulunan arazilerden etüt sonucu mera olarak yararlanılabileceği anlaşılan yerler |
+| **5/c** | Mera, yaylak ve kışlak olarak kullanılmak amacıyla kamulaştırılacak yerler |
+| **5/d** | Tapu kayıtlarında mera, yaylak ve kışlak olarak görülen ve halen işgal edilen yerler |

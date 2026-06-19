@@ -191,7 +191,7 @@ const guncelle = async (req, res, next) => {
     const mera = await Mera.findById(req.params.id);
     if (!mera) return res.status(404).json({ success: false, message: 'Mera bulunamadı' });
     const guncellenecek = ['il_id','il_ad','ilce_id','ilce_ad','mahalle_id','mahalle_ad',
-      'ada','parsel','tapu_alani_da','kadastral_alan_da','nitelik','vasif','toprak_sinifi','durum','aciklama'];
+      'ada','parsel','tapu_alani_da','kadastral_alan_da','nitelik','vasif','toprak_sinifi','durum','aciklama','kaynak'];
     guncellenecek.forEach(alan => { if (req.body[alan] !== undefined) mera[alan] = req.body[alan]; });
     if (req.body.mulkiyet !== undefined) mera.mulkiyet = { ...mera.mulkiyet?.toObject?.() || {}, ...req.body.mulkiyet };
 

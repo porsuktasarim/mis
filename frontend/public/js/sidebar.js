@@ -10,7 +10,7 @@ const MIS_MENU = [
   {
     baslik: 'Araçlar',
     items: [
-      { href: '/bbhb/', icon: 'bi-calculator', label: 'BBHB Hesaplayıcı' },
+      { href: '/bbhb/', icon: 'bi-calculator', label: 'BBHB Hesaplama' },
       { href: '/ehgb/', icon: 'bi-cash-coin', label: 'EHGB Hesaplama' },
       { href: '/mevzuat/', icon: 'bi-journal-text', label: 'Mevzuat' },
     ]
