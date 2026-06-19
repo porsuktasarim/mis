@@ -5,6 +5,9 @@ const MIS_MENU = [
     items: [
       { href: '/mera/', icon: 'bi-geo-alt', label: 'Mera' },
       { href: '/isgal/', icon: 'bi-exclamation-triangle', label: 'İşgal' },
+      { href: '#', icon: 'bi-arrow-left-right', label: 'Tahsis Amacı Değişikliği (TAD)', placeholder: true },
+      { href: '#', icon: 'bi-clipboard-check', label: 'Tahsis', placeholder: true },
+      { href: '#', icon: 'bi-file-earmark-ruled', label: 'Proje', placeholder: true },
     ]
   },
   {
@@ -13,6 +16,9 @@ const MIS_MENU = [
       { href: '/bbhb/', icon: 'bi-calculator', label: 'BBHB Hesaplama' },
       { href: '/ehgb/', icon: 'bi-cash-coin', label: 'EHGB Hesaplama' },
       { href: '/mevzuat/', icon: 'bi-journal-text', label: 'Mevzuat' },
+      { href: '#', icon: 'bi-signpost-split', label: '5/b', placeholder: true },
+      { href: '#', icon: 'bi-file-text', label: 'Bilgi Notu', placeholder: true },
+      { href: '#', icon: 'bi-file-earmark-text', label: 'Teknik Şartname', placeholder: true },
     ]
   },
   {
