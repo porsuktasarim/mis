@@ -210,14 +210,17 @@ document.getElementById('m-vasif').addEventListener('change', function() {
 
 // İl yükle (plaka sırasıyla - backend sıralıyor)
 const loadIller = async (selId, handler) => {
-  const [rIller, rAyar] = await Promise.all([
-    fetch(`${API_AYAR}/idari/iller`),
-    fetch('/api/ayarlar'),
-  ]);
+  const rIller = await fetch(`${API_AYAR}/idari/iller`);
   const jIller = await rIller.json();
-  const jAyar  = await rAyar.json();
   const iller = jIller.data || [];
-  const oncelikler = jAyar.data?.idari_oncelik || [];
+
+  // Öncelik sıralamasını ayrı çek — hata olursa normal sıralama kullan
+  let oncelikler = [];
+  try {
+    const rAyar = await fetch('/api/ayarlar');
+    const jAyar = await rAyar.json();
+    oncelikler = jAyar.data?.idari_oncelikler || [];
+  } catch(e) { /* öncelik olmadan devam */ }
 
   // Öncelikli illeri sıraya koy, kalanları alfabetik ekle
   const oncelikIdler = oncelikler.sort((a,b)=>a.sira-b.sira).map(o=>o.il_id);
@@ -271,7 +274,7 @@ loadIller('f-il', (il_id) => {
     fm.innerHTML = '<option value="">Tümü</option>'; fm.disabled = !ilce_id;
     if (ilce_id) { fm.disabled = false; loadMahalleler('f-mahalle', ilce_id); }
   });
-});
+}).catch(e => { console.error('İl yükleme hatası:', e); loadMeralar(); });
 
 const loadMeralar = async (sayfa=1) => {
   mevcutSayfa = sayfa;
