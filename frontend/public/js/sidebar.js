@@ -5,6 +5,7 @@ const MIS_MENU = [
     items: [
       { href: '/mera/', icon: 'bi-geo-alt', label: 'Mera' },
       { href: '/isgal/', icon: 'bi-exclamation-triangle', label: 'İşgal' },
+      { href: '/tahsis/', icon: 'bi-clipboard-check', label: 'Tahsis' },
       { href: '#', icon: 'bi-arrow-left-right', label: 'Tahsis Amacı Değişikliği (TAD)', placeholder: true },
       { href: '#', icon: 'bi-clipboard-check', label: 'Tahsis', placeholder: true },
       { href: '#', icon: 'bi-file-earmark-ruled', label: 'Proje', placeholder: true },

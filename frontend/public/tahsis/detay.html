@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tahsis Detay – MİS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+  <style>
+    .parsel-satir.dahil-degil td { opacity:.45; text-decoration:line-through; }
+    .adim-kutu { border-left:3px solid #0F6E56; padding:8px 12px; margin-bottom:8px; background:#f8faf9; border-radius:0 4px 4px 0; }
+  </style>
+</head>
+<body>
+<div class="d-flex" id="wrapper">
+  <div id="mis-sidebar-mount"></div>
+  <div id="page-content" class="flex-grow-1">
+
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
+      <span class="mis-topbar-title" id="topbar-no">Tahsis Detay</span>
+      <div class="ms-auto d-flex gap-2">
+        <a href="/tahsis/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Liste</a>
+      </div>
+    </nav>
+
+    <main class="mis-main p-4">
+
+      <!-- Özet satır -->
+      <div class="row g-3 mb-3" id="ozet-sat">
+        <div class="col-md-3">
+          <div class="mis-kart-ozet"><div class="baslik">Tahsis No</div><div class="sayi small" id="b-no">–</div></div>
+        </div>
+        <div class="col-md-3">
+          <div class="mis-kart-ozet"><div class="baslik">Toplam Alan</div><div class="sayi small" id="b-alan">–</div></div>
+        </div>
+        <div class="col-md-3">
+          <div class="mis-kart-ozet"><div class="baslik">Parsel Sayısı</div><div class="sayi small" id="b-parsel">–</div></div>
+        </div>
+        <div class="col-md-3">
+          <div class="mis-kart-ozet"><div class="baslik">Durum</div><div class="sayi small" id="b-durum">–</div></div>
+        </div>
+      </div>
+
+      <!-- Sekmeler -->
+      <div class="detay-sekmeler mb-3">
+        <button class="detay-sekme active" data-tab="genel"><i class="bi bi-info-circle me-1"></i>Genel Bilgiler</button>
+        <button class="detay-sekme" data-tab="parseller"><i class="bi bi-geo-alt me-1"></i>Parseller <span class="badge bg-secondary ms-1" id="parsel-sayac">0</span></button>
+        <button class="detay-sekme" data-tab="bbhb"><i class="bi bi-calculator me-1"></i>BBHB</button>
+        <button class="detay-sekme" data-tab="adimlar"><i class="bi bi-list-check me-1"></i>Süreç</button>
+      </div>
+
+      <!-- GENEL -->
+      <div class="detay-tab active" id="tab-genel">
+        <div class="row g-3">
+          <div class="col-md-8">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-pencil"></i><span class="title">Tahsis Bilgileri</span></div>
+              <div class="row g-3 p-1">
+                <div class="col-md-4">
+                  <label class="form-label small fw-semibold">İl</label>
+                  <input type="text" class="form-control form-control-sm" id="e-il" readonly/>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-semibold">İlçe</label>
+                  <input type="text" class="form-control form-control-sm" id="e-ilce" readonly/>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-semibold">Mahalle/Köy</label>
+                  <input type="text" class="form-control form-control-sm" id="e-mahalle" readonly/>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-semibold">Talep Sahibi</label>
+                  <input type="text" class="form-control form-control-sm" id="e-talep-sahibi"/>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-semibold">Talep Tarihi</label>
+                  <input type="date" class="form-control form-control-sm" id="e-talep-tarihi"/>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label small fw-semibold">Durum</label>
+                  <select class="form-select form-select-sm" id="e-durum">
+                    <option value="taslak">Taslak</option>
+                    <option value="devam">Devam Ediyor</option>
+                    <option value="tamamlandi">Tamamlandı</option>
+                    <option value="iptal">İptal</option>
+                    <option value="reddedildi">Reddedildi</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-semibold">Tahsis Amacı</label>
+                  <input type="text" class="form-control form-control-sm" id="e-amac"/>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-semibold">Açıklama</label>
+                  <textarea class="form-control form-control-sm" id="e-aciklama" rows="2"></textarea>
+                </div>
+                <div class="col-12">
+                  <button class="btn btn-mis btn-sm" onclick="guncelle()">
+                    <i class="bi bi-check-lg me-1"></i>Kaydet
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-clock-history"></i><span class="title">Kayıt Bilgileri</span></div>
+              <table class="table table-sm mb-0">
+                <tr><td class="text-muted small">Tahsis No</td><td id="k-no" class="fw-semibold text-success">–</td></tr>
+                <tr><td class="text-muted small">Oluşturulma</td><td id="k-olusturma">–</td></tr>
+                <tr><td class="text-muted small">Son Güncelleme</td><td id="k-guncelleme">–</td></tr>
+                <tr><td class="text-muted small">Toplam Alan</td><td id="k-alan" class="fw-semibold">–</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARSELLER -->
+      <div class="detay-tab" id="tab-parseller">
+        <div class="mis-card">
+          <div class="mis-card-header">
+            <i class="bi bi-geo-alt"></i><span class="title">Mera Parselleri</span>
+            <div class="ms-auto d-flex gap-2">
+              <button class="btn btn-xs btn-outline-secondary" onclick="parsellerYukle()">
+                <i class="bi bi-arrow-repeat me-1"></i>Mahalle Parsellerini Yükle
+              </button>
+              <span class="text-muted small align-self-center" id="parsel-ozet"></span>
+            </div>
+          </div>
+          <div class="alert alert-info small py-2 mx-2 mb-2" id="parsel-bilgi">
+            <i class="bi bi-info-circle me-1"></i>
+            "Mahalle Parsellerini Yükle" butonuna tıklayarak seçili il/ilçe/mahalle'deki tüm mera parselleri otomatik çekilir.
+            Her parseli dahil/hariç olarak işaretleyebilirsiniz.
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm mis-table mb-0">
+              <thead>
+                <tr>
+                  <th style="width:40px">Dahil</th>
+                  <th>Ada / Parsel</th>
+                  <th>Mahalle</th>
+                  <th>Vasıf</th>
+                  <th>Kaynak</th>
+                  <th class="text-end">Alan (da)</th>
+                  <th>Açıklama</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="parsel-body">
+                <tr><td colspan="8" class="text-center py-3 text-muted small">Henüz parsel eklenmedi.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="p-2 border-top small text-muted d-flex gap-4" id="parsel-toplam"></div>
+        </div>
+      </div>
+
+      <!-- BBHB -->
+      <div class="detay-tab" id="tab-bbhb">
+        <div class="mis-card">
+          <div class="mis-card-header">
+            <i class="bi bi-calculator"></i><span class="title">BBHB Hesaplama Bağlantıları</span>
+            <button class="btn btn-xs btn-mis ms-auto" onclick="bbhbSeciAc()">
+              <i class="bi bi-link-45deg me-1"></i>BBHB Hesabı Bağla
+            </button>
+          </div>
+          <div id="bbhb-listesi">
+            <p class="text-muted text-center py-3 small">Henüz BBHB hesabı bağlanmadı.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SÜREÇ ADIMLARI -->
+      <div class="detay-tab" id="tab-adimlar">
+        <div class="mis-card">
+          <div class="mis-card-header">
+            <i class="bi bi-list-check"></i><span class="title">Süreç Adımları</span>
+            <span class="text-muted small ms-2">(Adımlar ilerleyen süreçte eklenecektir)</span>
+          </div>
+          <div class="p-3">
+            <div class="adim-kutu">
+              <div class="fw-semibold small text-success">1. Başvuru / Talep</div>
+              <div class="small text-muted mt-1">Tahsis talebinin alınması ve kayıt altına alınması.</div>
+            </div>
+            <div class="adim-kutu opacity-50">
+              <div class="fw-semibold small">2. Ön İnceleme</div>
+              <div class="small text-muted mt-1">Teknik ekip ön incelemesi ve parsel tespiti.</div>
+            </div>
+            <div class="adim-kutu opacity-50">
+              <div class="fw-semibold small">3. Komisyon Kararı</div>
+              <div class="small text-muted mt-1">İl Mera Komisyonu değerlendirmesi.</div>
+            </div>
+            <div class="adim-kutu opacity-50">
+              <div class="fw-semibold small">4. Sonuç</div>
+              <div class="small text-muted mt-1">Onay / Red / Tahsis belgesi düzenlenmesi.</div>
+            </div>
+            <div class="alert alert-warning small py-2 mt-3">
+              <i class="bi bi-info-circle me-1"></i>
+              Süreç adımları detayları ilerleyen aşamada eklenecektir. Şimdilik genel durumu "Genel Bilgiler" sekmesinden takip edebilirsiniz.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- BBHB Seçim Modal -->
+<div class="modal fade" id="bbhbModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header mis-modal-header">
+        <h5 class="modal-title">BBHB Hesabı Seç</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="table table-sm">
+            <thead><tr><th>Başlık / Tarih</th><th>İl / İlçe</th><th>BBHB</th><th>Hayvan</th><th></th></tr></thead>
+            <tbody id="bbhb-seci-body">
+              <tr><td colspan="5" class="text-center text-muted">Yükleniyor...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="mis-toast-mount"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/lang.js"></script>
+<script src="/js/sidebar.js"></script>
+<script>
+const API = '/api/tahsis';
+const id  = new URLSearchParams(location.search).get('id');
+let tahsis = null;
+
+const showToast = (msg, tip='success') => {
+  const t = document.createElement('div');
+  t.className = `toast show align-items-center text-white bg-${tip} border-0 mb-2`;
+  t.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+  document.getElementById('mis-toast-mount').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+};
+
+// Sekme geçişi
+document.querySelectorAll('.detay-sekme').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.detay-sekme').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.detay-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+const loadTahsis = async () => {
+  if (!id) { window.location='/tahsis/'; return; }
+  const r = await fetch(`${API}/${id}`);
+  const j = await r.json();
+  if (!j.success) { showToast('Kayıt bulunamadı.','danger'); return; }
+  tahsis = j.data;
+
+  // Özet
+  document.getElementById('topbar-no').textContent = tahsis.tahsis_no || 'Tahsis Detay';
+  document.getElementById('b-no').textContent   = tahsis.tahsis_no || '–';
+  document.getElementById('b-alan').textContent  = tahsis.toplam_alan_da
+    ? Number(tahsis.toplam_alan_da).toLocaleString('tr-TR',{maximumFractionDigits:2})+' da' : '– da';
+  document.getElementById('b-parsel').textContent = (tahsis.parseller||[]).length;
+  const DURUM = { taslak:'Taslak', devam:'Devam Ediyor', tamamlandi:'Tamamlandı', iptal:'İptal', reddedildi:'Reddedildi' };
+  document.getElementById('b-durum').textContent  = DURUM[tahsis.durum] || tahsis.durum;
+  document.getElementById('parsel-sayac').textContent = (tahsis.parseller||[]).length;
+
+  // Form
+  document.getElementById('e-il').value       = tahsis.il_ad || '';
+  document.getElementById('e-ilce').value     = tahsis.ilce_ad || '';
+  document.getElementById('e-mahalle').value  = tahsis.mahalle_ad || '';
+  document.getElementById('e-talep-sahibi').value = tahsis.talep_sahibi || '';
+  document.getElementById('e-talep-tarihi').value  = tahsis.talep_tarihi ? new Date(tahsis.talep_tarihi).toISOString().slice(0,10) : '';
+  document.getElementById('e-durum').value    = tahsis.durum || 'taslak';
+  document.getElementById('e-amac').value     = tahsis.talep_amaci || '';
+  document.getElementById('e-aciklama').value = tahsis.aciklama || '';
+
+  // Kayıt bilgileri
+  document.getElementById('k-no').textContent         = tahsis.tahsis_no || '–';
+  document.getElementById('k-olusturma').textContent  = new Date(tahsis.createdAt).toLocaleDateString('tr-TR');
+  document.getElementById('k-guncelleme').textContent = new Date(tahsis.updatedAt).toLocaleDateString('tr-TR');
+  document.getElementById('k-alan').textContent = tahsis.toplam_alan_da
+    ? Number(tahsis.toplam_alan_da).toLocaleString('tr-TR',{maximumFractionDigits:2})+' da' : '–';
+
+  renderParseller();
+  renderBbhb();
+};
+
+const renderParseller = () => {
+  const parseller = tahsis.parseller || [];
+  document.getElementById('parsel-sayac').textContent = parseller.length;
+
+  if (!parseller.length) {
+    document.getElementById('parsel-body').innerHTML =
+      '<tr><td colspan="8" class="text-center py-3 text-muted small">Henüz parsel eklenmedi. "Mahalle Parsellerini Yükle" butonunu kullanın.</td></tr>';
+    document.getElementById('parsel-toplam').innerHTML = '';
+    return;
+  }
+
+  const dahilParseller = parseller.filter(p => p.dahil !== false);
+  const toplamAlan = dahilParseller.reduce((s,p) => s+(p.tapu_alani_da||0), 0);
+
+  document.getElementById('parsel-body').innerHTML = parseller.map(p => `
+    <tr class="parsel-satir ${p.dahil===false?'dahil-degil':''}">
+      <td class="text-center">
+        <input type="checkbox" class="form-check-input" ${p.dahil!==false?'checked':''}
+          onchange="parselDahilDegistir('${p._id}', this.checked)"/>
+      </td>
+      <td class="small fw-semibold">
+        <a href="/mera/detay.html?id=${p.mera_id}" target="_blank" class="text-success text-decoration-none">
+          ${p.ada||'?'} / ${p.parsel||'?'}
+        </a>
+      </td>
+      <td class="small">${p.mahalle_ad||p.il_ad||'–'}</td>
+      <td class="small"><span class="badge bg-secondary">${p.vasif||'–'}</span></td>
+      <td class="small">${p.kaynak||'–'}</td>
+      <td class="small text-end">${p.tapu_alani_da!=null?Number(p.tapu_alani_da).toLocaleString('tr-TR',{maximumFractionDigits:2}):'–'}</td>
+      <td class="small text-muted">${p.aciklama||''}</td>
+      <td>
+        <button class="btn btn-xs btn-outline-danger" onclick="parselSilFn('${p._id}')"><i class="bi bi-trash"></i></button>
+      </td>
+    </tr>`).join('');
+
+  document.getElementById('parsel-toplam').innerHTML =
+    `<span>Toplam: <strong>${parseller.length}</strong> parsel</span>
+     <span>Dahil: <strong>${dahilParseller.length}</strong> parsel</span>
+     <span>Toplam Alan (dahil): <strong>${toplamAlan.toLocaleString('tr-TR',{maximumFractionDigits:2})} da</strong></span>`;
+};
+
+const renderBbhb = () => {
+  const baglanti = tahsis.bbhb_baglantilari || [];
+  if (!baglanti.length) {
+    document.getElementById('bbhb-listesi').innerHTML =
+      '<p class="text-muted text-center py-3 small">Henüz BBHB hesabı bağlanmadı.</p>'; return;
+  }
+  document.getElementById('bbhb-listesi').innerHTML = `
+    <div class="table-responsive">
+    <table class="table table-sm mis-table mb-0">
+      <thead><tr><th>İl/İlçe/Mahalle</th><th>Toplam BBHB</th><th>Hayvan Sayısı</th><th>Tarih</th><th>Açıklama</th><th></th></tr></thead>
+      <tbody>${baglanti.map(b=>`<tr>
+        <td class="small">${[b.il,b.ilce,b.mahalle].filter(Boolean).join(' / ')||'–'}</td>
+        <td class="small fw-semibold">${b.toplam_bbhb?.toFixed(2)||'–'}</td>
+        <td class="small">${b.toplam_adet||'–'}</td>
+        <td class="small">${b.tarih?new Date(b.tarih).toLocaleDateString('tr-TR'):'–'}</td>
+        <td class="small text-muted">${b.aciklama||''}</td>
+        <td>
+          ${b.bbhb_id?`<a href="/bbhb/index.html" class="btn btn-xs btn-mis me-1" title="BBHB Listesi"><i class="bi bi-eye"></i></a>`:''}
+          <button class="btn btn-xs btn-outline-danger" onclick="bbhbBagSil('${b._id}')"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+};
+
+window.guncelle = async () => {
+  const veri = {
+    talep_sahibi: document.getElementById('e-talep-sahibi').value,
+    talep_tarihi: document.getElementById('e-talep-tarihi').value || null,
+    durum:        document.getElementById('e-durum').value,
+    talep_amaci:  document.getElementById('e-amac').value,
+    aciklama:     document.getElementById('e-aciklama').value,
+  };
+  const r = await fetch(`${API}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(veri) });
+  const j = await r.json();
+  if (j.success) { tahsis = j.data; showToast('Kaydedildi.'); renderParseller(); }
+  else showToast(j.message||'Hata.','danger');
+};
+
+window.parsellerYukle = async () => {
+  const btn = document.querySelector('[onclick="parsellerYukle()"]');
+  btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass me-1"></i>Yükleniyor...';
+  const r = await fetch(`${API}/${id}/parseller/yukle`, { method:'POST' });
+  const j = await r.json();
+  btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Mahalle Parsellerini Yükle';
+  if (j.success) {
+    tahsis.parseller = j.data;
+    renderParseller();
+    showToast(`${j.eklenen} yeni parsel yüklendi. Toplam: ${j.toplam}`);
+    document.getElementById('parsel-bilgi').classList.add('d-none');
+  } else showToast(j.message||'Hata.','danger');
+};
+
+window.parselDahilDegistir = async (parselId, dahil) => {
+  const r = await fetch(`${API}/${id}/parseller/${parselId}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({dahil})
+  });
+  const j = await r.json();
+  if (j.success) { tahsis.parseller = j.data; renderParseller(); }
+  else showToast(j.message,'danger');
+};
+
+window.parselSilFn = async (parselId) => {
+  if (!confirm('Bu parseli listeden kaldırmak istiyor musunuz?')) return;
+  const r = await fetch(`${API}/${id}/parseller/${parselId}`, { method:'DELETE' });
+  const j = await r.json();
+  if (j.success) { tahsis.parseller = j.data; renderParseller(); showToast('Parsel kaldırıldı.'); }
+  else showToast(j.message,'danger');
+};
+
+window.bbhbSeciAc = async () => {
+  const r = await fetch('/api/bbhb');
+  const j = await r.json();
+  const body = document.getElementById('bbhb-seci-body');
+  if (!j.data?.length) { body.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Kayıt yok.</td></tr>'; }
+  else body.innerHTML = j.data.map(b => `<tr>
+    <td class="small">${b.baslik||b._id}<br><span class="text-muted">${new Date(b.createdAt).toLocaleDateString('tr-TR')}</span></td>
+    <td class="small">${[b.il,b.ilce].filter(Boolean).join(' / ')||'–'}</td>
+    <td class="small fw-semibold">${b.toplam_bbhb?.toFixed(2)||'–'}</td>
+    <td class="small">${b.toplam_adet||'–'}</td>
+    <td><button class="btn btn-xs btn-mis" onclick="bbhbBagla('${b._id}','${b.toplam_bbhb}','${b.toplam_adet}','${b.il||''}','${b.ilce||''}','${b.mahalle||''}','${b.createdAt}')">Bağla</button></td>
+  </tr>`).join('');
+  new bootstrap.Modal(document.getElementById('bbhbModal')).show();
+};
+
+window.bbhbBagla = async (bbhb_id, toplam_bbhb, toplam_adet, il, ilce, mahalle, tarih) => {
+  const r = await fetch(`${API}/${id}/bbhb`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ bbhb_id, toplam_bbhb:+toplam_bbhb, toplam_adet:+toplam_adet, il, ilce, mahalle, tarih })
+  });
+  const j = await r.json();
+  if (j.success) {
+    tahsis.bbhb_baglantilari = j.data;
+    bootstrap.Modal.getInstance(document.getElementById('bbhbModal')).hide();
+    renderBbhb();
+    showToast('BBHB bağlandı.');
+  } else showToast(j.message,'danger');
+};
+
+window.bbhbBagSil = async (bagId) => {
+  if (!confirm('Bu BBHB bağlantısını kaldırmak istiyor musunuz?')) return;
+  const r = await fetch(`${API}/${id}/bbhb/${bagId}`, { method:'DELETE' });
+  const j = await r.json();
+  if (j.success) { tahsis.bbhb_baglantilari = j.data; renderBbhb(); showToast('Bağlantı kaldırıldı.'); }
+  else showToast(j.message,'danger');
+};
+
+loadTahsis();
+</script>
+</body>
+</html>
