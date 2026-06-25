@@ -95,8 +95,20 @@
             <input type="text" class="form-control form-control-sm" id="m-parsel"/>
           </div>
           <div class="col-md-3">
-            <label class="form-label small fw-semibold">Tapu Alanı (da)</label>
-            <input type="number" step="0.01" class="form-control form-control-sm" id="m-alan"/>
+            <label class="form-label small fw-semibold">Tapu Alanı (m²)
+              <span class="text-muted fw-normal ms-1" id="tapu-da-goster"></span>
+            </label>
+            <input type="text" class="form-control form-control-sm" id="m-alan"
+              placeholder="21520,43 (= 21 da 520,43 m²)"
+              oninput="alanHesapla('m-alan','tapu-da-goster','m-alan-da')"/>
+            <input type="hidden" id="m-alan-da"/>
+            <label class="form-label small fw-semibold mt-2">Tespit Alanı (m²)
+              <span class="text-muted fw-normal ms-1" id="tespit-da-goster"></span>
+            </label>
+            <input type="text" class="form-control form-control-sm" id="m-tespit-alan"
+              placeholder="İsteğe bağlı — teknik tespit alanı"
+              oninput="alanHesapla('m-tespit-alan','tespit-da-goster','m-tespit-alan-da')"/>
+            <input type="hidden" id="m-tespit-alan-da"/>
           </div>
           <div class="col-md-3">
             <label class="form-label small fw-semibold">Durum</label>
@@ -200,7 +212,21 @@ window.kaynakDegisti = () => {
     el.classList.add('d-none');
   }
 };
-window.nitelikDegisti = () => {
+// ── Alan hesaplama: m² → da dönüşümü ─────────────────────
+// Girilen değer m² cinsinden, da'ya çevrilip gösterilir
+// 21520.43 m² → 21 da 520.43 m² → kayıt: 21.52043 da
+window.alanHesapla = (inputId, gosterimId, hiddenId) => {
+  const raw = document.getElementById(inputId).value.replace(',', '.').trim();
+  const m2  = parseFloat(raw);
+  const el  = document.getElementById(gosterimId);
+  const hid = document.getElementById(hiddenId);
+  if (!raw || isNaN(m2) || m2 <= 0) { el.textContent = ''; hid.value = ''; return; }
+  const da    = Math.floor(m2 / 1000);
+  const kalan = (m2 % 1000).toFixed(2);
+  const daVal = (m2 / 1000).toFixed(5);
+  el.textContent = `= ${da} da ${Number(kalan).toLocaleString('tr-TR', {minimumFractionDigits:2})} m² (${Number(daVal).toLocaleString('tr-TR', {minimumFractionDigits:5})} da)`;
+  hid.value = daVal;
+};
   const val = document.getElementById('m-nitelik').value;
   document.getElementById('m-nitelik-diger').classList.toggle('d-none', val !== 'Diğer');
 };
@@ -331,6 +357,9 @@ window.yeniMera = async () => {
   document.getElementById('modal-baslik').textContent = 'Yeni Mera';
   ['m-ada','m-parsel','m-nitelik-diger','m-aciklama'].forEach(id => document.getElementById(id).value='');
   document.getElementById('m-alan').value='';
+  document.getElementById('m-tespit-alan').value='';
+  document.getElementById('tapu-da-goster').textContent='';
+  document.getElementById('tespit-da-goster').textContent='';
   document.getElementById('m-nitelik').value='';
   document.getElementById('m-vasif').value='Bilinmiyor';
   document.getElementById('m-toprak').value='';
@@ -366,15 +395,21 @@ window.meraKaydet = async () => {
   if (!il.value||!ilce.value||!mahalle.value||!parsel) { showToast('İl, ilçe, mahalle ve parsel zorunlu.','warning'); return; }
   if (!kaynak) { showToast('Kaynak (4342/5. madde) zorunludur.','warning'); return; }
   const nitelikVal = document.getElementById('m-nitelik').value;
-  // tapu_alani_da: boş string yerine null gönder — validasyon tutarsızlığını engeller
-  const alanRaw = document.getElementById('m-alan').value;
-  const tapu_alani_da = alanRaw !== '' ? parseFloat(alanRaw) : null;
+  // tapu_alani_da: m² input'tan hesaplanan da değerini kullan
+  const tapuM2Raw = document.getElementById('m-alan').value.replace(',','.').trim();
+  const tapuM2    = parseFloat(tapuM2Raw);
+  const tapu_alani_da = (!tapuM2Raw || isNaN(tapuM2)) ? null : +(tapuM2/1000).toFixed(5);
+
+  const tespit_m2Raw = document.getElementById('m-tespit-alan').value.replace(',','.').trim();
+  const tespit_m2    = parseFloat(tespit_m2Raw);
+  const tespit_alani_da = (!tespit_m2Raw || isNaN(tespit_m2)) ? null : +(tespit_m2/1000).toFixed(5);
   const veri = {
     il_id: il.value, il_ad: il.options[il.selectedIndex].text,
     ilce_id: ilce.value, ilce_ad: ilce.options[ilce.selectedIndex].text,
     mahalle_id: mahalle.value, mahalle_ad: mahalle.options[mahalle.selectedIndex].text,
     ada: document.getElementById('m-ada').value, parsel,
     tapu_alani_da,
+    tespit_alani_da,
     nitelik: nitelikVal === 'Diğer' ? document.getElementById('m-nitelik-diger').value : nitelikVal,
     nitelik_diger: nitelikVal === 'Diğer' ? document.getElementById('m-nitelik-diger').value : '',
     vasif: document.getElementById('m-vasif').value,

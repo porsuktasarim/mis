@@ -30,11 +30,11 @@ const gorselSikistir = async (buffer, mimeType) => {
 // ── Drive yardımcı ────────────────────────────────────────
 const getDriveClient = async () => {
   const ayarlar = await Ayarlar.findOne();
-  const hesap = ayarlar?.drive_hesaplari?.find(h => h.aktif);
-  if (!hesap) throw new Error('Aktif Drive hesabı bulunamadı. Ayarlar sayfasından ekleyin.');
+  const hesap = ayarlar?.drive_hesaplari?.find(h => h.aktif && h.yetkili);
+  if (!hesap) throw new Error('NO_DRIVE'); // Caller lokal fallback kullanır
 
   if (hesap.tip === 'oauth2') {
-    if (!hesap.oauth_token) throw new Error('Drive hesabı yetkilendirilmemiş. Ayarlar > Google Drive > Yetkilendir.');
+    if (!hesap.oauth_token) throw new Error('NO_DRIVE');
     const { client_id, client_secret } = hesap.oauth_client_json.installed || hesap.oauth_client_json.web;
     const oauth2 = new google.auth.OAuth2(client_id, client_secret, 'urn:ietf:wg:oauth:2.0:oob');
     oauth2.setCredentials(hesap.oauth_token);
@@ -42,18 +42,17 @@ const getDriveClient = async () => {
       const guncellenen = { ...hesap.oauth_token, ...tokens };
       await Ayarlar.updateOne({ 'drive_hesaplari._id': hesap._id }, { $set: { 'drive_hesaplari.$.oauth_token': guncellenen } });
     });
-    return google.drive({ version: 'v3', auth: oauth2 });
+    return { drive: google.drive({ version: 'v3', auth: oauth2 }), hesap };
   }
 
   const auth = new google.auth.GoogleAuth({
     credentials: hesap.service_account_json,
     scopes: ['https://www.googleapis.com/auth/drive'],
   });
-  return google.drive({ version: 'v3', auth });
+  return { drive: google.drive({ version: 'v3', auth }), hesap };
 };
 
 const getMisDriveFolder = async (drive, altKlasor) => {
-  // MİS ana klasörünü bul
   const misRes = await drive.files.list({
     q: `name='MİS' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id,name)',
@@ -61,7 +60,6 @@ const getMisDriveFolder = async (drive, altKlasor) => {
   if (!misRes.data.files.length) throw new Error("Drive'da 'MİS' klasörü bulunamadı.");
   let parentId = misRes.data.files[0].id;
 
-  // Alt klasörleri sırayla oluştur/bul
   for (const klasor of altKlasor) {
     const res = await drive.files.list({
       q: `name='${klasor}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
@@ -90,7 +88,6 @@ const driveYukle = async (drive, folderId, dosyaAdi, mimeType, buffer) => {
     media: { mimeType, body: stream },
     fields: 'id,webViewLink,webContentLink',
   });
-  // Herkese açık yap
   await drive.permissions.create({
     fileId: res.data.id,
     requestBody: { role: 'reader', type: 'anyone' },
@@ -98,14 +95,29 @@ const driveYukle = async (drive, folderId, dosyaAdi, mimeType, buffer) => {
   return res.data;
 };
 
+// ── Sunucu lokal depolama (Drive yoksa) ──────────────────
+const lokalYukle = async (mera, dosyaAdi, buffer) => {
+  const fs   = require('fs');
+  const path = require('path');
+  const dir  = path.join(__dirname, '../../uploads/kml', String(mera.il_ad||'genel'));
+  fs.mkdirSync(dir, { recursive: true });
+  const dosyaYolu = path.join(dir, dosyaAdi);
+  fs.writeFileSync(dosyaYolu, buffer);
+  const lokal_path = `/uploads/kml/${mera.il_ad||'genel'}/${dosyaAdi}`;
+  return { id: null, webViewLink: lokal_path, lokal: true, lokal_path };
+};
+
 // ── Otlatma kapasitesi hesapla ────────────────────────────
 const hesaplaOtlatma = async (il_id, vasif, alan_da) => {
   const ayarlar = await Ayarlar.findOne();
   if (!ayarlar) return null;
   const kusak = ayarlar.yagis_kusaklari?.find(y => y.il_id === String(il_id))?.kusak;
-  if (!kusak || !vasif || !alan_da) return null;
+  if (!kusak || !alan_da) return null;
 
-  const vasifKey = { 'Çok İyi': 'cok_iyi', 'İyi': 'iyi', 'Orta': 'orta', 'Zayıf': 'zayif' }[vasif];
+  // Bilinmiyor veya boş → Orta vasıf olarak hesapla
+  const vasifEtkin = (!vasif || vasif === 'Bilinmiyor') ? 'Orta' : vasif;
+  const vasifKey = { 'Çok İyi': 'cok_iyi', 'İyi': 'iyi', 'Orta': 'orta', 'Zayıf': 'zayif' }[vasifEtkin];
+  if (!vasifKey) return null;
   const t1 = ayarlar.yararlanilabilir_yesil_ot?.find(r => r.kusak === kusak);
   const t2 = ayarlar.uretilen_yesil_ot?.find(r => r.kusak === kusak);
   const t3 = ayarlar.uretilen_kuru_ot?.find(r => r.kusak === kusak);
@@ -166,18 +178,22 @@ const getById = async (req, res, next) => {
 const olustur = async (req, res, next) => {
   try {
     const { il_id, il_ad, ilce_id, ilce_ad, mahalle_id, mahalle_ad, ada, parsel,
-      tapu_alani_da, nitelik, vasif, toprak_sinifi, durum, aciklama } = req.body;
+      tapu_alani_da, tespit_alani_da, nitelik, vasif, toprak_sinifi, durum, aciklama } = req.body;
 
     const ayarlar = await Ayarlar.findOne();
     const toprakBilgi = ayarlar?.toprak_siniflari?.find(t => t.sinif === toprak_sinifi);
 
-    const otlatma = vasif && tapu_alani_da && il_id
-      ? await hesaplaOtlatma(il_id, vasif, parseFloat(tapu_alani_da))
+    // Otlatma hesabı için önce tapu, yoksa tespit alanını kullan
+    const hesapAlani = parseFloat(tapu_alani_da) || parseFloat(tespit_alani_da) || 0;
+    const otlatma = hesapAlani && il_id
+      ? await hesaplaOtlatma(il_id, vasif, hesapAlani)
       : null;
 
     const mera = await Mera.create({
       il_id, il_ad, ilce_id, ilce_ad, mahalle_id, mahalle_ad,
-      ada, parsel, tapu_alani_da: parseFloat(tapu_alani_da) || 0,
+      ada, parsel,
+      tapu_alani_da:   tapu_alani_da   !== undefined ? (parseFloat(tapu_alani_da)   || null) : null,
+      tespit_alani_da: tespit_alani_da !== undefined ? (parseFloat(tespit_alani_da) || null) : null,
       nitelik, vasif, toprak_sinifi,
       toprak_sinifi_tanim: toprakBilgi?.tanim || '',
       durum: durum || 'Aktif', aciklama, otlatma,
@@ -191,7 +207,8 @@ const guncelle = async (req, res, next) => {
     const mera = await Mera.findById(req.params.id);
     if (!mera) return res.status(404).json({ success: false, message: 'Mera bulunamadı' });
     const guncellenecek = ['il_id','il_ad','ilce_id','ilce_ad','mahalle_id','mahalle_ad',
-      'ada','parsel','tapu_alani_da','kadastral_alan_da','nitelik','vasif','toprak_sinifi','durum','aciklama','kaynak'];
+      'ada','parsel','tapu_alani_da','tespit_alani_da','kadastral_alan_da',
+      'nitelik','vasif','toprak_sinifi','durum','aciklama','kaynak'];
     guncellenecek.forEach(alan => { if (req.body[alan] !== undefined) mera[alan] = req.body[alan]; });
     if (req.body.mulkiyet !== undefined) mera.mulkiyet = { ...mera.mulkiyet?.toObject?.() || {}, ...req.body.mulkiyet };
 
@@ -200,8 +217,9 @@ const guncelle = async (req, res, next) => {
       const tb = ayarlar?.toprak_siniflari?.find(t => t.sinif === req.body.toprak_sinifi);
       mera.toprak_sinifi_tanim = tb?.tanim || '';
     }
-    if (req.body.vasif || req.body.tapu_alani_da) {
-      mera.otlatma = await hesaplaOtlatma(mera.il_id, mera.vasif, mera.tapu_alani_da) || mera.otlatma;
+    if (req.body.vasif || req.body.tapu_alani_da || req.body.tespit_alani_da) {
+      const hesapAlani = mera.tapu_alani_da || mera.tespit_alani_da;
+      mera.otlatma = await hesaplaOtlatma(mera.il_id, mera.vasif, hesapAlani) || mera.otlatma;
     }
     await mera.save();
     res.json({ success: true, data: mera });
@@ -224,27 +242,60 @@ const kmlYukle = async (req, res, next) => {
     if (!mera) return res.status(404).json({ success: false, message: 'Mera bulunamadı' });
     if (!req.file) return res.status(400).json({ success: false, message: 'Dosya seçin' });
 
-    let kmlBuffer = req.file.buffer;
-    let mimeType = 'application/vnd.google-earth.kml+xml';
+    let kmlBuffer;
+    const orijinalAd = req.file.originalname.toLowerCase();
 
-    if (req.file.originalname.toLowerCase().endsWith('.kmz')) {
+    // ── GeoJSON → KML dönüşümü ─────────────────────────
+    if (orijinalAd.endsWith('.geojson') || orijinalAd.endsWith('.json')) {
+      const geojson = JSON.parse(req.file.buffer.toString('utf-8'));
+      kmlBuffer = Buffer.from(geojsonToKml(geojson, mera), 'utf-8');
+
+    // ── KMZ açma ───────────────────────────────────────
+    } else if (orijinalAd.endsWith('.kmz')) {
       const JSZip = require('jszip');
-      const zip = await JSZip.loadAsync(kmlBuffer);
+      const zip = await JSZip.loadAsync(req.file.buffer);
       const kmlFile = Object.keys(zip.files).find(f => f.endsWith('.kml'));
       if (!kmlFile) return res.status(400).json({ success: false, message: 'KMZ içinde KML bulunamadı' });
       kmlBuffer = Buffer.from(await zip.files[kmlFile].async('arraybuffer'));
+
+    // ── Ham KML ────────────────────────────────────────
+    } else {
+      kmlBuffer = req.file.buffer;
     }
 
-    // Adlandırma: il-ilçe-mahalle-ada-parsel-YYYYMMDD-surum
+    // Namespace fix
+    let kmlStr = kmlBuffer.toString('utf-8');
+    if (!kmlStr.startsWith('<?xml')) kmlStr = '<?xml version="1.0" encoding="UTF-8"?>\n' + kmlStr;
+    if (!kmlStr.includes('xmlns="http://www.opengis.net/kml/2.2"')) {
+      kmlStr = kmlStr.replace(/<kml([^>]*)>/, (m, a) =>
+        a.includes('xmlns') ? m : `<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2"${a}>`
+      );
+    }
+    kmlBuffer = Buffer.from(kmlStr, 'utf-8');
+
     const tarihStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
     const surum = Math.random().toString(36).slice(2,6).toUpperCase();
     const temizle = (s) => (s||'').replace(/\s+/g,'-').replace(/[^a-zA-Z0-9\-_ğüşıöçĞÜŞİÖÇ]/g,'');
     const dosyaAdi = `${temizle(mera.il_ad)}-${temizle(mera.ilce_ad)}-${temizle(mera.mahalle_ad)}-${mera.ada||'0'}-${mera.parsel}-${tarihStr}-${surum}.kml`;
 
-    const drive = await getDriveClient();
-    const folderId = await getMisDriveFolder(drive, [mera.il_ad, mera.ilce_ad, mera.mahalle_ad, `${mera.ada||'0'}-${mera.parsel}`, 'KML']);
-    const driveData = await driveYukle(drive, folderId, dosyaAdi, mimeType, kmlBuffer);
-    const downloadLink = `https://drive.google.com/uc?export=download&id=${driveData.id}`;
+    // ── Drive'a yükle (yoksa lokale) ───────────────────
+    let driveData;
+    let depolama = 'drive';
+
+    try {
+      const { drive } = await getDriveClient();
+      const folderId = await getMisDriveFolder(drive, [mera.il_ad, mera.ilce_ad, mera.mahalle_ad, `${mera.ada||'0'}-${mera.parsel}`, 'KML']);
+      driveData = await driveYukle(drive, folderId, dosyaAdi, 'application/vnd.google-earth.kml+xml', kmlBuffer);
+    } catch (driveErr) {
+      // Drive hatası (invalid_grant, token süresi vb.) → lokale düş
+      console.warn('[KML] Drive hatası, lokale kaydediliyor:', driveErr.message);
+      driveData = await lokalYukle(mera, dosyaAdi, kmlBuffer);
+      depolama = 'lokal';
+    }
+
+    const downloadLink = driveData.id
+      ? `https://drive.google.com/uc?export=download&id=${driveData.id}`
+      : driveData.lokal_path;
 
     // Eski KML'i geçmişe al
     if (mera.kml_drive_file_id) {
@@ -252,52 +303,114 @@ const kmlYukle = async (req, res, next) => {
         drive_file_id: mera.kml_drive_file_id,
         drive_web_link: mera.kml_drive_web_link,
         drive_download_link: mera.kml_drive_download_link,
-        dosya_adi: mera.kml_gecmis.length > 0 ? `önceki-${mera.kml_gecmis.length}` : 'ilk',
+        dosya_adi: `önceki-${mera.kml_gecmis.length + 1}`,
         surum,
       });
     }
 
-    // Aktif KML güncelle
-    mera.kml_drive_file_id = driveData.id;
-    mera.kml_drive_web_link = driveData.webViewLink;
+    mera.kml_drive_file_id       = driveData.id || dosyaAdi;
+    mera.kml_drive_web_link      = driveData.webViewLink;
     mera.kml_drive_download_link = downloadLink;
 
-    // Dosyalar sekmesine de ekle
     mera.dosyalar.push({
       ad: dosyaAdi,
       kategori: 'KML Dosyası',
       kaynak: 'kml',
-      drive_file_id: driveData.id,
+      drive_file_id: driveData.id || null,
       drive_web_link: driveData.webViewLink,
       drive_download_link: downloadLink,
       boyut: kmlBuffer.length,
-      mime_type: mimeType,
+      mime_type: 'application/vnd.google-earth.kml+xml',
     });
 
     await mera.save();
-    res.json({ success: true, data: { file_id: driveData.id, web_link: driveData.webViewLink, download_link: downloadLink, dosya_adi: dosyaAdi } });
+    res.json({
+      success: true,
+      depolama,
+      uyari: depolama === 'lokal' ? 'Drive bağlantısı kurulamadı, dosya sunucuya kaydedildi. Ayarlar > Depolama Alanı üzerinden Drive hesabınızı yeniden yetkilendirin.' : null,
+      data: { file_id: driveData.id, web_link: driveData.webViewLink, download_link: downloadLink, dosya_adi: dosyaAdi },
+    });
   } catch (err) { next(err); }
+};
+
+// ── GeoJSON → KML dönüştürücü ────────────────────────────
+const geojsonToKml = (geojson, mera) => {
+  const ad = `${mera.il_ad||''} ${mera.ilce_ad||''} ${mera.ada||''}-${mera.parsel||''}`.trim();
+  const coordsToKml = (coords) => coords.map(c => c.join(',')).join(' ');
+
+  const featureToPlacemark = (feature, idx) => {
+    const name = feature.properties?.name || feature.properties?.ad || `Parsel ${idx+1}`;
+    const desc = feature.properties?.description || feature.properties?.aciklama || '';
+    const geom = feature.geometry;
+    let geomKml = '';
+
+    if (geom.type === 'Polygon') {
+      const outer = coordsToKml(geom.coordinates[0]);
+      const inner = geom.coordinates.slice(1).map(r =>
+        `<innerBoundaryIs><LinearRing><coordinates>${coordsToKml(r)}</coordinates></LinearRing></innerBoundaryIs>`
+      ).join('');
+      geomKml = `<Polygon><outerBoundaryIs><LinearRing><coordinates>${outer}</coordinates></LinearRing></outerBoundaryIs>${inner}</Polygon>`;
+    } else if (geom.type === 'MultiPolygon') {
+      geomKml = `<MultiGeometry>${geom.coordinates.map(poly => {
+        const outer = coordsToKml(poly[0]);
+        return `<Polygon><outerBoundaryIs><LinearRing><coordinates>${outer}</coordinates></LinearRing></outerBoundaryIs></Polygon>`;
+      }).join('')}</MultiGeometry>`;
+    } else if (geom.type === 'Point') {
+      geomKml = `<Point><coordinates>${geom.coordinates.join(',')}</coordinates></Point>`;
+    } else if (geom.type === 'LineString') {
+      geomKml = `<LineString><coordinates>${coordsToKml(geom.coordinates)}</coordinates></LineString>`;
+    }
+
+    return `<Placemark><name>${name}</name><description>${desc}</description>${geomKml}</Placemark>`;
+  };
+
+  const features = geojson.type === 'FeatureCollection'
+    ? geojson.features
+    : geojson.type === 'Feature'
+      ? [geojson]
+      : [{ type: 'Feature', geometry: geojson, properties: {} }];
+
+  const placemarks = features.map((f, i) => featureToPlacemark(f, i)).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+  <Document>
+    <name>${ad}</name>
+    <Style id="mera"><LineStyle><color>ff0f6e56</color><width>2</width></LineStyle><PolyStyle><color>800f6e56</color></PolyStyle></Style>
+    ${placemarks}
+  </Document>
+</kml>`;
 };
 
 const kmlGetir = async (req, res, next) => {
   try {
     const mera = await Mera.findById(req.params.id).select('kml_drive_file_id kml_drive_download_link il_ad ilce_ad mahalle_ad ada parsel');
     if (!mera?.kml_drive_file_id) return res.status(404).json({ success: false, message: 'KML bulunamadı' });
-    const drive = await getDriveClient();
+
+    // Lokal dosya mı?
+    if (!mera.kml_drive_file_id.startsWith('1') || mera.kml_drive_download_link?.startsWith('/uploads')) {
+      const fs   = require('fs');
+      const path = require('path');
+      const lokal = path.join(__dirname, '../../uploads/kml', mera.il_ad||'genel', mera.kml_drive_file_id);
+      if (fs.existsSync(lokal)) {
+        const buf = fs.readFileSync(lokal);
+        res.setHeader('Content-Type', 'application/vnd.google-earth.kml+xml; charset=UTF-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${mera.kml_drive_file_id}"`);
+        return res.send(buf);
+      }
+    }
+
+    const { drive } = await getDriveClient();
     const response = await drive.files.get({ fileId: mera.kml_drive_file_id, alt: 'media' }, { responseType: 'arraybuffer' });
     let kmlStr = Buffer.from(response.data).toString('utf-8');
 
-    // Google Earth uyumu: namespace eksikse ekle
     if (!kmlStr.includes('xmlns="http://www.opengis.net/kml/2.2"')) {
       kmlStr = kmlStr.replace(/<kml([^>]*)>/, (match, attrs) => {
         if (attrs.includes('xmlns')) return match;
         return `<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2"${attrs}>`;
       });
     }
-    // XML declaration eksikse ekle
-    if (!kmlStr.startsWith('<?xml')) {
-      kmlStr = '<?xml version="1.0" encoding="UTF-8"?>\n' + kmlStr;
-    }
+    if (!kmlStr.startsWith('<?xml')) kmlStr = '<?xml version="1.0" encoding="UTF-8"?>\n' + kmlStr;
 
     const dosyaAdi = `${mera.il_ad||'mera'}-${mera.ada||'0'}-${mera.parsel||'0'}.kml`;
     res.setHeader('Content-Type', 'application/vnd.google-earth.kml+xml; charset=UTF-8');
@@ -322,7 +435,7 @@ const notEkle = async (req, res, next) => {
 
     // Dosya yükleme varsa Drive'a at
     if (req.file) {
-      const drive = await getDriveClient();
+      const { drive } = await getDriveClient();
       const tarihStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
       const surum = Math.random().toString(36).slice(2,6).toUpperCase();
       const dosyaAdi = `${tarihStr}-not-eki-${surum}${path.extname(req.file.originalname)}`;
@@ -413,7 +526,7 @@ const dosyaYukle = async (req, res, next) => {
       mimeType = 'image/jpeg';
     }
 
-    const drive = await getDriveClient();
+    const { drive } = await getDriveClient();
     const folderId = await getMisDriveFolder(drive, [
       mera.il_ad, mera.ilce_ad, mera.mahalle_ad,
       `${mera.ada || '0'}-${mera.parsel}`, kategori || 'Diger'
@@ -455,7 +568,7 @@ const dosyaSil = async (req, res, next) => {
     const dosya = mera?.dosyalar?.id(req.params.dosyaId);
     if (!dosya) return res.status(404).json({ success: false, message: 'Dosya bulunamadı' });
     try {
-      const drive = await getDriveClient();
+      const { drive } = await getDriveClient();
       await drive.files.delete({ fileId: dosya.drive_file_id });
     } catch {}
     dosya.deleteOne();
@@ -599,7 +712,7 @@ const vasifDosyaYukle = async (req, res, next) => {
     const bitisTarihi = new Date(tarihObj);
     bitisTarihi.setFullYear(bitisTarihi.getFullYear() + 1);
 
-    const drive = await getDriveClient();
+    const { drive } = await getDriveClient();
     const tarihStr = tarihObj.toISOString().slice(0,10).replace(/-/g,'');
     const surum = Math.random().toString(36).slice(2,6).toUpperCase();
     const dosyaAdi = `${tarihStr}-teknik-personel-raporu-vasif-raporu-${surum}${path.extname(req.file.originalname)}`;
@@ -643,7 +756,7 @@ const tahsisDosyaYukle = async (req, res, next) => {
     const bitisTarihi = new Date(tarihObj);
     bitisTarihi.setFullYear(bitisTarihi.getFullYear() + 5);
 
-    const drive = await getDriveClient();
+    const { drive } = await getDriveClient();
     const tarihStr = tarihObj.toISOString().slice(0,10).replace(/-/g,'');
     const surum = Math.random().toString(36).slice(2,6).toUpperCase();
     const dosyaAdi = `${tarihStr}-tahsis-belgesi-${surum}${path.extname(req.file.originalname)}`;

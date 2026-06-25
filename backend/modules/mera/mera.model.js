@@ -60,7 +60,8 @@ const MeraSchema = new mongoose.Schema({
   mahalle_ad: { type: String, required: true },
   ada: { type: String },
   parsel: { type: String, required: true },
-  tapu_alani_da: { type: Number },
+  tapu_alani_da:    { type: Number },   // Tapu kayıt alanı (da)
+  tespit_alani_da:  { type: Number },   // Teknik ekip tespit alanı (da)
   kaynak: { type: String, enum: ['5/a','5/b','5/c','5/d',''] , default: '' },
 
   // Nitelik

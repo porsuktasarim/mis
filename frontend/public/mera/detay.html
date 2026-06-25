@@ -107,8 +107,8 @@
                 <div class="ms-auto d-flex gap-2">
                   <a id="btn-earth-web" href="#" target="_blank" class="btn btn-xs btn-outline-secondary d-none"><i class="bi bi-globe me-1"></i>Google Earth Web'de Aç</a>
                   <a id="btn-kml-indir" href="#" class="btn btn-xs btn-outline-success d-none"><i class="bi bi-download me-1"></i>KML</a>
-                  <label class="btn btn-xs btn-mis mb-0" for="kml-input-genel"><i class="bi bi-upload me-1"></i>KML Yükle</label>
-                  <input type="file" id="kml-input-genel" accept=".kml,.kmz" class="d-none" onchange="kmlYukle(this)"/>
+                  <label class="btn btn-xs btn-mis mb-0" for="kml-input-genel"><i class="bi bi-upload me-1"></i>KML/GeoJSON Yükle</label>
+                  <input type="file" id="kml-input-genel" accept=".kml,.kmz,.geojson,.json" class="d-none" onchange="kmlYukle(this)"/>
                 </div>
               </div>
               <div id="harita-genel-placeholder" class="text-center py-4 text-muted" style="background:#f8faf8;border-radius:8px;">
@@ -642,7 +642,13 @@ window.kmlYukle = async (input) => {
   showToast('KML yükleniyor...','secondary');
   const r = await fetch(`${API_MERA}/${id}/kml`,{method:'POST',body:form});
   const j = await r.json();
-  if(j.success){showToast('KML yüklendi.');await loadMera();if(haritaGenel){haritaGenel.remove();haritaGenel=null;}haritaYukleGenel();}
+  if(j.success){
+    const mesaj = j.uyari ? `Yüklendi (Lokal). ⚠️ ${j.uyari}` : 'KML/GeoJSON yüklendi.';
+    showToast(mesaj, j.uyari ? 'warning' : 'success');
+    await loadMera();
+    if(haritaGenel){haritaGenel.remove();haritaGenel=null;}
+    haritaYukleGenel();
+  }
   else showToast(j.message,'danger');
   input.value='';
 };
