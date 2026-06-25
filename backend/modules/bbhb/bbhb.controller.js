@@ -3,6 +3,7 @@ const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel, AlignmentType, WidthType, BorderStyle } = require('docx');
 
+// ── Hayvan türleri ve BBHB katsayıları ────────────────────
 const HAYVAN_TURLERI = [
   { tur_id: 'kult_sut',   tur_adi: 'Kültür ırkı süt ineği',       katsayi: 1.00, grup: 'Sığır' },
   { tur_id: 'kult_mez',   tur_adi: 'Kültür melezi',                katsayi: 0.75, grup: 'Sığır' },
@@ -21,6 +22,77 @@ const HAYVAN_TURLERI = [
   { tur_id: 'katir',      tur_adi: 'Katır',                       katsayi: 0.40, grup: 'Yük Hayvanı' },
   { tur_id: 'esek',       tur_adi: 'Eşek',                        katsayi: 0.30, grup: 'Yük Hayvanı' },
 ];
+
+// Sütun başlığı → BBHB katsayısı (rapor tablo başlığı satırı için)
+const KOLON_KATSAYI = {
+  'Kültür Irkı İnek':     1.00,
+  'Kültür Irkı Da-Dü':   0.60,
+  'Kültür Melezi İnek':  0.75,
+  'Kültür Melezi Da-Dü': 0.45,
+  'Yerli Irk İnek':      0.50,
+  'Yerli Irk Da-Dü':     0.30,
+  'Koyun':               0.10,
+  'Kuzu':                0.04,
+  'Keçi':                0.08,
+  'At':                  0.50,
+  'Eşek':                0.30,
+};
+
+// Yer başlığı oluştur  →  "İstanbul İli Silivri İlçesi Akören Mahallesi/Köyü"
+const yerOlustur = (il, ilce, mahalle) => [
+  il      ? il      + ' İli'           : '',
+  ilce    ? ilce    + ' İlçesi'        : '',
+  mahalle ? mahalle + ' Mahallesi/Köyü': '',
+].filter(Boolean).join(' ');
+
+// ── Mera alan hesabı (4 vasıf düzeyi ayrı ayrı) ───────────
+const meraHesapla = async (toplam_bbhb, il) => {
+  const gunlukYem    = 50;    // kg / BBHB / gün
+  const otlatmaSuresi = 180;  // gün
+  const toplamYemKg  = toplam_bbhb * gunlukYem * otlatmaSuresi;
+  const fmt = n => Number(n.toFixed(1)).toLocaleString('tr-TR', { minimumFractionDigits: 1 });
+
+  const Ayarlar = require('../ayarlar/ayarlar.model');
+  const ayarlar = await Ayarlar.findOne().select('yagis_kusaklari yararlanilabilir_yesil_ot');
+
+  // İle özgü yağış kuşağı satırını bul
+  let verimSatir = null;
+  let kusak = null;
+  if (il && ayarlar?.yagis_kusaklari?.length) {
+    const ilKusagi = ayarlar.yagis_kusaklari.find(
+      k => k.il_ad && k.il_ad.toLowerCase().trim() === il.toLowerCase().trim()
+    );
+    if (ilKusagi && ayarlar?.yararlanilabilir_yesil_ot?.length) {
+      verimSatir = ayarlar.yararlanilabilir_yesil_ot.find(v => v.kusak === ilKusagi.kusak);
+      kusak = ilKusagi.kusak;
+    }
+  }
+
+  // Verim bulunamazsa tüm kuşakların ortalamasını kullan
+  if (!verimSatir && ayarlar?.yararlanilabilir_yesil_ot?.length) {
+    const satirlar = ayarlar.yararlanilabilir_yesil_ot;
+    const ort = field => {
+      const vals = satirlar.map(s => s[field]).filter(v => v > 0);
+      return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    };
+    verimSatir = { cok_iyi: ort('cok_iyi'), iyi: ort('iyi'), orta: ort('orta'), zayif: ort('zayif') };
+    kusak = null; // Genel ortalama
+  }
+
+  const hesapla = v => v && v > 0 ? toplamYemKg / v : null;
+  return {
+    gun: otlatmaSuresi,
+    gunlukYem,
+    toplamYemKg,
+    il, kusak,
+    cok_iyi: hesapla(verimSatir?.cok_iyi),
+    iyi:     hesapla(verimSatir?.iyi),
+    orta:    hesapla(verimSatir?.orta),
+    zayif:   hesapla(verimSatir?.zayif),
+    verim:   verimSatir || {},
+    fmt,
+  };
+};
 
 const getTurler = (req, res) => {
   res.json({ success: true, data: HAYVAN_TURLERI });
@@ -89,274 +161,214 @@ const sil = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+
+// ── Ortak sabitler ─────────────────────────────────────────
+const KOLONLAR = [
+  'Kültür Irkı İnek','Kültür Irkı Da-Dü',
+  'Kültür Melezi İnek','Kültür Melezi Da-Dü',
+  'Yerli Irk İnek','Yerli Irk Da-Dü',
+  'Koyun','Kuzu','Keçi','At','Eşek',
+];
+const KOLONLAR_KISA = ['İnek','Da-Dü','İnek','Da-Dü','İnek','Da-Dü','Koyun','Kuzu','Keçi','At','Eşek'];
+const KAT_KOLON = {
+  'Kültür ırkı süt ineği':'Kültür Irkı İnek','Dana-düve (kültür ırkı)':'Kültür Irkı Da-Dü',
+  'Kültür melezi':'Kültür Melezi İnek','Dana-düve (kültür melezi)':'Kültür Melezi Da-Dü',
+  'Yerli inek':'Yerli Irk İnek','Dana-düve (yerli)':'Yerli Irk Da-Dü',
+  'Koyun':'Koyun','Kuzu-oğlak':'Kuzu','Keçi':'Keçi','At':'At','Eşek':'Eşek',
+};
+const KAT_COL_NUM = {
+  'Kültür ırkı süt ineği':3,'Dana-düve (kültür ırkı)':4,
+  'Kültür melezi':5,'Dana-düve (kültür melezi)':6,
+  'Yerli inek':7,'Dana-düve (yerli)':8,
+  'Koyun':9,'Kuzu-oğlak':10,'Keçi':11,'At':12,'Eşek':13,
+};
+
+// İşletmeci listesi normalize et
+const isletmecileriGetir = (kayit) =>
+  Array.isArray(kayit.isletmeciler) && kayit.isletmeciler.length > 0
+    ? kayit.isletmeciler
+    : [{ sahip: kayit.ciftci_ad||'-',
+         kategoriler: Object.fromEntries(kayit.hayvanlar.filter(h=>h.adet>0).map(h=>[h.tur_adi,{adet:h.adet,bbhb:h.bbhb}])),
+         toplam_adet: kayit.toplam_adet, toplam_bbhb: kayit.toplam_bbhb }];
+
+// Kategori → kolon eşleştir
+const katToKolon = (kategoriler) => {
+  const kd = {};
+  Object.entries(kategoriler||{}).forEach(([kat,v]) => {
+    const k = KAT_KOLON[kat]; if (k) kd[k] = (kd[k]||0) + (v.adet||0);
+  });
+  return kd;
+};
+
+// ── EXCEL RAPOR ────────────────────────────────────────────
 const excelRapor = async (req, res, next) => {
   try {
     const kayit = await BBHBHesaplama.findById(req.params.id);
-    if (!kayit) return res.status(404).json({ success: false, message: 'Kayıt bulunamadı' });
+    if (!kayit) return res.status(404).json({ success:false, message:'Kayıt bulunamadı' });
+    const mera = await meraHesapla(kayit.toplam_bbhb, kayit.il);
+    const isletmeciler = isletmecileriGetir(kayit);
 
     const wb = new ExcelJS.Workbook();
     wb.creator = 'MİS - Mera İzleme Sistemi';
     const ws = wb.addWorksheet('BBHB');
 
-    const GREEN  = 'FF0F6E56';
-    const GREEN2 = 'FF1D9E75';
-    const WHITE  = 'FFFFFFFF';
-    const LGREEN = 'FFE1F5EE';
+    const G1='FF0F6E56', G2='FF1D9E75', WH='FFFFFFFF', LG='FFE1F5EE', MG='FFC8EAD8', YL='FFFFF8E1', LB='FFE8F4FD';
+    ws.columns = [{width:6},{width:32},{width:9},{width:9},{width:9},{width:9},{width:9},{width:9},{width:9},{width:9},{width:9},{width:9},{width:9},{width:12}];
 
-    ws.columns = [
-      {width:6},{width:32},{width:9},{width:9},{width:9},{width:9},
-      {width:9},{width:9},{width:9},{width:9},{width:9},{width:9},{width:9},{width:12},
-    ];
-
-    const stl = (cell, bg, color, bold, align, border) => {
+    const s = (cell, bg, color, bold, align, border) => {
       if (bg) cell.fill = {type:'pattern',pattern:'solid',fgColor:{argb:bg}};
       cell.font = {bold:!!bold, color:{argb:color||'FF000000'}, size:10};
       cell.alignment = {horizontal:align||'center',vertical:'middle',wrapText:true};
       if (border) { const b={style:'thin',color:{argb:'FFCCCCCC'}}; cell.border={top:b,bottom:b,left:b,right:b}; }
     };
 
-    // Satır 1: Yer bilgisi
-    const yer = [kayit.il,kayit.ilce,kayit.mahalle].filter(Boolean)
-      .map((v,i)=> i===0?v+' İli':i===1?v+' İlçesi':v+' Mahallesi/Köyü').join(' ');
+    // Satır 1: Yer
     ws.mergeCells('A1:N1');
-    ws.getCell('A1').value = yer || 'BÜYÜK BAŞ HAYVAN BİRİMİ (BBHB) HESAPLAMA';
-    stl(ws.getCell('A1'), GREEN, WHITE, true, 'center'); ws.getRow(1).height = 22;
+    ws.getCell('A1').value = yerOlustur(kayit.il,kayit.ilce,kayit.mahalle) || 'BBHB RAPORU';
+    s(ws.getCell('A1'),G1,WH,true,'center'); ws.getRow(1).height=22;
 
     // Satır 2: Başlık
     ws.mergeCells('A2:N2');
     ws.getCell('A2').value = 'BÜYÜK BAŞ HAYVAN BİRİMİ (BBHB) RAPORU';
-    stl(ws.getCell('A2'), GREEN, WHITE, true, 'center'); ws.getRow(2).height = 22;
+    s(ws.getCell('A2'),G1,WH,true,'center'); ws.getRow(2).height=22;
 
     // Satır 3: Tarih
-    ws.mergeCells('A3:G3'); ws.getCell('A3').value = 'Tarih: ' + new Date(kayit.createdAt).toLocaleDateString('tr-TR');
-    stl(ws.getCell('A3'), null, null, false, 'left'); ws.getRow(3).height = 16;
+    ws.mergeCells('A3:G3');
+    ws.getCell('A3').value = 'Tarih: '+new Date(kayit.createdAt).toLocaleDateString('tr-TR');
+    s(ws.getCell('A3'),null,null,false,'left'); ws.getRow(3).height=16;
 
-    // Satır 4: Üst tablo başlığı
-    ws.mergeCells('A4:A6'); ws.getCell('A4').value = 'Sıra\nNo';
-    stl(ws.getCell('A4'), GREEN, WHITE, true);
-    ws.mergeCells('B4:B6'); ws.getCell('B4').value = 'İkamet Eden Aile Temsilcisinin\nAdı Soyadı (Aile)';
-    stl(ws.getCell('B4'), GREEN, WHITE, true);
-    ws.mergeCells('C4:N4'); ws.getCell('C4').value = 'Büyükbaş, Küçükbaş ve Diğer Hayvan Varlıkları';
-    stl(ws.getCell('C4'), GREEN, WHITE, true); ws.getRow(4).height = 26;
+    // Satır 4: Üst başlık (A-B rowspan 3, N rowspan 3)
+    ws.mergeCells('A4:A7'); ws.getCell('A4').value='Sıra\nNo'; s(ws.getCell('A4'),G1,WH,true);
+    ws.mergeCells('B4:B7'); ws.getCell('B4').value='İkamet Eden Aile Temsilcisinin\nAdı Soyadı (Aile)'; s(ws.getCell('B4'),G1,WH,true);
+    ws.mergeCells('C4:N4'); ws.getCell('C4').value='Büyükbaş, Küçükbaş ve Diğer Hayvan Varlıkları'; s(ws.getCell('C4'),G1,WH,true); ws.getRow(4).height=26;
 
     // Satır 5: Grup başlıkları
-    [['C5:D5','Kültür Irkı'],['E5:F5','Kültür Melezi'],['G5:H5','Yerli Irk'],
-     ['I5:K5','Küçükbaş'],['L5:M5','Tek Tırnaklı']].forEach(([r,v]) => {
-      ws.mergeCells(r); ws.getCell(r.split(':')[0]).value = v;
-      stl(ws.getCell(r.split(':')[0]), GREEN2, WHITE, true);
+    [['C5:D5','Kültür Irkı'],['E5:F5','Kültür Melezi'],['G5:H5','Yerli Irk'],['I5:K5','Küçükbaş'],['L5:M5','Tek Tırnaklı']].forEach(([r,v])=>{
+      ws.mergeCells(r); s(ws.getCell(r.split(':')[0]),G2,WH,true); ws.getCell(r.split(':')[0]).value=v;
     });
-    ws.mergeCells('N5:N6'); ws.getCell('N5').value = 'Toplam\nBBHB';
-    stl(ws.getCell('N5'), GREEN2, WHITE, true); ws.getRow(5).height = 18;
+    ws.mergeCells('N5:N7'); ws.getCell('N5').value='Toplam\nBBHB'; s(ws.getCell('N5'),G2,WH,true); ws.getRow(5).height=18;
 
-    // Satır 6: Alt başlıklar
-    [['C6','İnek'],['D6','Da-Dü'],['E6','İnek'],['F6','Da-Dü'],['G6','İnek'],['H6','Da-Dü'],
-     ['I6','Koyun'],['J6','Kuzu'],['K6','Keçi'],['L6','At'],['M6','Eşek']].forEach(([c,v]) => {
-      ws.getCell(c).value = v; stl(ws.getCell(c), GREEN2, WHITE, true);
-    }); ws.getRow(6).height = 18;
+    // Satır 6: Hayvan adları
+    KOLONLAR_KISA.forEach((v,i)=>{ const c=ws.getRow(6).getCell(i+3); c.value=v; s(c,G2,WH,true); }); ws.getRow(6).height=18;
 
-    // Kategori → sütun eşleşmesi
-    const KAT_COL = {
-      'Kültür ırkı süt ineği':3,'Dana-düve (kültür ırkı)':4,
-      'Kültür melezi':5,'Dana-düve (kültür melezi)':6,
-      'Yerli inek':7,'Dana-düve (yerli)':8,
-      'Koyun':9,'Kuzu-oğlak':10,'Keçi':11,'At':12,'Eşek':13,
-    };
+    // Satır 7: BBHB Katsayıları ← YENİ SATIR
+    KOLONLAR.forEach((k,i)=>{ const c=ws.getRow(7).getCell(i+3); c.value=KOLON_KATSAYI[k]??''; c.numFmt='0.00'; s(c,YL,'FF6D4C00',true); }); ws.getRow(7).height=16;
 
-    const isletmeciler = Array.isArray(kayit.isletmeciler) && kayit.isletmeciler.length > 0
-      ? kayit.isletmeciler
-      : [{ sahip: kayit.ciftci_ad||'-', kategoriler: Object.fromEntries(
-           kayit.hayvanlar.filter(h=>h.adet>0).map(h=>[h.tur_adi,{adet:h.adet,bbhb:h.bbhb}])
-         ), toplam_adet: kayit.toplam_adet, toplam_bbhb: kayit.toplam_bbhb }];
-
+    // Veri satırları (satır 8'den)
     const toplamKol = {};
-    isletmeciler.forEach((ist, idx) => {
-      const satirNo = 7 + idx;
-      const row = ws.getRow(satirNo);
-      row.height = 18;
-      row.getCell(1).value = idx + 1; stl(row.getCell(1), idx%2?'FFF5FAF7':null, null, false, 'center', true);
-      row.getCell(2).value = ist.sahip||'—'; stl(row.getCell(2), idx%2?'FFF5FAF7':null, null, false, 'left', true);
-      for (let c=3;c<=13;c++) { row.getCell(c).value=null; stl(row.getCell(c), idx%2?'FFF5FAF7':null, null, false, 'center', true); }
-      Object.entries(ist.kategoriler||{}).forEach(([kat,v]) => {
-        const col = KAT_COL[kat]; if (!col) return;
-        row.getCell(col).value = v.adet || null;
-        stl(row.getCell(col), idx%2?'FFF5FAF7':null, null, false, 'center', true);
-        toplamKol[col] = (toplamKol[col]||0) + (v.adet||0);
+    isletmeciler.forEach((ist,idx)=>{
+      const r=ws.getRow(8+idx); r.height=18;
+      r.getCell(1).value=idx+1; s(r.getCell(1),idx%2?'FFF5FAF7':null,null,false,'center',true);
+      r.getCell(2).value=ist.sahip||'—'; s(r.getCell(2),idx%2?'FFF5FAF7':null,null,false,'left',true);
+      for(let c=3;c<=13;c++){r.getCell(c).value=null;s(r.getCell(c),idx%2?'FFF5FAF7':null,null,false,'center',true);}
+      Object.entries(ist.kategoriler||{}).forEach(([kat,v])=>{
+        const col=KAT_COL_NUM[kat]; if(!col)return;
+        r.getCell(col).value=v.adet||null; s(r.getCell(col),idx%2?'FFF5FAF7':null,null,false,'center',true);
+        toplamKol[col]=(toplamKol[col]||0)+(v.adet||0);
       });
-      row.getCell(14).value = ist.toplam_bbhb;
-      row.getCell(14).numFmt = '#,##0.00';
-      stl(row.getCell(14), idx%2?'FFF5FAF7':null, null, true, 'right', true);
+      r.getCell(14).value=ist.toplam_bbhb; r.getCell(14).numFmt='#,##0.00'; s(r.getCell(14),idx%2?'FFF5FAF7':null,null,true,'right',true);
     });
 
     // Toplam satırı
-    const totR = 7 + isletmeciler.length;
-    const totRow = ws.getRow(totR); totRow.height = 20;
+    const totR=8+isletmeciler.length, totRow=ws.getRow(totR); totRow.height=20;
     ws.mergeCells(`A${totR}:B${totR}`);
-    totRow.getCell(1).value = 'TOPLAM'; stl(totRow.getCell(1), LGREEN, null, true, 'center', true);
-    for (let c=3;c<=13;c++) {
-      totRow.getCell(c).value = toplamKol[c]||null;
-      stl(totRow.getCell(c), LGREEN, null, true, 'center', true);
-    }
-    totRow.getCell(14).value = kayit.toplam_bbhb; totRow.getCell(14).numFmt = '#,##0.00';
-    stl(totRow.getCell(14), LGREEN, null, true, 'right', true);
+    totRow.getCell(1).value='TOPLAM'; s(totRow.getCell(1),LG,null,true,'center',true);
+    for(let c=3;c<=13;c++){totRow.getCell(c).value=toplamKol[c]||null;s(totRow.getCell(c),LG,null,true,'center',true);}
+    totRow.getCell(14).value=kayit.toplam_bbhb; totRow.getCell(14).numFmt='#,##0.00'; s(totRow.getCell(14),LG,null,true,'right',true);
+
+    // Özet
+    const oR=totR+2;
+    ws.mergeCells(`A${oR}:N${oR}`); ws.getCell(`A${oR}`).value='ÖZET BİLGİLER'; s(ws.getCell(`A${oR}`),G1,WH,true,'left'); ws.getRow(oR).height=18;
+    const oSat=(r,et,dg)=>{ws.mergeCells(`A${r}:G${r}`);ws.getCell(`A${r}`).value=et;s(ws.getCell(`A${r}`),MG,null,true,'left',true);ws.mergeCells(`H${r}:N${r}`);ws.getCell(`H${r}`).value=dg;s(ws.getCell(`H${r}`),null,null,false,'left',true);ws.getRow(r).height=15;};
+    oSat(oR+1,'Toplam Hayvan Sayısı',kayit.toplam_adet.toLocaleString('tr-TR')+' baş');
+    oSat(oR+2,'Toplam BBHB',kayit.toplam_bbhb.toFixed(2));
+    oSat(oR+3,'İşletmeci Sayısı',String(isletmeciler.length));
+    oSat(oR+4,'Tahmini Canlı Ağırlık',(kayit.toplam_bbhb*500).toLocaleString('tr-TR')+' kg');
+    oSat(oR+5,'Yeşil Kaba Yem (180 gün)',(kayit.toplam_bbhb*50*180).toLocaleString('tr-TR')+' kg');
+    oSat(oR+6,'Kuru Kaba Yem (180 gün)',(kayit.toplam_bbhb*12.5*180).toLocaleString('tr-TR')+' kg');
+
+    // Mera vasıf tablosu
+    const mR=oR+8;
+    ws.mergeCells(`A${mR}:N${mR}`);
+    ws.getCell(`A${mR}`).value=`180 Günlük Dönem Mera Miktarı (${mera.gun} gün × ${mera.gunlukYem} kg/BBHB/gün)${mera.kusak?' – '+kayit.il+' ili, '+mera.kusak+' mm':' – Genel ort.'}`;
+    s(ws.getCell(`A${mR}`),G1,WH,true,'left'); ws.getRow(mR).height=18;
+    const mSat=(r,vasif,alan,verim)=>{ws.mergeCells(`A${r}:G${r}`);ws.getCell(`A${r}`).value=vasif;s(ws.getCell(`A${r}`),LB,null,true,'left',true);ws.mergeCells(`H${r}:K${r}`);ws.getCell(`H${r}`).value=alan!=null?mera.fmt(alan)+' da':'-';s(ws.getCell(`H${r}`),null,null,false,'left',true);ws.mergeCells(`L${r}:N${r}`);ws.getCell(`L${r}`).value=verim?'('+verim+' kg/da)':'';s(ws.getCell(`L${r}`),null,'FF888888',false,'left',true);ws.getRow(r).height=15;};
+    mSat(mR+1,'🟢 Çok İyi Vasıf Mera',mera.cok_iyi,mera.verim?.cok_iyi);
+    mSat(mR+2,'🔵 İyi Vasıf Mera',mera.iyi,mera.verim?.iyi);
+    mSat(mR+3,'🟡 Orta Vasıf Mera',mera.orta,mera.verim?.orta);
+    mSat(mR+4,'🔴 Zayıf Vasıf Mera',mera.zayif,mera.verim?.zayif);
 
     res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition',`attachment; filename=bbhb_${kayit._id}.xlsx`);
     await wb.xlsx.write(res); res.end();
-  } catch (err) { next(err); }
+  } catch(err){next(err);}
 };
 
+// ── PDF RAPOR ──────────────────────────────────────────────
 const pdfRapor = async (req, res, next) => {
   try {
     const kayit = await BBHBHesaplama.findById(req.params.id);
-    if (!kayit) return res.status(404).json({ success: false, message: 'Kayıt bulunamadı' });
-
-    // Ayarlardan il bazlı mera verimi hesapla
-    const Ayarlar = require('../ayarlar/ayarlar.model');
-    const ayarlar = await Ayarlar.findOne().select('yagis_kusaklari yararlanilabilir_yesil_ot');
-
-    const gunlukYem = 50;    // kg/BBHB/gün
-    const otlatmaSuresi = 180; // gün
-    const toplamYemKg = kayit.toplam_bbhb * gunlukYem * otlatmaSuresi;
-
-    let meraAlanMetni;
-    const il = kayit.il || '';
-
-    if (il && ayarlar?.yagis_kusaklari?.length && ayarlar?.yararlanilabilir_yesil_ot?.length) {
-      // İlin yağış kuşağını bul
-      const ilKusagi = ayarlar.yagis_kusaklari.find(
-        k => k.il_ad && k.il_ad.toLowerCase().trim() === il.toLowerCase().trim()
-      );
-      if (ilKusagi) {
-        // O kuşağın iyi vasıf verim değerini bul
-        const verimSatir = ayarlar.yararlanilabilir_yesil_ot.find(
-          v => v.kusak === ilKusagi.kusak
-        );
-        if (verimSatir?.iyi) {
-          const alan = (toplamYemKg / verimSatir.iyi).toFixed(1);
-          meraAlanMetni = `${Number(alan).toLocaleString('tr-TR')} da
-            <span class="aciklama">(${il} ili ${ilKusagi.kusak} mm yağış kuşağı, iyi vasıf verim: ${verimSatir.iyi} kg/da)</span>`;
-        }
-      }
-    }
-
-    if (!meraAlanMetni) {
-      // Genel ortalama fallback
-      const iyiDegerler = (ayarlar?.yararlanilabilir_yesil_ot||[]).map(s=>s.iyi).filter(v=>v>0);
-      if (iyiDegerler.length > 0) {
-        const ort = iyiDegerler.reduce((a,b)=>a+b,0)/iyiDegerler.length;
-        const min = Math.min(...iyiDegerler), max = Math.max(...iyiDegerler);
-        meraAlanMetni = `${(toplamYemKg/max).toFixed(1).toLocaleString?.()??((toplamYemKg/max).toFixed(1))} – ${(toplamYemKg/min).toFixed(1)} da
-          <span class="aciklama">(genel ort. ${(toplamYemKg/ort).toFixed(1)} da; verim: ${min}–${max} kg/da)</span>`;
-      } else {
-        const a1=(kayit.toplam_bbhb*10).toLocaleString('tr-TR',{minimumFractionDigits:1,maximumFractionDigits:1});
-        const a2=(kayit.toplam_bbhb*12).toLocaleString('tr-TR',{minimumFractionDigits:1,maximumFractionDigits:1});
-        meraAlanMetni = `${a1} – ${a2} da <span class="aciklama">(10–12 da/BBHB sabit oran)</span>`;
-      }
-    }
-
-    const aktif = kayit.hayvanlar.filter(h => h.adet > 0);
+    if (!kayit) return res.status(404).json({ success:false, message:'Kayıt bulunamadı' });
+    const mera = await meraHesapla(kayit.toplam_bbhb, kayit.il);
+    const isletmeciler = isletmecileriGetir(kayit);
     const tarih = new Date(kayit.createdAt).toLocaleDateString('tr-TR');
+    const yer = yerOlustur(kayit.il, kayit.ilce, kayit.mahalle);
 
-    // Yer bilgisi
-    const yerParcalari = [
-      kayit.il      ? `<strong>${kayit.il} İli</strong>`      : '',
-      kayit.ilce    ? `<strong>${kayit.ilce} İlçesi</strong>`  : '',
-      kayit.mahalle ? `<strong>${kayit.mahalle} Mahallesi/Köyü</strong>` : '',
-    ].filter(Boolean);
-    const yerSatiri = yerParcalari.join(' ');
-
-    // İşletmeci listesi
-    const isletmecilerArr = Array.isArray(kayit.isletmeciler) && kayit.isletmeciler.length > 0
-      ? kayit.isletmeciler : null;
-
-    // Sütun eşleşme tablosu
-    const KAT_KOLON = {
-      'Kültür ırkı süt ineği':     'Kültür Irkı İnek',
-      'Dana-düve (kültür ırkı)':   'Kültür Irkı Da-Dü',
-      'Kültür melezi':              'Kültür Melezi İnek',
-      'Dana-düve (kültür melezi)':  'Kültür Melezi Da-Dü',
-      'Yerli inek':                 'Yerli Irk İnek',
-      'Dana-düve (yerli)':          'Yerli Irk Da-Dü',
-      'Koyun':                      'Koyun',
-      'Kuzu-oğlak':                 'Kuzu',
-      'Keçi':                       'Keçi',
-      'At':                         'At',
-      'Eşek':                       'Eşek',
-    };
-    const KOLONLAR = ['Kültür Irkı İnek','Kültür Irkı Da-Dü','Kültür Melezi İnek',
-      'Kültür Melezi Da-Dü','Yerli Irk İnek','Yerli Irk Da-Dü','Koyun','Kuzu','Keçi','At','Eşek'];
-
-    const katToKolon = (kategoriler) => {
-      const kd = {};
-      Object.entries(kategoriler||{}).forEach(([kat, v]) => {
-        const k = KAT_KOLON[kat]; if (k) kd[k] = (kd[k]||0) + v.adet;
-      });
-      return kd;
-    };
-
-    // Veri satırları
     const toplamKolon = {};
-    const dataSatirlari = isletmecilerArr
-      ? isletmecilerArr.map((ist, idx) => {
-          const kd = katToKolon(ist.kategoriler);
-          KOLONLAR.forEach(k => { if(kd[k]) toplamKolon[k]=(toplamKolon[k]||0)+kd[k]; });
-          return `<tr class="${idx%2===1?'alt':''}">
-            <td class="c">${idx+1}</td><td class="l">${ist.sahip||'—'}</td>
-            ${KOLONLAR.map(k=>`<td class="c">${kd[k]||''}</td>`).join('')}
-            <td class="r fw">${ist.toplam_bbhb.toFixed(2)}</td>
-          </tr>`;
-        }).join('')
-      : (() => {
-          const kd = katToKolon(Object.fromEntries(aktif.map(h=>([h.tur_adi,{adet:h.adet,bbhb:h.bbhb}]))));
-          KOLONLAR.forEach(k => { if(kd[k]) toplamKolon[k]=(toplamKolon[k]||0)+kd[k]; });
-          return `<tr><td class="c">1</td><td class="l">${kayit.ciftci_ad||'—'}</td>
-            ${KOLONLAR.map(k=>`<td class="c">${kd[k]||''}</td>`).join('')}
-            <td class="r fw">${kayit.toplam_bbhb.toFixed(2)}</td></tr>`;
-        })();
+    const dataSatirlari = isletmeciler.map((ist,idx)=>{
+      const kd = katToKolon(ist.kategoriler);
+      KOLONLAR.forEach(k=>{if(kd[k])toplamKolon[k]=(toplamKolon[k]||0)+kd[k];});
+      return `<tr class="${idx%2?'alt':''}">
+        <td class="c">${idx+1}</td><td class="l">${ist.sahip||'—'}</td>
+        ${KOLONLAR.map(k=>`<td class="c">${kd[k]||''}</td>`).join('')}
+        <td class="r fw">${ist.toplam_bbhb.toFixed(2)}</td></tr>`;
+    }).join('');
+
+    const vasifSatiri = (simge,vasif,alan,verim) => alan!=null
+      ? `<div class="ms"><span class="me">${simge} ${vasif}</span><span class="ma">${mera.fmt(alan)} da</span><span class="mv">(verim: ${verim} kg/da)</span></div>` : '';
 
     const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Arial,sans-serif;font-size:8.5pt;color:#111;padding:10mm 12mm}
-.yer{font-size:9.5pt;text-align:center;margin-bottom:2mm;color:#333}
+.yer{font-size:9.5pt;text-align:center;margin-bottom:2mm;color:#333;font-weight:600}
 h1{font-size:11pt;font-weight:bold;text-align:center;margin-bottom:3mm;color:#0F6E56;text-transform:uppercase;border-bottom:2px solid #0F6E56;padding-bottom:2mm}
 .meta{margin-bottom:2mm;font-size:8.5pt;display:flex;gap:8mm}
 table{width:100%;border-collapse:collapse;margin-bottom:3mm;font-size:8pt}
-.ust th{background:#0F6E56;color:#fff;text-align:center;padding:3pt 3pt;border:1px solid rgba(255,255,255,0.3)}
-th{background:#1D9E75;color:#fff;text-align:center;padding:2pt 2pt;border:1px solid rgba(255,255,255,0.3)}
+.ust th{background:#0F6E56;color:#fff;text-align:center;padding:3pt;border:1px solid rgba(255,255,255,.3)}
+th{background:#1D9E75;color:#fff;text-align:center;padding:2pt;border:1px solid rgba(255,255,255,.3)}
+th.kat{background:#FFF8E1;color:#6D4C00;font-size:7pt;font-style:italic;font-weight:bold}
 td{padding:2pt 3pt;border:1px solid #e0e0e0;vertical-align:middle}
 td.c{text-align:center}td.r{text-align:right}td.l{text-align:left}td.fw{font-weight:bold}
 tr.alt td{background:#f5faf7}
 .toplam td{font-weight:bold;background:#e1f5ee;border-top:2px solid #0F6E56}
 .ozet{margin-top:3mm;padding:3mm 4mm;background:#e1f5ee;border-radius:4px;border-left:3px solid #0F6E56;font-size:8pt}
-.ozet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2mm;margin-bottom:2mm}
-.etiket{font-size:7pt;color:#555}
-.deger{font-weight:bold;font-size:9.5pt;color:#0a3622}
-.mera{margin-top:2mm;padding:2mm 3mm;background:#c8ead8;border-radius:3px}
-.mera .etiket{font-size:7.5pt;color:#0a3622}
-.mera .deger{font-size:11pt;font-weight:bold;color:#0F6E56}
-.aciklama{font-size:7pt;color:#666}
+.og{display:grid;grid-template-columns:repeat(3,1fr);gap:2mm;margin-bottom:3mm}
+.et{font-size:7pt;color:#555}.dg{font-weight:bold;font-size:9.5pt;color:#0a3622}
+.mb{margin-top:3mm;padding:3mm 4mm;background:#c8ead8;border-radius:3px}
+.mb-t{font-size:8pt;font-weight:bold;color:#0a3622;margin-bottom:3mm}
+.ms{display:flex;align-items:baseline;gap:6px;margin-bottom:2mm}
+.me{font-size:8pt;font-weight:bold;color:#0F6E56;min-width:130px}
+.ma{font-size:10pt;font-weight:bold;color:#0a3622}
+.mv{font-size:7pt;color:#666}
 .footer{margin-top:4mm;font-size:7.5pt;color:#aaa;text-align:center;border-top:1px solid #ddd;padding-top:2mm}
 @media print{body{padding:6mm 8mm}}
 </style></head><body>
-${yerSatiri ? `<div class="yer">${yerSatiri}</div>` : ''}
+${yer?`<div class="yer">${yer}</div>`:''}
 <h1>Büyükbaş Hayvan Birimi (BBHB) Raporu</h1>
 <div class="meta"><span><strong>Tarih:</strong> ${tarih}</span>${kayit.il?`<span><strong>İl:</strong> ${kayit.il}</span>`:''}</div>
 <table>
   <thead>
     <tr class="ust">
-      <th rowspan="2" style="width:25px">Sıra No</th>
-      <th rowspan="2" style="min-width:140px">İkamet Eden Aile Temsilcisinin Adı Soyadı (Aile)</th>
+      <th rowspan="3" style="width:24px">Sıra No</th>
+      <th rowspan="3" style="min-width:130px">İkamet Eden Aile Temsilcisinin Adı Soyadı (Aile)</th>
       <th colspan="2">Kültür Irkı</th><th colspan="2">Kültür Melezi</th>
       <th colspan="2">Yerli Irk</th><th colspan="3">Küçükbaş</th>
       <th colspan="2">Tek Tırnaklı</th>
-      <th rowspan="2">Toplam BBHB</th>
+      <th rowspan="3">Toplam BBHB</th>
     </tr>
-    <tr>
-      <th>İnek</th><th>Da-Dü</th><th>İnek</th><th>Da-Dü</th>
-      <th>İnek</th><th>Da-Dü</th><th>Koyun</th><th>Kuzu</th><th>Keçi</th>
-      <th>At</th><th>Eşek</th>
-    </tr>
+    <tr>${KOLONLAR_KISA.map(v=>`<th>${v}</th>`).join('')}</tr>
+    <tr>${KOLONLAR.map(k=>`<th class="kat">${KOLON_KATSAYI[k]??''}</th>`).join('')}</tr>
   </thead>
   <tbody>
     ${dataSatirlari}
@@ -368,122 +380,132 @@ ${yerSatiri ? `<div class="yer">${yerSatiri}</div>` : ''}
   </tbody>
 </table>
 <div class="ozet">
-  <div class="ozet-grid">
-    <div><div class="etiket">Toplam Hayvan Sayısı</div><div class="deger">${kayit.toplam_adet.toLocaleString('tr-TR')} baş</div></div>
-    <div><div class="etiket">Toplam BBHB</div><div class="deger">${kayit.toplam_bbhb.toFixed(2)}</div></div>
-    <div><div class="etiket">İşletmeci Sayısı</div><div class="deger">${isletmecilerArr?isletmecilerArr.length:1}</div></div>
-    <div><div class="etiket">Tahmini Canlı Ağırlık</div><div class="deger">${(kayit.toplam_bbhb*500).toLocaleString('tr-TR')} kg</div></div>
-    <div><div class="etiket">Yeşil Kaba Yem (180 gün)</div><div class="deger">${(kayit.toplam_bbhb*50*180).toLocaleString('tr-TR')} kg</div></div>
-    <div><div class="etiket">Kuru Kaba Yem (180 gün)</div><div class="deger">${(kayit.toplam_bbhb*12.5*180).toLocaleString('tr-TR')} kg</div></div>
+  <div class="og">
+    <div><div class="et">Toplam Hayvan Sayısı</div><div class="dg">${kayit.toplam_adet.toLocaleString('tr-TR')} baş</div></div>
+    <div><div class="et">Toplam BBHB</div><div class="dg">${kayit.toplam_bbhb.toFixed(2)}</div></div>
+    <div><div class="et">İşletmeci Sayısı</div><div class="dg">${isletmeciler.length}</div></div>
+    <div><div class="et">Tahmini Canlı Ağırlık</div><div class="dg">${(kayit.toplam_bbhb*500).toLocaleString('tr-TR')} kg</div></div>
+    <div><div class="et">Yeşil Kaba Yem (180 gün)</div><div class="dg">${(kayit.toplam_bbhb*50*180).toLocaleString('tr-TR')} kg</div></div>
+    <div><div class="et">Kuru Kaba Yem (180 gün)</div><div class="dg">${(kayit.toplam_bbhb*12.5*180).toLocaleString('tr-TR')} kg</div></div>
   </div>
-  <div class="mera">
-    <div class="etiket">180 Günlük Dönem İçin Gerekli İyi Vasıf Mera Miktarı${kayit.il?' ('+kayit.il+' ili değerleri)':''} &nbsp;(${otlatmaSuresi} gün × ${gunlukYem} kg/BBHB/gün)</div>
-    <div class="deger">${meraAlanMetni}</div>
+  <div class="mb">
+    <div class="mb-t">180 Günlük Dönem İçin Gerekli Mera Miktarı (${mera.gun} gün × ${mera.gunlukYem} kg/BBHB/gün)${mera.kusak?' — '+kayit.il+' ili, '+mera.kusak+' mm yağış kuşağı':' — Genel ortalama'}</div>
+    ${vasifSatiri('🟢','Çok İyi Vasıf Mera',mera.cok_iyi,mera.verim?.cok_iyi)}
+    ${vasifSatiri('🔵','İyi Vasıf Mera',mera.iyi,mera.verim?.iyi)}
+    ${vasifSatiri('🟡','Orta Vasıf Mera',mera.orta,mera.verim?.orta)}
+    ${vasifSatiri('🔴','Zayıf Vasıf Mera',mera.zayif,mera.verim?.zayif)}
   </div>
 </div>
 <div class="footer">MİS – Mera İzleme Sistemi &nbsp;|&nbsp; ${tarih}</div>
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`;
 
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Type','text/html; charset=utf-8');
     res.send(html);
-  } catch (err) { next(err); }
+  } catch(err){next(err);}
 };
 
+// ── WORD RAPOR ─────────────────────────────────────────────
 const wordRapor = async (req, res, next) => {
   try {
     const kayit = await BBHBHesaplama.findById(req.params.id);
-    if (!kayit) return res.status(404).json({ success: false, message: 'Kayıt bulunamadı' });
-
+    if (!kayit) return res.status(404).json({ success:false, message:'Kayıt bulunamadı' });
+    const mera = await meraHesapla(kayit.toplam_bbhb, kayit.il);
+    const isletmeciler = isletmecileriGetir(kayit);
     const tarih = new Date(kayit.createdAt).toLocaleDateString('tr-TR');
-    const yer = [
-      kayit.il      ? kayit.il      + ' İli'            : '',
-      kayit.ilce    ? kayit.ilce    + ' İlçesi'          : '',
-      kayit.mahalle ? kayit.mahalle + ' Mahallesi/Köyü'  : '',
-    ].filter(Boolean).join(' ');
+    const yer = yerOlustur(kayit.il, kayit.ilce, kayit.mahalle);
 
-    const isletmeciler = Array.isArray(kayit.isletmeciler) && kayit.isletmeciler.length > 0
-      ? kayit.isletmeciler
-      : [{ sahip: kayit.ciftci_ad||'-', kategoriler: Object.fromEntries(
-           kayit.hayvanlar.filter(h=>h.adet>0).map(h=>[h.tur_adi,{adet:h.adet,bbhb:h.bbhb}])
-         ), toplam_bbhb: kayit.toplam_bbhb }];
+    const G1='0F6E56', G2='1D9E75', LG='E1F5EE', MG='C8EAD8', YL='FFF8E1', LB='E8F4FD';
+    const KISA = ['Kü.Irkı\nİnek','Kü.Irkı\nDa-Dü','Melez\nİnek','Melez\nDa-Dü','Yerli\nİnek','Yerli\nDa-Dü','Koyun','Kuzu','Keçi','At','Eşek'];
 
-    const KAT_COL = {
-      'Kültür ırkı süt ineği':3,'Dana-düve (kültür ırkı)':4,
-      'Kültür melezi':5,'Dana-düve (kültür melezi)':6,
-      'Yerli inek':7,'Dana-düve (yerli)':8,
-      'Koyun':9,'Kuzu-oğlak':10,'Keçi':11,'At':12,'Eşek':13,
-    };
-    const KOLON_BASLIK = ['Kü.Irkı İnek','Kü.Irkı Da-Dü','Melez İnek','Melez Da-Dü',
-      'Yerli İnek','Yerli Da-Dü','Koyun','Kuzu','Keçi','At','Eşek'];
+    const hc = (text, bold=false, bg=null, color='000000', size=18, align=AlignmentType.CENTER) =>
+      new TableCell({
+        children:[new Paragraph({children:[new TextRun({text:String(text??''),bold,size,color})],alignment:align})],
+        shading:bg?{type:'solid',color:bg,fill:bg}:undefined,
+        margins:{top:40,bottom:40,left:60,right:60},
+      });
 
-    const hucre = (text, bold=false, bg=null) => new TableCell({
-      children: [new Paragraph({ children: [new TextRun({ text: String(text||''), bold, size:18 })],
-        alignment: AlignmentType.CENTER })],
-      shading: bg ? { type:'solid', color:bg, fill:bg } : undefined,
-      margins: { top:40, bottom:40, left:60, right:60 },
-    });
+    const span = (text,cs,bg,color='FFFFFF') =>
+      new TableCell({
+        children:[new Paragraph({children:[new TextRun({text,bold:true,size:18,color})],alignment:AlignmentType.CENTER})],
+        columnSpan:cs, shading:{type:'solid',color:bg,fill:bg}, margins:{top:40,bottom:40,left:60,right:60},
+      });
 
-    const GREEN = '0F6E56';
-    const GREEN2 = '1D9E75';
-    const LGREEN = 'E1F5EE';
-
-    // Başlık satırları
-    const baslikSatiri1 = new TableRow({ children: [
-      hucre('No', true, GREEN),
-      hucre('İkamet Eden Aile Temsilcisinin Adı Soyadı (Aile)', true, GREEN),
-      new TableCell({ children: [new Paragraph({ children:[new TextRun({text:'Büyükbaş, Küçükbaş ve Diğer Hayvan Varlıkları',bold:true,size:18,color:'FFFFFF'})], alignment:AlignmentType.CENTER })],
-        columnSpan:12, shading:{type:'solid',color:GREEN,fill:GREEN}, margins:{top:40,bottom:40,left:60,right:60} }),
+    // 3 başlık satırı
+    const b1 = new TableRow({children:[
+      hc('No',true,G1,'FFFFFF'),
+      hc('İkamet Eden Aile Temsilcisinin Adı Soyadı (Aile)',true,G1,'FFFFFF'),
+      span('Büyükbaş, Küçükbaş ve Diğer Hayvan Varlıkları',12,G1),
     ]});
-    const baslikSatiri2 = new TableRow({ children: [
-      hucre('', true, GREEN2), hucre('', true, GREEN2),
-      new TableCell({ children:[new Paragraph({children:[new TextRun({text:'Kültür Irkı',bold:true,size:18,color:'FFFFFF'})],alignment:AlignmentType.CENTER})], columnSpan:2, shading:{type:'solid',color:GREEN2,fill:GREEN2}, margins:{top:40,bottom:40,left:60,right:60} }),
-      new TableCell({ children:[new Paragraph({children:[new TextRun({text:'Kültür Melezi',bold:true,size:18,color:'FFFFFF'})],alignment:AlignmentType.CENTER})], columnSpan:2, shading:{type:'solid',color:GREEN2,fill:GREEN2}, margins:{top:40,bottom:40,left:60,right:60} }),
-      new TableCell({ children:[new Paragraph({children:[new TextRun({text:'Yerli Irk',bold:true,size:18,color:'FFFFFF'})],alignment:AlignmentType.CENTER})], columnSpan:2, shading:{type:'solid',color:GREEN2,fill:GREEN2}, margins:{top:40,bottom:40,left:60,right:60} }),
-      new TableCell({ children:[new Paragraph({children:[new TextRun({text:'Küçükbaş',bold:true,size:18,color:'FFFFFF'})],alignment:AlignmentType.CENTER})], columnSpan:3, shading:{type:'solid',color:GREEN2,fill:GREEN2}, margins:{top:40,bottom:40,left:60,right:60} }),
-      new TableCell({ children:[new Paragraph({children:[new TextRun({text:'Tek Tırnaklı',bold:true,size:18,color:'FFFFFF'})],alignment:AlignmentType.CENTER})], columnSpan:2, shading:{type:'solid',color:GREEN2,fill:GREEN2}, margins:{top:40,bottom:40,left:60,right:60} }),
-      hucre('Top.BBHB', true, GREEN2),
+    const b2 = new TableRow({children:[
+      hc('',true,G2,'FFFFFF'), hc('',true,G2,'FFFFFF'),
+      span('Kültür Irkı',2,G2), span('Kültür Melezi',2,G2), span('Yerli Irk',2,G2),
+      span('Küçükbaş',3,G2), span('Tek Tırnaklı',2,G2),
+      hc('Top.\nBBHB',true,G2,'FFFFFF'),
     ]});
-    const baslikSatiri3 = new TableRow({ children: [
-      hucre('', true, GREEN2), hucre('', true, GREEN2),
-      ...KOLON_BASLIK.map(b => hucre(b, true, GREEN2)),
+    const b3 = new TableRow({children:[
+      hc('',true,G2,'FFFFFF'), hc('',true,G2,'FFFFFF'),
+      ...KISA.map(v=>hc(v,true,G2,'FFFFFF',16)),
+    ]});
+    // Katsayı satırı ← YENİ
+    const bKat = new TableRow({children:[
+      hc('BBHB\nKat.',true,YL,'6D4C00',16),
+      hc('',false,YL),
+      ...KOLONLAR.map(k=>hc(String(KOLON_KATSAYI[k]??''),true,YL,'6D4C00',16)),
     ]});
 
     // Veri satırları
-    const toplamKol = {};
-    const veriSatirlari = isletmeciler.map((ist, idx) => {
-      const kd = {};
-      Object.entries(ist.kategoriler||{}).forEach(([kat,v])=>{ const c=KAT_COL[kat]; if(c){kd[c]=(kd[c]||0)+(v.adet||0); toplamKol[c]=(toplamKol[c]||0)+(v.adet||0);} });
-      const bg = idx%2===1 ? 'F5FAF7' : null;
-      return new TableRow({ children: [
-        hucre(idx+1, false, bg),
-        new TableCell({ children:[new Paragraph({children:[new TextRun({text:ist.sahip||'—',size:18})],alignment:AlignmentType.LEFT})], shading:bg?{type:'solid',color:bg,fill:bg}:undefined, margins:{top:40,bottom:40,left:80,right:60} }),
-        ...[3,4,5,6,7,8,9,10,11,12,13].map(c => hucre(kd[c]||'', false, bg)),
-        hucre(ist.toplam_bbhb?.toFixed(2)||'', true, bg),
+    const toplamKol={};
+    const veriSatirlari = isletmeciler.map((ist,idx)=>{
+      const kd={};
+      Object.entries(ist.kategoriler||{}).forEach(([kat,v])=>{const c=KAT_COL_NUM[kat];if(c){kd[c]=(kd[c]||0)+(v.adet||0);toplamKol[c]=(toplamKol[c]||0)+(v.adet||0);}});
+      const bg=idx%2?'F5FAF7':null;
+      return new TableRow({children:[
+        hc(idx+1,false,bg),
+        new TableCell({children:[new Paragraph({children:[new TextRun({text:ist.sahip||'—',size:18})],alignment:AlignmentType.LEFT})],shading:bg?{type:'solid',color:bg,fill:bg}:undefined,margins:{top:40,bottom:40,left:80,right:60}}),
+        ...[3,4,5,6,7,8,9,10,11,12,13].map(c=>hc(kd[c]||'',false,bg)),
+        hc(ist.toplam_bbhb?.toFixed(2)||'',true,bg),
       ]});
     });
 
-    // Toplam satırı
-    const toplamSatiri = new TableRow({ children: [
-      new TableCell({ children:[new Paragraph({children:[new TextRun({text:'TOPLAM',bold:true,size:18})],alignment:AlignmentType.CENTER})], columnSpan:2, shading:{type:'solid',color:LGREEN,fill:LGREEN}, margins:{top:40,bottom:40,left:60,right:60} }),
-      ...[3,4,5,6,7,8,9,10,11,12,13].map(c => hucre(toplamKol[c]||'', true, LGREEN)),
-      hucre(kayit.toplam_bbhb?.toFixed(2)||'', true, LGREEN),
+    const toplamSatiri = new TableRow({children:[
+      span('TOPLAM',2,LG,'000000'),
+      ...[3,4,5,6,7,8,9,10,11,12,13].map(c=>hc(toplamKol[c]||'',true,LG)),
+      hc(kayit.toplam_bbhb?.toFixed(2)||'',true,LG),
     ]});
 
-    const doc = new Document({
-      sections: [{ properties:{page:{margin:{top:720,right:720,bottom:720,left:720}}}, children: [
-        ...(yer ? [new Paragraph({ children:[new TextRun({text:yer,bold:false,size:22})], alignment:AlignmentType.CENTER, spacing:{after:80} })] : []),
-        new Paragraph({ children:[new TextRun({text:'BÜYÜK BAŞ HAYVAN BİRİMİ (BBHB) RAPORU',bold:true,size:26,color:'0F6E56'})], alignment:AlignmentType.CENTER, spacing:{after:80} }),
-        new Paragraph({ children:[new TextRun({text:`Tarih: ${tarih}`,size:20})], spacing:{after:160} }),
-        new Table({ width:{size:100,type:WidthType.PERCENTAGE}, rows:[baslikSatiri1,baslikSatiri2,baslikSatiri3,...veriSatirlari,toplamSatiri] }),
-      ]}],
-    });
+    // Özet paragrafları
+    const op=(et,dg)=>new Paragraph({children:[new TextRun({text:et+': ',bold:true,size:20}),new TextRun({text:dg,size:20})],spacing:{after:60}});
+    const meraVasif=(simge,vasif,alan,verim)=>alan!=null?new Paragraph({children:[
+      new TextRun({text:`${simge} ${vasif}: `,bold:true,size:20,color:G1}),
+      new TextRun({text:`${mera.fmt(alan)} da`,bold:true,size:22}),
+      new TextRun({text:`  (verim: ${verim} kg/da)`,size:17,color:'888888'}),
+    ],spacing:{after:60}}):null;
+
+    const doc = new Document({sections:[{properties:{page:{margin:{top:720,right:720,bottom:720,left:720}}},children:[
+      ...(yer?[new Paragraph({children:[new TextRun({text:yer,bold:true,size:22})],alignment:AlignmentType.CENTER,spacing:{after:80}})]:[]),
+      new Paragraph({children:[new TextRun({text:'BÜYÜK BAŞ HAYVAN BİRİMİ (BBHB) RAPORU',bold:true,size:26,color:G1})],alignment:AlignmentType.CENTER,spacing:{after:80}}),
+      new Paragraph({children:[new TextRun({text:`Tarih: ${tarih}`,size:20})],spacing:{after:160}}),
+      new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:[b1,b2,b3,bKat,...veriSatirlari,toplamSatiri]}),
+      new Paragraph({children:[new TextRun({text:'ÖZET BİLGİLER',bold:true,size:22,color:G1})],spacing:{before:200,after:80}}),
+      op('Toplam Hayvan Sayısı',kayit.toplam_adet.toLocaleString('tr-TR')+' baş'),
+      op('Toplam BBHB',kayit.toplam_bbhb.toFixed(2)),
+      op('İşletmeci Sayısı',String(isletmeciler.length)),
+      op('Tahmini Canlı Ağırlık',(kayit.toplam_bbhb*500).toLocaleString('tr-TR')+' kg'),
+      op('Yeşil Kaba Yem (180 gün)',(kayit.toplam_bbhb*50*180).toLocaleString('tr-TR')+' kg'),
+      op('Kuru Kaba Yem (180 gün)',(kayit.toplam_bbhb*12.5*180).toLocaleString('tr-TR')+' kg'),
+      new Paragraph({children:[new TextRun({text:`180 Günlük Dönem İçin Gerekli Mera Miktarı (${mera.gun} gün × ${mera.gunlukYem} kg/BBHB/gün)${mera.kusak?' — '+kayit.il+' ili, '+mera.kusak+' mm':' — Genel ort.'}`,bold:true,size:20})],spacing:{before:160,after:80}}),
+      meraVasif('🟢','Çok İyi Vasıf Mera',mera.cok_iyi,mera.verim?.cok_iyi),
+      meraVasif('🔵','İyi Vasıf Mera',mera.iyi,mera.verim?.iyi),
+      meraVasif('🟡','Orta Vasıf Mera',mera.orta,mera.verim?.orta),
+      meraVasif('🔴','Zayıf Vasıf Mera',mera.zayif,mera.verim?.zayif),
+    ].filter(Boolean)}]});
 
     const buffer = await Packer.toBuffer(doc);
     res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition',`attachment; filename=bbhb_${kayit._id}.docx`);
     res.send(buffer);
-  } catch (err) { next(err); }
+  } catch(err){next(err);}
 };
 
 module.exports = { getTurler, hesapla, kaydet, listele, getById, sil, excelRapor, pdfRapor, wordRapor, HAYVAN_TURLERI };
