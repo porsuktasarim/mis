@@ -227,6 +227,7 @@ window.alanHesapla = (inputId, gosterimId, hiddenId) => {
   el.textContent = `= ${da} da ${Number(kalan).toLocaleString('tr-TR', {minimumFractionDigits:2})} m² (${Number(daVal).toLocaleString('tr-TR', {minimumFractionDigits:5})} da)`;
   hid.value = daVal;
 };
+window.nitelikDegisti = () => {
   const val = document.getElementById('m-nitelik').value;
   document.getElementById('m-nitelik-diger').classList.toggle('d-none', val !== 'Diğer');
 };
