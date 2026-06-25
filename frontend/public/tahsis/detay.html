@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tahsis Detay – MİS</title>
+  <title>3T Detay – MİS</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
   <link rel="stylesheet" href="/css/main.css"/>
@@ -19,7 +19,7 @@
 
     <nav class="navbar mis-topbar px-3">
       <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
-      <span class="mis-topbar-title" id="topbar-no">Tahsis Detay</span>
+      <span class="mis-topbar-title" id="topbar-no">Tespit / Tahdit / Tahsis</span>
       <div class="ms-auto d-flex gap-2">
         <a href="/tahsis/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Liste</a>
       </div>
@@ -49,6 +49,7 @@
         <button class="detay-sekme" data-tab="parseller"><i class="bi bi-geo-alt me-1"></i>Parseller <span class="badge bg-secondary ms-1" id="parsel-sayac">0</span></button>
         <button class="detay-sekme" data-tab="bbhb"><i class="bi bi-calculator me-1"></i>BBHB</button>
         <button class="detay-sekme" data-tab="adimlar"><i class="bi bi-list-check me-1"></i>Süreç</button>
+        <button class="detay-sekme" data-tab="raporlar"><i class="bi bi-file-earmark-text me-1"></i>Raporlar</button>
       </div>
 
       <!-- GENEL -->
@@ -182,26 +183,91 @@
           </div>
           <div class="p-3">
             <div class="adim-kutu">
-              <div class="fw-semibold small text-success">1. Başvuru / Talep</div>
-              <div class="small text-muted mt-1">Tahsis talebinin alınması ve kayıt altına alınması.</div>
+              <div class="fw-semibold small text-success">1. Tespit ve Tahdit</div>
+              <div class="small text-muted mt-1">Teknik ekip tespiti, parsel belirleme, Ek-4 ve alt eklerin hazırlanması.</div>
             </div>
             <div class="adim-kutu opacity-50">
-              <div class="fw-semibold small">2. Ön İnceleme</div>
-              <div class="small text-muted mt-1">Teknik ekip ön incelemesi ve parsel tespiti.</div>
-            </div>
-            <div class="adim-kutu opacity-50">
-              <div class="fw-semibold small">3. Komisyon Kararı</div>
+              <div class="fw-semibold small">2. Komisyon Kararı</div>
               <div class="small text-muted mt-1">İl Mera Komisyonu değerlendirmesi.</div>
             </div>
             <div class="adim-kutu opacity-50">
-              <div class="fw-semibold small">4. Sonuç</div>
-              <div class="small text-muted mt-1">Onay / Red / Tahsis belgesi düzenlenmesi.</div>
+              <div class="fw-semibold small">3. Tahsis</div>
+              <div class="small text-muted mt-1">Onay ve tahsis belgesi düzenlenmesi.</div>
             </div>
             <div class="alert alert-warning small py-2 mt-3">
               <i class="bi bi-info-circle me-1"></i>
-              Süreç adımları detayları ilerleyen aşamada eklenecektir. Şimdilik genel durumu "Genel Bilgiler" sekmesinden takip edebilirsiniz.
+              Süreç adımları detayları ilerleyen aşamada eklenecektir.
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- RAPORLAR -->
+      <div class="detay-tab" id="tab-raporlar">
+        <div class="row g-3">
+
+          <!-- Ek-4/ab -->
+          <div class="col-lg-6">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-file-earmark-excel text-success"></i><span class="title">Ek-4/ab — Çiftçi Aile + Hayvan Varlığı</span></div>
+              <div class="p-3">
+                <p class="small text-muted mb-3">
+                  BBHB hesaplamasındaki hayvan varlığı ile ÇKS'deki ekiliş verilerini birleştirerek
+                  resmi Ek-4/a ve Ek-4/b tablosunu oluşturur.
+                </p>
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">BBHB Hesabı Seç</label>
+                  <select class="form-select form-select-sm" id="r-bbhb-sec">
+                    <option value="">— Bağlı BBHB hesabı yok —</option>
+                  </select>
+                  <div class="form-text small">Bağlanmamışsa önce BBHB sekmesinden bağlayın.</div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">ÇKS Kaydı Seç
+                    <a href="/cks/" target="_blank" class="ms-2 small text-muted"><i class="bi bi-box-arrow-up-right"></i> ÇKS Yükleme</a>
+                  </label>
+                  <select class="form-select form-select-sm" id="r-cks-sec">
+                    <option value="">Yükleniyor...</option>
+                  </select>
+                </div>
+                <button class="btn btn-success btn-sm w-100" onclick="ek4abIndir()">
+                  <i class="bi bi-file-earmark-excel me-1"></i>Ek-4/ab Excel İndir
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ek-4/c placeholder -->
+          <div class="col-lg-6">
+            <div class="mis-card opacity-75">
+              <div class="mis-card-header"><i class="bi bi-map text-primary"></i><span class="title">Ek-4/c — Kroki ve Harita</span></div>
+              <div class="p-3">
+                <p class="small text-muted mb-3">
+                  Parselleri gruplandırarak KML üzerinden harita çıktısı oluşturur.
+                  Her grup ayrı bir Ek-4/c sayfası olarak çıkar.
+                </p>
+                <div class="alert alert-warning small py-2 mb-0">
+                  <i class="bi bi-clock me-1"></i>Bu rapor <strong>Parseller</strong> sekmesinde parsel grupları oluşturulduktan sonra aktif olacaktır.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Diğer ekler -->
+          <div class="col-12">
+            <div class="mis-card opacity-60">
+              <div class="mis-card-header"><i class="bi bi-files text-secondary"></i><span class="title">Diğer Ekler</span></div>
+              <div class="p-3 d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-file-earmark-word me-1"></i>Ek-4/d — Tutanak</button>
+                <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-file-earmark-word me-1"></i>Ek-4/e — Tespit, Tahdit ve İhtiyaç Raporu</button>
+                <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-file-earmark me-1"></i>Ek-4/f</button>
+                <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-file-earmark me-1"></i>Ek-4/g</button>
+                <button class="btn btn-sm btn-outline-secondary" disabled><i class="bi bi-file-earmark me-1"></i>Ek-4/h</button>
+                <span class="text-muted small align-self-center ms-2">Yüklenecek belgeler bekleniyor.</span>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -444,6 +510,68 @@ window.bbhbBagSil = async (bagId) => {
 };
 
 loadTahsis();
+
+// ── Raporlar sekmesi ────────────────────────────────────
+const loadRaporSecenekleri = async () => {
+  // BBHB seçici — bağlı olanlar
+  const bbhbSel = document.getElementById('r-bbhb-sec');
+  if (tahsis.bbhb_baglantilari?.length) {
+    bbhbSel.innerHTML = '<option value="">— Seçin —</option>'
+      + tahsis.bbhb_baglantilari.map(b=>
+          `<option value="${b.bbhb_id}">${[b.il,b.ilce,b.mahalle].filter(Boolean).join('/')
+          } — ${b.toplam_bbhb?.toFixed(2)||'?'} BBHB</option>`
+        ).join('');
+  } else {
+    bbhbSel.innerHTML = '<option value="">— Önce BBHB sekmesinden bağlayın —</option>';
+  }
+
+  // ÇKS seçici — tüm yüklü kayıtlar
+  const cksSel = document.getElementById('r-cks-sec');
+  try {
+    const r = await fetch('/api/cks');
+    const j = await r.json();
+    if (j.data?.length) {
+      cksSel.innerHTML = '<option value="">— Seçin —</option>'
+        + j.data.map(c=>
+            `<option value="${c._id}">${c.koy||c.ilce||c.il||c.dosya_adi} — ${c.uretim_yili||'?'} (${c.kisi_sayisi} kişi)</option>`
+          ).join('');
+    } else {
+      cksSel.innerHTML = '<option value="">— ÇKS kaydı yok (önce yükleyin) —</option>';
+    }
+  } catch(e) {
+    cksSel.innerHTML = '<option value="">— Yüklenemedi —</option>';
+  }
+};
+
+// Raporlar sekmesine tıklayınca seçenekleri yükle
+document.querySelector('[data-tab="raporlar"]')?.addEventListener('click', () => {
+  if (tahsis) loadRaporSecenekleri();
+});
+
+window.ek4abIndir = async () => {
+  const bbhb_id = document.getElementById('r-bbhb-sec').value;
+  const cks_id  = document.getElementById('r-cks-sec').value;
+  if (!bbhb_id && !cks_id) {
+    showToast('En az BBHB veya ÇKS seçin.', 'warning'); return;
+  }
+  const btn = document.querySelector('[onclick="ek4abIndir()"]');
+  btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass me-1"></i>Hazırlanıyor...';
+  try {
+    const r = await fetch(`/api/tahsis/${id}/rapor/ek4ab`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bbhb_id: bbhb_id||null, cks_id: cks_id||null }),
+    });
+    if (!r.ok) { const j=await r.json(); showToast(j.message||'Hata.','danger'); return; }
+    const blob  = await r.blob();
+    const fname = r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || 'Ek-4ab.xlsx';
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a'); a.href=url; a.download=decodeURIComponent(fname); a.click();
+    URL.revokeObjectURL(url);
+    showToast('Ek-4/ab indirildi.', 'success');
+  } catch(e) { showToast('Sunucuya ulaşılamadı.','danger'); }
+  btn.disabled = false; btn.innerHTML = '<i class="bi bi-file-earmark-excel me-1"></i>Ek-4/ab Excel İndir';
+};
 </script>
 </body>
 </html>

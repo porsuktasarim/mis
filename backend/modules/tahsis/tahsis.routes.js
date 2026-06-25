@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const ctrl    = require('./tahsis.controller');
+const { ek4abExcel } = require('./ek4ab.controller');
 
 // Ana CRUD
 router.get('/',                          ctrl.listele);
@@ -18,5 +19,8 @@ router.delete('/:id/parseller/:parsel_id', ctrl.parselSil);
 // BBHB bağlantıları
 router.post('/:id/bbhb',                 ctrl.bbhbEkle);
 router.delete('/:id/bbhb/:bbhb_bag_id', ctrl.bbhbSil);
+
+// Raporlar
+router.post('/:id/rapor/ek4ab',          ek4abExcel);
 
 module.exports = router;
