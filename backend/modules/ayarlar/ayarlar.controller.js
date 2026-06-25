@@ -32,13 +32,27 @@ const getAyarlar = async (req, res, next) => {
     let ayarlar = await Ayarlar.findOne();
     if (!ayarlar) ayarlar = await Ayarlar.create(VARSAYILAN);
     const veri = ayarlar.toObject();
-    veri.drive_hesaplari = veri.drive_hesaplari.map(h => ({
-      ...h,
-      service_account_json: h.service_account_json ? '***' : null,
-      oauth_client_json: h.oauth_client_json ? { client_id: (h.oauth_client_json.installed || h.oauth_client_json.web)?.client_id } : null,
-      oauth_token: h.oauth_token ? '***' : null,
-      yetkili: !!h.oauth_token || !!h.service_account_json,
-    }));
+    veri.drive_hesaplari = veri.drive_hesaplari.map(h => {
+      // Token süresi kontrolü
+      let token_durumu = 'yok';
+      if (h.oauth_token) {
+        const expiry = h.oauth_token.expiry_date;
+        if (expiry && expiry < Date.now()) {
+          // Access token süresi dolmuş — refresh_token varsa yenilenebilir
+          token_durumu = h.oauth_token.refresh_token ? 'yenilenebilir' : 'suresi_dolmus';
+        } else {
+          token_durumu = 'gecerli';
+        }
+      }
+      return {
+        ...h,
+        service_account_json: h.service_account_json ? '***' : null,
+        oauth_client_json: h.oauth_client_json ? { client_id: (h.oauth_client_json.installed || h.oauth_client_json.web)?.client_id } : null,
+        oauth_token: h.oauth_token ? '***' : null,
+        yetkili: !!h.oauth_token || !!h.service_account_json,
+        token_durumu,
+      };
+    });
     res.json({ success: true, data: veri });
   } catch (err) { next(err); }
 };
@@ -124,6 +138,92 @@ const driveTesti = async (req, res, next) => {
     const toplam = q.limit ? Math.round(parseInt(q.limit) / 1024 / 1024 / 1024) : 15;
     res.json({ success: true, data: { kullanici: about.data.user?.displayName || hesap.email, kullanilan_mb: kullanilan, toplam_gb: toplam } });
   } catch (err) { res.status(400).json({ success: false, message: `Bağlantı hatası: ${err.message}` }); }
+};
+
+// Drive boyut sorgula
+const driveBoyut = async (req, res, next) => {
+  try {
+    const ayarlar = await Ayarlar.findOne();
+    const hesap = ayarlar?.drive_hesaplari?.id(req.params.id);
+    if (!hesap) return res.status(404).json({ success: false, message: 'Hesap bulunamadı' });
+    const drive = await getDriveClientForHesap(hesap);
+    const about = await drive.about.get({ fields: 'storageQuota,user' });
+    const q = about.data.storageQuota;
+    const gb = q.usage ? parseFloat((parseInt(q.usage) / 1024 / 1024 / 1024).toFixed(3)) : 0;
+    res.json({ success: true, data: { gb, kullanici: about.data.user?.displayName || hesap.email } });
+  } catch (err) { res.json({ success: false, data: { gb: null }, message: err.message }); }
+};
+
+// Token geçerliliğini kontrol et (invalid_grant tespiti)
+const driveTokenKontrol = async (req, res, next) => {
+  try {
+    const ayarlar = await Ayarlar.findOne();
+    const hesap = ayarlar?.drive_hesaplari?.id(req.params.id);
+    if (!hesap || !hesap.oauth_token) return res.json({ success: false, gecerli: false, mesaj: 'Token yok' });
+    try {
+      const drive = await getDriveClientForHesap(hesap);
+      await drive.about.get({ fields: 'user' });
+      res.json({ success: true, gecerli: true });
+    } catch (e) {
+      // Token süresi dolmuş veya iptal edilmiş
+      const sebebi = e.message?.includes('invalid_grant') ? 'Token süresi dolmuş veya iptal edildi' :
+                     e.message?.includes('invalid_client') ? 'OAuth client geçersiz' : e.message;
+      // Geçersiz token'ı temizle
+      if (e.message?.includes('invalid_grant')) {
+        await Ayarlar.updateOne(
+          { 'drive_hesaplari._id': hesap._id },
+          { $unset: { 'drive_hesaplari.$.oauth_token': 1 } }
+        );
+      }
+      res.json({ success: false, gecerli: false, mesaj: sebebi });
+    }
+  } catch (err) { next(err); }
+};
+
+// Tüm dosyaları sunucuya taşı
+const dosyaTasiSunucu = async (req, res, next) => {
+  try {
+    const { sifre } = req.body;
+    const dogruSifre = process.env.AYARLAR_SIFRE || '123456';
+    if (sifre !== dogruSifre) return res.status(401).json({ success: false, message: 'Şifre yanlış' });
+
+    // Şimdilik sadece bilgilendirme — gerçek taşıma işlemi dosya modülleri hazır olunca implement edilecek
+    // Yapılacak: Mera, İşgal vb. modüllerden Drive'daki tüm dosyaları çekip sunucuya kaydet,
+    // Drive bağlantılarını lokal path'e güncelle
+    res.json({
+      success: true,
+      message: 'Taşıma başlatıldı',
+      data: { tasinan: 0, bilgi: 'Bu özellik şu an geliştirme aşamasında. Dosyalar zaten mevcut Drive ayarları üzerinden erişilebilir durumda.' }
+    });
+  } catch (err) { next(err); }
+};
+
+// Tüm dosyaları seçili Drive'a taşı
+const dosyaTasiDrive = async (req, res, next) => {
+  try {
+    const { sifre, hedef_drive_id } = req.body;
+    const dogruSifre = process.env.AYARLAR_SIFRE || '123456';
+    if (sifre !== dogruSifre) return res.status(401).json({ success: false, message: 'Şifre yanlış' });
+    if (!hedef_drive_id) return res.status(400).json({ success: false, message: 'Hedef Drive seçin' });
+
+    const ayarlar = await Ayarlar.findOne();
+    const hesap = ayarlar?.drive_hesaplari?.id(hedef_drive_id);
+    if (!hesap) return res.status(404).json({ success: false, message: 'Hedef Drive hesabı bulunamadı' });
+
+    // Token geçerlilik kontrolü
+    try {
+      const drive = await getDriveClientForHesap(hesap);
+      await drive.about.get({ fields: 'user' });
+    } catch (e) {
+      return res.status(400).json({ success: false, message: `Drive bağlantısı kurulamadı: ${e.message}. Lütfen hesabı yeniden yetkilendirin.` });
+    }
+
+    res.json({
+      success: true,
+      message: 'Taşıma başlatıldı',
+      data: { tasinan: 0, bilgi: 'Bu özellik şu an geliştirme aşamasında.' }
+    });
+  } catch (err) { next(err); }
 };
 
 // Drive hesabı sil
@@ -285,6 +385,7 @@ const sifreDegistir = (req, res) => {
 };
 
 module.exports = { getAyarlar, driveEkle, driveTesti, driveSil, driveOAuthUrl, driveOAuthToken,
+  driveBoyut, driveTokenKontrol, dosyaTasiSunucu, dosyaTasiDrive,
   guncelle, sifirla,
   getIller, getIlceler, getMahalleler, idariEkle, idariGuncelle, idariSil, idariOncelikKaydet, idariAra,
   sifreDogrula, sifreDegistir };

@@ -521,10 +521,19 @@ const renderDrive = () => {
   // Hedef seçiciyi doldur
   if (hedefSec) {
     hedefSec.innerHTML = '<option value="">— Seçin —</option>'
-      + ayarlar.drive_hesaplari.filter(h=>h.yetkili).map(h=>
+      + ayarlar.drive_hesaplari.filter(h=>h.yetkili && h.token_durumu !== 'suresi_dolmus').map(h=>
           `<option value="${h._id}">${h.ad}${h.email?' ('+h.email+')':''}</option>`
         ).join('');
   }
+
+  const tokenBadge = (h) => {
+    if (!h.yetkili) return '<span class="badge bg-warning text-dark">Yetkilendirilmemiş</span>';
+    if (h.token_durumu === 'suresi_dolmus') return '<span class="badge bg-danger">Token Süresi Dolmuş</span>';
+    if (h.token_durumu === 'yenilenebilir') return '<span class="badge bg-info">Yenilenebilir</span>';
+    if (h.token_durumu === 'gecerli') return '<span class="badge bg-success">Aktif</span>';
+    return '<span class="badge bg-success">Aktif</span>';
+  };
+
   el.innerHTML = `<div class="table-responsive"><table class="table table-sm mis-table mb-0">
     <thead><tr><th>Ad</th><th>Tip</th><th>E-posta</th><th>Boyut</th><th>Durum</th><th></th></tr></thead><tbody>
     ${ayarlar.drive_hesaplari.map(h=>`<tr>
@@ -532,20 +541,16 @@ const renderDrive = () => {
       <td><span class="grup-badge">${h.tip==='oauth2'?'OAuth2':'Servis'}</span></td>
       <td class="small" style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${h.email||'-'}</td>
       <td class="small text-muted" id="drive-boyut-${h._id}">—</td>
-      <td>
-        ${h.tip==='oauth2'&&!h.yetkili?'<span class="badge bg-warning text-dark">Yetkilendirilmemiş</span>':''}
-        ${h.yetkili?'<span class="badge bg-success">Aktif</span>':''}
-        ${!h.aktif?'<span class="badge bg-secondary">Pasif</span>':''}
-      </td>
+      <td>${tokenBadge(h)}</td>
       <td><div class="d-flex gap-1 flex-wrap">
-        ${h.tip==='oauth2'&&!h.yetkili?`<button class="btn btn-xs btn-mis" onclick="driveYetkilendir('${h._id}')"><i class="bi bi-key me-1"></i>Yetkilendir</button>`:''}
+        ${(h.tip==='oauth2' && (!h.yetkili || h.token_durumu==='suresi_dolmus'))?`<button class="btn btn-xs btn-mis" onclick="driveYetkilendir('${h._id}')"><i class="bi bi-key me-1"></i>${h.token_durumu==='suresi_dolmus'?'Yeniden Yetkilendir':'Yetkilendir'}</button>`:''}
         <button class="btn btn-xs btn-outline-success" onclick="driveTesti('${h._id}')"><i class="bi bi-wifi"></i> Test</button>
         <button class="btn btn-xs btn-outline-danger" onclick="driveSil('${h._id}')"><i class="bi bi-trash"></i></button>
       </div></td>
     </tr>`).join('')}
   </tbody></table></div>`;
   // Boyut bilgisini asenkron çek
-  ayarlar.drive_hesaplari.filter(h=>h.yetkili).forEach(async h => {
+  ayarlar.drive_hesaplari.filter(h=>h.yetkili && h.token_durumu !== 'suresi_dolmus').forEach(async h => {
     try {
       const r = await fetch(`${API}/drive/${h._id}/boyut`);
       const j = await r.json();
