@@ -7,7 +7,9 @@ router.get('/',                         ctrl.getAyarlar);
 router.put('/',                         ctrl.guncelle);
 router.post('/sifirla',                 ctrl.sifirla);
 router.post('/sifre-dogrula',           ctrl.sifreDogrula);
+router.post('/sifre/dogrula',           ctrl.sifreDogrula);  // eski path uyumluluğu
 router.post('/sifre-degistir',          ctrl.sifreDegistir);
+router.post('/sifre/degistir',          ctrl.sifreDegistir); // eski path uyumluluğu
 
 // Drive hesapları
 router.post('/drive',                   ctrl.driveEkle);
