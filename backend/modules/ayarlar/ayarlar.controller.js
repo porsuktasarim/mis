@@ -6,16 +6,43 @@ const { google } = require('googleapis');
 const getDriveClientForHesap = async (hesap) => {
   if (hesap.tip === 'oauth2') {
     if (!hesap.oauth_client_json) throw new Error('OAuth client JSON eksik');
-    if (!hesap.oauth_token) throw new Error('Henüz yetkilendirilmemiş. Ayarlar sayfasından yetkilendirin.');
+    if (!hesap.oauth_token) throw new Error('Yetkilendirilmemiş');
     const { client_id, client_secret } = hesap.oauth_client_json.installed || hesap.oauth_client_json.web;
     const oauth2 = new google.auth.OAuth2(client_id, client_secret, 'urn:ietf:wg:oauth:2.0:oob');
     oauth2.setCredentials(hesap.oauth_token);
-    // Token yenile
+
+    // Access token süresi dolmuşsa PROAKTIF yenile
+    const expiry = hesap.oauth_token.expiry_date;
+    const suresiDolmus = !expiry || expiry < (Date.now() + 60000); // 1 dk önce
+    if (suresiDolmus && hesap.oauth_token.refresh_token) {
+      try {
+        const { credentials } = await oauth2.refreshAccessToken();
+        const yeniToken = { ...hesap.oauth_token, ...credentials };
+        oauth2.setCredentials(yeniToken);
+        // DB'ye kaydet
+        await Ayarlar.updateOne(
+          { 'drive_hesaplari._id': hesap._id },
+          { $set: { 'drive_hesaplari.$.oauth_token': yeniToken } }
+        );
+      } catch (refreshErr) {
+        // Refresh token da geçersiz → kullanıcının yeniden yetkilendirmesi lazım
+        await Ayarlar.updateOne(
+          { 'drive_hesaplari._id': hesap._id },
+          { $unset: { 'drive_hesaplari.$.oauth_token': 1 } }
+        );
+        throw new Error('DRIVE_REAUTH: Drive yetkilendirmesi sona ermiş. Ayarlar → Depolama Alanı sayfasından hesabı yeniden yetkilendirin.');
+      }
+    }
+
+    // Pasif token yenileme (API çağrısı sırasında)
     oauth2.on('tokens', async (tokens) => {
-      if (tokens.refresh_token) hesap.oauth_token = { ...hesap.oauth_token, ...tokens };
-      else hesap.oauth_token = { ...hesap.oauth_token, access_token: tokens.access_token };
-      await Ayarlar.updateOne({ 'drive_hesaplari._id': hesap._id }, { $set: { 'drive_hesaplari.$.oauth_token': hesap.oauth_token } });
+      const guncellenen = { ...hesap.oauth_token, ...tokens };
+      await Ayarlar.updateOne(
+        { 'drive_hesaplari._id': hesap._id },
+        { $set: { 'drive_hesaplari.$.oauth_token': guncellenen } }
+      );
     });
+
     return google.drive({ version: 'v3', auth: oauth2 });
   }
   // Servis hesabı

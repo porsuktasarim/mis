@@ -30,18 +30,46 @@ const gorselSikistir = async (buffer, mimeType) => {
 // ── Drive yardımcı ────────────────────────────────────────
 const getDriveClient = async () => {
   const ayarlar = await Ayarlar.findOne();
-  const hesap = ayarlar?.drive_hesaplari?.find(h => h.aktif && h.yetkili);
-  if (!hesap) throw new Error('NO_DRIVE'); // Caller lokal fallback kullanır
+  const hesap = ayarlar?.drive_hesaplari?.find(h =>
+    h.aktif && (h.oauth_token || h.service_account_json)
+  );
+  if (!hesap) throw new Error('NO_DRIVE');
 
   if (hesap.tip === 'oauth2') {
     if (!hesap.oauth_token) throw new Error('NO_DRIVE');
     const { client_id, client_secret } = hesap.oauth_client_json.installed || hesap.oauth_client_json.web;
     const oauth2 = new google.auth.OAuth2(client_id, client_secret, 'urn:ietf:wg:oauth:2.0:oob');
     oauth2.setCredentials(hesap.oauth_token);
+
+    // Proaktif token yenileme
+    const expiry = hesap.oauth_token.expiry_date;
+    if ((!expiry || expiry < Date.now() + 60000) && hesap.oauth_token.refresh_token) {
+      try {
+        const { credentials } = await oauth2.refreshAccessToken();
+        const yeniToken = { ...hesap.oauth_token, ...credentials };
+        oauth2.setCredentials(yeniToken);
+        await Ayarlar.updateOne(
+          { 'drive_hesaplari._id': hesap._id },
+          { $set: { 'drive_hesaplari.$.oauth_token': yeniToken } }
+        );
+      } catch (e) {
+        // Refresh başarısız → lokal fallback
+        await Ayarlar.updateOne(
+          { 'drive_hesaplari._id': hesap._id },
+          { $unset: { 'drive_hesaplari.$.oauth_token': 1 } }
+        );
+        throw new Error('NO_DRIVE');
+      }
+    }
+
     oauth2.on('tokens', async (tokens) => {
       const guncellenen = { ...hesap.oauth_token, ...tokens };
-      await Ayarlar.updateOne({ 'drive_hesaplari._id': hesap._id }, { $set: { 'drive_hesaplari.$.oauth_token': guncellenen } });
+      await Ayarlar.updateOne(
+        { 'drive_hesaplari._id': hesap._id },
+        { $set: { 'drive_hesaplari.$.oauth_token': guncellenen } }
+      );
     });
+
     return { drive: google.drive({ version: 'v3', auth: oauth2 }), hesap };
   }
 
