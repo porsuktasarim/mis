@@ -626,15 +626,69 @@ window.driveYetkilendir = async (id) => {
     const r = await fetch(`${API}/drive/${id}/oauth-url`);
     const j = await r.json();
     if (!j.success) { showToast(j.message,'danger'); return; }
-    // URL'i yeni sekmede aç
-    window.open(j.url, '_blank');
-    // Kod giriş modalı göster
-    const kod = prompt('Google hesabınıza giriş yaptıktan sonra aldığınız kodu yapıştırın:');
-    if (!kod) return;
-    const r2 = await fetch(`${API}/drive/${id}/oauth-token`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kod})});
-    const j2 = await r2.json();
-    if(j2.success){ showToast(`Yetkilendirildi: ${j2.email||''}`,'success'); loadAyarlar(); }
-    else showToast(j2.message,'danger');
+
+    // URL'i modal içinde link olarak göster (popup blocker sorununu engeller)
+    const mevcut = document.getElementById('oauth-url-modal');
+    if (mevcut) mevcut.remove();
+
+    const modalEl = document.createElement('div');
+    modalEl.id = 'oauth-url-modal';
+    modalEl.className = 'modal fade';
+    modalEl.tabIndex = -1;
+    modalEl.innerHTML = `
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header mis-modal-header">
+            <h5 class="modal-title"><i class="bi bi-google me-2"></i>Google Drive Yetkilendirme</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <ol class="small mb-3">
+              <li class="mb-2">Aşağıdaki <strong>"Google'da Onayla"</strong> butonuna tıklayın ve Google hesabınıza giriş yapın.</li>
+              <li class="mb-2">İzin verin ve ekrandaki <strong>kodu kopyalayın.</strong></li>
+              <li>Kodu aşağıdaki alana yapıştırıp <strong>"Kodu Onayla"</strong> butonuna basın.</li>
+            </ol>
+            <div class="text-center mb-3">
+              <a href="${j.url}" target="_blank" class="btn btn-danger btn-sm">
+                <i class="bi bi-google me-2"></i>Google'da Onayla (Yeni Sekmede Açılır)
+              </a>
+            </div>
+            <div class="alert alert-warning small py-2">
+              <i class="bi bi-info-circle me-1"></i>
+              Yeni sekme açılmazsa aşağıdaki URL'i kopyalayıp tarayıcıya yapıştırın:<br>
+              <code style="font-size:10px;word-break:break-all">${j.url}</code>
+            </div>
+            <div class="mb-0">
+              <label class="form-label small fw-semibold">Google'dan Aldığınız Kod</label>
+              <div class="input-group">
+                <input type="text" class="form-control form-control-sm" id="oauth-kod-input" placeholder="4/0AX..."/>
+                <button class="btn btn-mis btn-sm" onclick="oauthKoduOnayla('${id}')">
+                  <i class="bi bi-check-lg me-1"></i>Kodu Onayla
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    document.body.appendChild(modalEl);
+    new bootstrap.Modal(modalEl).show();
+  } catch(e) { showToast('Hata: '+e.message,'danger'); }
+};
+
+window.oauthKoduOnayla = async (id) => {
+  const kod = document.getElementById('oauth-kod-input')?.value?.trim();
+  if (!kod) { showToast('Kod boş olamaz.','warning'); return; }
+  try {
+    const r = await fetch(`${API}/drive/${id}/oauth-token`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kod})
+    });
+    const j = await r.json();
+    if (j.success) {
+      bootstrap.Modal.getInstance(document.getElementById('oauth-url-modal'))?.hide();
+      showToast(`✅ Yetkilendirildi: ${j.email||''}`, 'success');
+      loadAyarlar();
+    } else showToast(j.message||'Kod hatalı.','danger');
   } catch { showToast('Hata.','danger'); }
 };
 window.driveTesti = async (id) => {
