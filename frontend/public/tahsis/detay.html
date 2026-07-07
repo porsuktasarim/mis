@@ -273,7 +273,7 @@ document.querySelectorAll('.detay-sekme').forEach(btn => {
     document.querySelectorAll('.detay-tab').forEach(t=>t.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
-    if (btn.dataset.tab==='baglantilar') loadCksSecici();
+    if (btn.dataset.tab==='baglantilar') { if(tahsis) loadCksSecici(); else setTimeout(loadCksSecici,500); }
     if (btn.dataset.tab==='raporlar') { renderRaporDurum(); renderEk4cGruplari(); }
   });
 });
@@ -339,6 +339,9 @@ const loadTahsis = async () => {
   renderParseller();
   renderBbhb();
   renderAdimlar();
+
+  // Bağlantılar sekmesi açıksa ÇKS seçiciyi yükle, değilse hazırda beklet
+  loadCksSecici();
 };
 
 // ── Parseller ─────────────────────────────────────────────
@@ -578,18 +581,23 @@ window.ek4abIndir=async()=>{
 
 // ── Ek-4/c Gruplandırma ────────────────────────────────────
 const renderEk4cGruplari=()=>{
-  const parseller=(tahsis?.parseller||[]).filter(p=>p.dahil!==false);
   const el=document.getElementById('ek4c-gruplari');
-  if(!parseller.length){el.innerHTML='<p class="text-muted small">Önce parseller sekmesinden parsel ekleyin.</p>';return;}
+  if(!el) return;
+  const parseller=(tahsis?.parseller||[]).filter(p=>p.dahil!==false);
+  if(!parseller.length){
+    el.innerHTML='<p class="text-muted small">Önce parseller sekmesinden parsel ekleyin.</p>';
+    return;
+  }
 
-  const atanmis=new Set(_parselGruplari.flatMap(g=>g.parsel_idler));
-  const atanmamis=parseller.filter(p=>!atanmis.has(p._id));
+  // Güvenli ID karşılaştırma - her zaman string
+  const pid = (p) => String(p._id||'');
+  const atanmis = new Set(_parselGruplari.flatMap(g => g.parsel_idler.map(String)));
+  const atanmamis = parseller.filter(p => !atanmis.has(pid(p)));
 
   let html='';
 
-  // Gruplar
   _parselGruplari.forEach((g,gi)=>{
-    const gPars=parseller.filter(p=>g.parsel_idler.includes(p._id));
+    const gPars = parseller.filter(p => g.parsel_idler.map(String).includes(pid(p)));
     html+=`<div class="grup-kart">
       <div class="d-flex align-items-center gap-2 mb-2">
         <input type="text" class="form-control form-control-sm" style="max-width:160px"
@@ -599,7 +607,7 @@ const renderEk4cGruplari=()=>{
         <button class="btn btn-xs btn-outline-danger ms-auto" onclick="grubuSil(${gi})"><i class="bi bi-trash"></i></button>
       </div>
       <div>${gPars.map(p=>`
-        <span class="parsel-tag" onclick="grupParseCikar(${gi},'${p._id}')" title="Gruptan çıkar">
+        <span class="parsel-tag" onclick="grupParseCikar(${gi},'${pid(p)}')" title="Gruptan çıkar">
           ${p.ada||'?'}/${p.parsel||'?'} ×
         </span>`).join('')}
         ${!gPars.length?'<span class="text-muted small">Henüz parsel eklenmedi</span>':''}
@@ -607,20 +615,19 @@ const renderEk4cGruplari=()=>{
     </div>`;
   });
 
-  // Atanmamışlar
   if(atanmamis.length){
     html+=`<div class="border rounded p-2 mb-2 bg-white">
-      <div class="small fw-semibold text-muted mb-2">Gruba Atanmamış (${atanmamis.length})</div>
+      <div class="small fw-semibold text-muted mb-2">Gruba Atanmamış (${atanmamis.length} parsel) — tıklayarak gruba ekleyin</div>
       <div>${atanmamis.map(p=>`
-        <span class="atanmamis-tag" onclick="parselGrupSec('${p._id}','${p.ada||'?'}/${p.parsel||'?'}')" title="Gruba ekle">
+        <span class="atanmamis-tag" onclick="parselGrupSec('${pid(p)}','${p.ada||'?'}/${p.parsel||'?'}')" title="Gruba ekle">
           ${p.ada||'?'}/${p.parsel||'?'} +
         </span>`).join('')}
       </div>
     </div>`;
   }
 
-  el.innerHTML=html||'<p class="text-muted small">Grup yok.</p>';
-  document.getElementById('btn-grup-kaydet').disabled=!_grupDegisti;
+  el.innerHTML = html || '<p class="text-muted small">Grup yok. "Yeni Grup" ile başlayın.</p>';
+  document.getElementById('btn-grup-kaydet').disabled = !_grupDegisti;
 };
 
 window.yeniGrupOlustur=()=>{
@@ -638,7 +645,7 @@ window.grubuSil=(gi)=>{
 };
 
 window.grupParseCikar=(gi,pid)=>{
-  _parselGruplari[gi].parsel_idler=_parselGruplari[gi].parsel_idler.filter(x=>x!==pid);
+  _parselGruplari[gi].parsel_idler=_parselGruplari[gi].parsel_idler.filter(x=>String(x)!==String(pid));
   _grupDegisti=true;
   document.getElementById('btn-grup-kaydet').disabled=false;
   renderEk4cGruplari();renderAdimlar();
@@ -646,7 +653,7 @@ window.grupParseCikar=(gi,pid)=>{
 
 // Atanmamış parsele tıklanınca grup seçim modalı aç
 window.parselGrupSec=(pid,ad)=>{
-  _aktifParselId=pid;
+  _aktifParselId=String(pid);
   document.getElementById('grup-modal-baslik').textContent=`Parsel ${ad} — Gruba Ekle`;
   const el=document.getElementById('grup-secenekler');
   if(!_parselGruplari.length){
@@ -661,8 +668,9 @@ window.parselGrupSec=(pid,ad)=>{
 };
 
 window.parselGrubaEkle=(gi)=>{
-  if(_aktifParselId&&!_parselGruplari[gi].parsel_idler.includes(_aktifParselId)){
-    _parselGruplari[gi].parsel_idler.push(_aktifParselId);
+  const pid=String(_aktifParselId||'');
+  if(pid && !_parselGruplari[gi].parsel_idler.map(String).includes(pid)){
+    _parselGruplari[gi].parsel_idler.push(pid);
     _grupDegisti=true;
     document.getElementById('btn-grup-kaydet').disabled=false;
   }
