@@ -353,6 +353,11 @@ const loadTahsis = async () => {
   renderBbhb();
   renderAdimlar();
   renderEk4cGruplari();
+
+  // Raporlar sekmesi zaten açıksa seçenekleri yenile
+  if (document.querySelector('[data-tab="raporlar"]')?.classList.contains('active')) {
+    loadRaporSecenekleri();
+  }
 };
 
 // ── Parseller ────────────────────────────────────────────
@@ -512,13 +517,18 @@ window.guncelle = async () => {
 
 // ── Raporlar sekmesi ─────────────────────────────────────
 const loadRaporSecenekleri = async () => {
+  if (!tahsis) return; // Veri henüz yüklenmediyse bekle
+
   // BBHB seçici
   const bbhbSel = document.getElementById('r-bbhb-sec');
   const bag = tahsis.bbhb_baglantilari || [];
   if (bag.length) {
     bbhbSel.innerHTML = '<option value="">— Seçin —</option>'
-      + bag.map(b=>`<option value="${b.bbhb_id}">${[b.il,b.ilce,b.mahalle].filter(Boolean).join('/')
-        } — ${b.toplam_bbhb?.toFixed(2)||'?'} BBHB</option>`).join('');
+      + bag.map(b => {
+          const bid = b.bbhb_id?._id || b.bbhb_id || b._id || '';
+          const yer = [b.il,b.ilce,b.mahalle].filter(Boolean).join('/') || '–';
+          return `<option value="${bid}">${yer} — ${b.toplam_bbhb?.toFixed(2)||'?'} BBHB</option>`;
+        }).join('');
     document.getElementById('r-bbhb-yok').style.display = 'none';
   } else {
     bbhbSel.innerHTML = '<option value="">— Bağlı BBHB yok —</option>';
@@ -531,14 +541,13 @@ const loadRaporSecenekleri = async () => {
     const r = await fetch('/api/cks');
     const j = await r.json();
     if (j.data?.length) {
-      // Bu 3T'nin mahallesine uyanları öne al
-      const sırala = (c) => (c.koy||'') === (tahsis.mahalle_ad||'') ? 0 : 1;
-      const sirali = [...j.data].sort((a,b) => sırala(a) - sırala(b));
+      const sirala = (c) => (c.koy||'').toUpperCase().trim() === (tahsis.mahalle_ad||'').toUpperCase().trim() ? 0 : 1;
+      const sirali = [...j.data].sort((a,b) => sirala(a) - sirala(b));
       cksSel.innerHTML = '<option value="">— Seçin —</option>'
-        + sirali.map(c=>{
-          const esles = (c.koy||'') === (tahsis.mahalle_ad||'');
-          return `<option value="${c._id}">${c.koy||c.ilce||c.dosya_adi} — ${c.uretim_yili||'?'} (${c.kisi_sayisi} kişi)${esles?' ✓':''}`;
-        }).join('');
+        + sirali.map(c => {
+            const esles = (c.koy||'').toUpperCase().trim() === (tahsis.mahalle_ad||'').toUpperCase().trim();
+            return `<option value="${c._id}">${c.koy||c.ilce||c.dosya_adi} — ${c.uretim_yili||'?'} (${c.kisi_sayisi} kişi)${esles?' ✓':''}`;
+          }).join('');
       document.getElementById('r-cks-yok').style.display = 'none';
     } else {
       cksSel.innerHTML = '<option value="">— ÇKS kaydı yok —</option>';
