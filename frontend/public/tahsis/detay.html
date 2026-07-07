@@ -582,26 +582,26 @@ window.ek4abIndir=async()=>{
 // ── Ek-4/c Gruplandırma ────────────────────────────────────
 const renderEk4cGruplari=()=>{
   const el=document.getElementById('ek4c-gruplari');
-  if(!el) return;
-  const parseller=(tahsis?.parseller||[]).filter(p=>p.dahil!==false);
+  if(!el) return; // Element henüz DOM'da yok
+  if(!tahsis) { el.innerHTML='<p class="text-muted small">Yükleniyor...</p>'; return; }
+
+  const parseller=(tahsis.parseller||[]).filter(p=>p.dahil!==false);
   if(!parseller.length){
-    el.innerHTML='<p class="text-muted small">Önce parseller sekmesinden parsel ekleyin.</p>';
+    el.innerHTML='<p class="text-muted small">Parseller sekmesinden parsel ekleyin.</p>';
     return;
   }
 
-  // Güvenli ID karşılaştırma - her zaman string
   const pid = (p) => String(p._id||'');
   const atanmis = new Set(_parselGruplari.flatMap(g => g.parsel_idler.map(String)));
   const atanmamis = parseller.filter(p => !atanmis.has(pid(p)));
 
   let html='';
-
   _parselGruplari.forEach((g,gi)=>{
-    const gPars = parseller.filter(p => g.parsel_idler.map(String).includes(pid(p)));
+    const gPars=parseller.filter(p=>g.parsel_idler.map(String).includes(pid(p)));
     html+=`<div class="grup-kart">
       <div class="d-flex align-items-center gap-2 mb-2">
         <input type="text" class="form-control form-control-sm" style="max-width:160px"
-          value="${g.ad}" placeholder="Grup adı"
+          value="${(g.ad||'').replace(/"/g,'&quot;')}" placeholder="Grup adı"
           onchange="_parselGruplari[${gi}].ad=this.value;_grupDegisti=true;document.getElementById('btn-grup-kaydet').disabled=false;renderAdimlar()"/>
         <span class="badge bg-secondary">${gPars.length} parsel</span>
         <button class="btn btn-xs btn-outline-danger ms-auto" onclick="grubuSil(${gi})"><i class="bi bi-trash"></i></button>
@@ -610,14 +610,14 @@ const renderEk4cGruplari=()=>{
         <span class="parsel-tag" onclick="grupParseCikar(${gi},'${pid(p)}')" title="Gruptan çıkar">
           ${p.ada||'?'}/${p.parsel||'?'} ×
         </span>`).join('')}
-        ${!gPars.length?'<span class="text-muted small">Henüz parsel eklenmedi</span>':''}
+        ${!gPars.length?'<span class="text-muted small">Parsel ekleyin</span>':''}
       </div>
     </div>`;
   });
 
   if(atanmamis.length){
     html+=`<div class="border rounded p-2 mb-2 bg-white">
-      <div class="small fw-semibold text-muted mb-2">Gruba Atanmamış (${atanmamis.length} parsel) — tıklayarak gruba ekleyin</div>
+      <div class="small fw-semibold text-muted mb-2">Gruba Atanmamış (${atanmamis.length}) — tıklayarak gruba ekleyin</div>
       <div>${atanmamis.map(p=>`
         <span class="atanmamis-tag" onclick="parselGrupSec('${pid(p)}','${p.ada||'?'}/${p.parsel||'?'}')" title="Gruba ekle">
           ${p.ada||'?'}/${p.parsel||'?'} +
@@ -626,8 +626,13 @@ const renderEk4cGruplari=()=>{
     </div>`;
   }
 
-  el.innerHTML = html || '<p class="text-muted small">Grup yok. "Yeni Grup" ile başlayın.</p>';
-  document.getElementById('btn-grup-kaydet').disabled = !_grupDegisti;
+  if(!_parselGruplari.length && !atanmamis.length){
+    html='<p class="text-muted small">Grup yok. "Yeni Grup" ile başlayın.</p>';
+  }
+
+  el.innerHTML=html;
+  const btn=document.getElementById('btn-grup-kaydet');
+  if(btn) btn.disabled=!_grupDegisti;
 };
 
 window.yeniGrupOlustur=()=>{
