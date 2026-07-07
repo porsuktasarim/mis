@@ -12,8 +12,8 @@ router.post('/',                         ctrl.olustur);
 router.put('/:id',                       ctrl.guncelle);
 router.delete('/:id',                    ctrl.sil);
 
-// Teknik bilgiler
-router.put('/:id/teknik',               ctrl.teknikGuncelle);
+// Parsel grupları (Ek-4/c)
+router.put('/:id/parsel-gruplari',       ctrl.parselGruplariGuncelle);
 
 // Parseller
 router.post('/:id/parseller/yukle',      ctrl.parsellerYukle);

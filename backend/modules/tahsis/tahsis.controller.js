@@ -165,7 +165,16 @@ const bbhbSil = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// ── Teknik bilgileri güncelle ─────────────────────────────
+// ── Parsel gruplarını güncelle (Ek-4/c) ──────────────────
+const parselGruplariGuncelle = async (req, res, next) => {
+  try {
+    const tahsis = await Tahsis.findById(req.params.id);
+    if (!tahsis) return res.status(404).json({ success: false, message: 'Bulunamadı' });
+    tahsis.parsel_gruplari = req.body.gruplar || [];
+    await tahsis.save();
+    res.json({ success: true, data: tahsis.parsel_gruplari });
+  } catch (err) { next(err); }
+};
 const teknikGuncelle = async (req, res, next) => {
   try {
     const tahsis = await Tahsis.findById(req.params.id);
@@ -197,5 +206,5 @@ module.exports = {
   listele, getById, olustur, guncelle, sil, istatistik,
   parsellerYukle, parselGuncelle, parselSil,
   bbhbEkle, bbhbSil,
-  teknikGuncelle,
+  teknikGuncelle, parselGruplariGuncelle,
 };

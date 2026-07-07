@@ -137,7 +137,11 @@ const TahsisSchema = new mongoose.Schema({
     bilirkisi_2:     { type: String },
   },
 
-  // Otlatma hakları (Ek-7/f)
+  // Ek-4/c Parsel Grupları
+  parsel_gruplari: [{
+    ad:          { type: String, default: 'Grup 1' },
+    parsel_idler:{ type: [String], default: [] },
+  }],
   otlatma_haklari: [{
     ciftci_ad:  { type: String },
     mera_da:    { type: Number },
