@@ -91,9 +91,41 @@
           <div class="col-12">
             <div class="alert alert-info small py-2 mb-0">
               <i class="bi bi-info-circle me-1"></i>
-              <strong>Tespit / Tahdit / Tahsis</strong> çalışması başlatılıyor. Temel bilgileri girin, ardından parsel seçim ekranına geçin.
+              <strong>Tespit / Tahdit / Tahsis</strong> çalışması başlatılıyor.
             </div>
           </div>
+
+          <!-- Çalışma türü ÖNCE -->
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Çalışma Türü</label>
+            <div class="d-flex gap-4 mt-1 p-2 border rounded">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="cb-tespit" checked disabled>
+                <label class="form-check-label small fw-semibold text-success" for="cb-tespit">
+                  <i class="bi bi-check-circle me-1"></i>Tespit
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="cb-tahdit" checked disabled>
+                <label class="form-check-label small fw-semibold text-success" for="cb-tahdit">
+                  <i class="bi bi-check-circle me-1"></i>Tahdit
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="cb-tahsis" onchange="tahsisDegisti(this)">
+                <label class="form-check-label small fw-semibold" for="cb-tahsis">Tahsis</label>
+              </div>
+            </div>
+            <div class="form-text">Tespit ve Tahdit her zaman yapılır</div>
+            <div id="tahsis-uyari" class="alert alert-warning small py-2 mt-2 d-none">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              <strong>Tahsis</strong> seçildi. Bu köy/mahalle için daha önce
+              <strong>Tespit ve Tahdit</strong> çalışması tamamlanmış olmalıdır.
+              Devam etmek istediğinizden emin misiniz?
+            </div>
+          </div>
+
+          <!-- Sonra coğrafi seçim -->
           <div class="col-md-4">
             <label class="form-label small fw-semibold">İl *</label>
             <select class="form-select form-select-sm" id="m-il">
@@ -111,24 +143,6 @@
             <select class="form-select form-select-sm" id="m-mahalle" disabled>
               <option value="">— Önce ilçe seçin —</option>
             </select>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label small fw-semibold">Çalışma Türü</label>
-            <div class="d-flex gap-2 mt-1">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="cb-tespit" checked disabled>
-                <label class="form-check-label small" for="cb-tespit">Tespit</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="cb-tahdit" checked disabled>
-                <label class="form-check-label small" for="cb-tahdit">Tahdit</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="cb-tahsis">
-                <label class="form-check-label small" for="cb-tahsis">Tahsis</label>
-              </div>
-            </div>
-            <div class="form-text">Tespit ve Tahdit her zaman yapılır</div>
           </div>
           <div class="col-md-6">
             <label class="form-label small fw-semibold">Veri Giriş Tarihi</label>
@@ -372,7 +386,45 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Adım 1: Modal aç ─────────────────────────────────────
+window.tahsisDegisti = async (cb) => {
+  const uyari = document.getElementById('tahsis-uyari');
+  uyari.classList.toggle('d-none', !cb.checked);
+
+  if (cb.checked) {
+    // Bu köyde tamamlanmış tespit/tahdit çalışması var mı kontrol et
+    const ilSel  = document.getElementById('m-il');
+    const mahSel = document.getElementById('m-mahalle');
+    const il_ad  = ilSel.selectedOptions[0]?.dataset.ad || '';
+    const mah_ad = mahSel.selectedOptions[0]?.dataset.ad || '';
+
+    if (il_ad && mah_ad) {
+      try {
+        const r = await fetch(`${API}?il_ad=${encodeURIComponent(il_ad)}&limit=50`);
+        const j = await r.json();
+        const tamamlanan = (j.data || []).filter(t =>
+          t.mahalle_ad === mah_ad && t.durum === 'tamamlandi'
+        );
+        if (tamamlanan.length === 0) {
+          uyari.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i>
+            <strong>Uyarı:</strong> Bu köy/mahalle için tamamlanmış Tespit/Tahdit kaydı bulunamadı.
+            Tahsis işlemi için önce Tespit ve Tahdit aşamasının tamamlanmış olması gerekir.`;
+          uyari.className = 'alert alert-danger small py-2 mt-2';
+        } else {
+          uyari.innerHTML = `<i class="bi bi-check-circle me-1"></i>
+            <strong>${tamamlanan.length}</strong> adet tamamlanmış Tespit/Tahdit çalışması bulundu. Tahsis işlemi başlatılabilir.`;
+          uyari.className = 'alert alert-success small py-2 mt-2';
+        }
+      } catch(e) {
+        uyari.innerHTML = `<i class="bi bi-info-circle me-1"></i>
+          Tahsis seçildi. Devam etmek için önce il ve mahalle seçimi yapın.`;
+        uyari.className = 'alert alert-warning small py-2 mt-2';
+      }
+    }
+  }
+};
 window.yeniAc = async () => {
+  document.getElementById('cb-tahsis').checked = false;
+  document.getElementById('tahsis-uyari').className = 'alert alert-warning small py-2 mt-2 d-none';
   // Tarihi bugüne ayarla
   document.getElementById('m-tarih').value = new Date().toISOString().slice(0,10);
   document.getElementById('m-aciklama').value = '';
@@ -429,11 +481,16 @@ window.adim1Kaydet = async () => {
 
     _yeniId = j.data._id;
 
-    // Modal1'i kapat
-    bootstrap.Modal.getInstance(document.getElementById('modal1')).hide();
+    // Modal1'i kapat, animasyon bitince Modal2'yi aç
+    const m1El = document.getElementById('modal1');
+    const m1   = bootstrap.Modal.getInstance(m1El);
 
-    // Adım 2: Parsel seçim modalını aç
-    await adim2Ac(j.data);
+    const bekleVeAc = () => {
+      m1El.removeEventListener('hidden.bs.modal', bekleVeAc);
+      adim2Ac(j.data);
+    };
+    m1El.addEventListener('hidden.bs.modal', bekleVeAc);
+    m1.hide();
 
   } catch(e) {
     showToast('Sunucuya ulaşılamadı.', 'danger');
@@ -521,13 +578,18 @@ window.tumunuSecDegistir = (val) => {
 };
 
 window.modal2Geri = () => {
-  // Geri: modal2 kapat, oluşturulan kaydı sil, modal1'i aç
-  bootstrap.Modal.getInstance(document.getElementById('modal2')).hide();
+  const m2El = document.getElementById('modal2');
+  const m2   = bootstrap.Modal.getInstance(m2El);
+  const bekleVeAc = () => {
+    m2El.removeEventListener('hidden.bs.modal', bekleVeAc);
+    new bootstrap.Modal(document.getElementById('modal1')).show();
+  };
+  m2El.addEventListener('hidden.bs.modal', bekleVeAc);
   if (_yeniId) {
     fetch(`${API}/${_yeniId}`, { method: 'DELETE' }).catch(() => {});
     _yeniId = null;
   }
-  setTimeout(() => new bootstrap.Modal(document.getElementById('modal1')).show(), 300);
+  m2.hide();
 };
 
 window.modal2Kapat = () => {
