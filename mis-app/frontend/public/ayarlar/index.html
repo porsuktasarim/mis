@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ayarlar - MİS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+  <style>
+    .ayar-sekme{border:none;background:none;padding:10px 16px;font-size:13px;color:#4a6358;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;}
+    .ayar-sekme.active{color:#0F6E56;border-bottom-color:#0F6E56;font-weight:500;}
+    .ayar-tab{display:none;} .ayar-tab.active{display:block;}
+    .ayar-topbar{background:#fff;border-bottom:1px solid #e2e8e4;display:flex;align-items:center;gap:0;overflow-x:auto;padding:0 1rem;}
+    .renk-dot{width:20px;height:20px;border-radius:50%;display:inline-block;}
+    .tablo-input{width:70px;text-align:center;padding:2px 4px;border:1px solid #dee2e6;border-radius:4px;font-size:12px;}
+    #sifre-ekrani{position:fixed;inset:0;background:rgba(15,110,86,.95);display:flex;align-items:center;justify-content:center;z-index:9999;}
+    .sifre-kart{background:#fff;border-radius:16px;padding:2.5rem;width:340px;text-align:center;}
+    .adim-kutu{background:#f0f9f5;border:1px solid #9FE1CB;border-radius:8px;padding:1rem;margin-bottom:.75rem;}
+    .adim-no{width:26px;height:26px;border-radius:50%;background:#0F6E56;color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+  </style>
+</head>
+<body>
+
+<!-- Şifre Ekranı -->
+<div id="sifre-ekrani">
+  <div class="sifre-kart">
+    <i class="bi bi-tree-fill fs-1 text-success d-block mb-3"></i>
+    <h5 class="fw-bold mb-1">MİS Ayarlar</h5>
+    <p class="text-muted small mb-4">Bu alana erişmek için şifrenizi girin.</p>
+    <input type="password" class="form-control mb-3" id="sifre-inp" placeholder="Şifre" autofocus/>
+    <button class="btn btn-mis w-100" id="sifre-btn"><i class="bi bi-unlock me-2"></i>Giriş</button>
+    <div id="sifre-hata" class="text-danger small mt-2 d-none">Şifre yanlış.</div>
+  </div>
+</div>
+
+<div class="d-flex" id="wrapper">
+  <div id="mis-sidebar-mount"></div>
+
+  <div id="page-content" class="flex-grow-1 d-flex flex-column">
+    <nav class="navbar mis-topbar px-3">
+      <button class="btn btn-sm mis-sidebar-toggle" id="sidebarToggle"><i class="bi bi-list fs-5"></i></button>
+      <span class="mis-topbar-title">Ayarlar</span>
+      <div class="ms-auto d-flex gap-2">
+        <button class="btn btn-sm btn-mis" id="btnKaydet"><i class="bi bi-save me-1"></i>Kaydet</button>
+        <button class="btn btn-sm btn-outline-danger" id="btnSifirla"><i class="bi bi-arrow-counterclockwise me-1"></i>Varsayılan</button>
+      </div>
+    </nav>
+
+    <div class="ayar-topbar">
+      <button class="ayar-sekme active" data-tab="drive"><i class="bi bi-hdd-network me-1"></i>Depolama Alanı</button>
+      <button class="ayar-sekme" data-tab="kategoriler"><i class="bi bi-tags me-1"></i>Dosya Kategorileri</button>
+      <button class="ayar-sekme" data-tab="renkler"><i class="bi bi-palette me-1"></i>Not Renkleri</button>
+      <button class="ayar-sekme" data-tab="toprak"><i class="bi bi-layers me-1"></i>Toprak Sınıfları</button>
+      <button class="ayar-sekme" data-tab="yagis"><i class="bi bi-cloud-rain me-1"></i>Yağış Kuşakları</button>
+      <button class="ayar-sekme" data-tab="verim"><i class="bi bi-table me-1"></i>Verim Tabloları</button>
+      <button class="ayar-sekme" data-tab="idari"><i class="bi bi-map me-1"></i>İdari Yönetim</button>
+      <button class="ayar-sekme" data-tab="personel"><i class="bi bi-people me-1"></i>Personel</button>
+      <button class="ayar-sekme" data-tab="ehgb"><i class="bi bi-calculator me-1"></i>EHGB</button>
+      <button class="ayar-sekme" data-tab="guvenlik"><i class="bi bi-shield-lock me-1"></i>Güvenlik</button>
+    </div>
+
+    <main class="mis-main p-4">
+
+      <!-- DEPOLAMA ALANI -->
+      <div class="ayar-tab active" id="tab-drive">
+        <div class="row g-4">
+          <!-- SOL: Taşıma butonları + hesap seçimi -->
+          <div class="col-lg-4">
+            <div class="mis-card mb-3">
+              <div class="mis-card-header"><i class="bi bi-arrow-left-right"></i><span class="title">Dosya Taşıma</span></div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">Hedef Drive Hesabı</label>
+                <select class="form-select form-select-sm" id="drive-hedef-sec">
+                  <option value="">— Hesap seçin —</option>
+                </select>
+              </div>
+              <div class="d-grid gap-2">
+                <button class="btn btn-outline-secondary btn-sm" onclick="dosyalariSunucuyaTasi()">
+                  <i class="bi bi-server me-1"></i>Tüm Dosyaları Sunucuya Taşı
+                  <div class="small text-muted fw-normal">Drive'daki dosyalar silinerek sunucuya taşınır</div>
+                </button>
+                <button class="btn btn-mis btn-sm" onclick="dosyalariDriveTasi()">
+                  <i class="bi bi-google me-1"></i>Tüm Dosyaları Seçili Drive'a Taşı
+                  <div class="small fw-normal" style="opacity:.85">Sunucu ve diğer Drive'lardaki dosyalar silinerek seçili Drive'a taşınır</div>
+                </button>
+              </div>
+              <div class="alert alert-warning small mt-3 mb-0 py-2">
+                <i class="bi bi-exclamation-triangle me-1"></i>Bu işlemler geri alınamaz. Taşıma öncesinde yedek almanız önerilir.
+              </div>
+            </div>
+          </div>
+          <!-- SAĞ: Drive hesapları + kurulum -->
+          <div class="col-lg-8">
+            <div class="mis-card mb-3">
+              <div class="mis-card-header"><i class="bi bi-google"></i><span class="title">Ekli Drive Hesapları</span>
+                <button class="btn btn-sm btn-mis ms-auto" onclick="driveEkleModal()"><i class="bi bi-plus-lg me-1"></i>Hesap Ekle</button>
+              </div>
+              <div id="drive-listesi"><div class="text-center py-3 text-muted small">Yükleniyor...</div></div>
+            </div>
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-info-circle text-success"></i><span class="title">Google Drive Kurulumu (OAuth2 — Önerilen)</span></div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">1</span>
+                <div class="small"><strong>Google Cloud Console'a gidin</strong><br><a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> → Yeni proje oluşturun (ör: <code>mis-app</code>)</div>
+              </div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">2</span>
+                <div class="small"><strong>Drive API'yi etkinleştirin</strong><br>APIs & Services → Library → <em>Google Drive API</em> aratın → <strong>Enable</strong></div>
+              </div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">3</span>
+                <div class="small"><strong>OAuth onay ekranı</strong><br>APIs & Services → OAuth consent screen → <strong>External</strong> → Uygulama adı girin → Kaydet</div>
+              </div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">4</span>
+                <div class="small"><strong>OAuth istemcisi oluşturun</strong><br>APIs & Services → Credentials → <strong>+ Create Credentials → OAuth client ID</strong><br>Application type: <strong>Desktop app</strong> → Ad: <code>MIS</code> → Create → JSON İndir</div>
+              </div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">5</span>
+                <div class="small"><strong>MİS'e ekleyin</strong><br>"Hesap Ekle" → Tip: <strong>OAuth2</strong> → JSON'ı yapıştırın → Kaydet</div>
+              </div>
+              <div class="adim-kutu d-flex gap-3">
+                <span class="adim-no">6</span>
+                <div class="small"><strong>Yetkilendirin</strong><br><strong>Yetkilendir</strong> butonuna tıklayın → Google sayfasında izin verin → Kodu yapıştırın</div>
+              </div>
+              <div class="adim-kutu d-flex gap-3" style="border-left:3px solid #ffc107;background:#fffde7">
+                <span class="adim-no" style="background:#ffc107">!</span>
+                <div class="small"><strong>Not:</strong> Service Account yalnızca <em>Shared Drive</em> ile çalışır. Normal Drive'da "storage quota" hatası verir. OAuth2 kullanın.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KATEGORİLER -->
+      <div class="ayar-tab" id="tab-kategoriler">
+        <div class="mis-card">
+          <div class="mis-card-header"><i class="bi bi-tags"></i><span class="title">Dosya Kategorileri</span>
+            <button class="btn btn-sm btn-mis ms-auto" onclick="kategoriEkle()"><i class="bi bi-plus-lg me-1"></i>Ekle</button>
+          </div>
+          <div id="kategoriler-listesi"></div>
+        </div>
+      </div>
+
+      <!-- RENKLER -->
+      <div class="ayar-tab" id="tab-renkler">
+        <div class="mis-card">
+          <div class="mis-card-header"><i class="bi bi-palette"></i><span class="title">Not Renkleri</span></div>
+          <div id="renkler-listesi"></div>
+        </div>
+      </div>
+
+      <!-- TOPRAK -->
+      <div class="ayar-tab" id="tab-toprak">
+        <div class="mis-card">
+          <div class="mis-card-header"><i class="bi bi-layers"></i><span class="title">Toprak Sınıfları</span></div>
+          <div id="toprak-listesi"></div>
+        </div>
+      </div>
+
+      <!-- YAĞIŞ -->
+      <div class="ayar-tab" id="tab-yagis">
+        <div class="mis-card">
+          <div class="mis-card-header"><i class="bi bi-cloud-rain"></i><span class="title">Yağış Kuşakları (İl Bazlı)</span></div>
+          <div class="table-responsive" style="max-height:600px;overflow-y:auto;">
+            <table class="table table-sm mis-table mb-0">
+              <thead style="position:sticky;top:0;"><tr><th>İl</th><th>Yağış Kuşağı</th></tr></thead>
+              <tbody id="yagis-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- VERİM -->
+      <div class="ayar-tab" id="tab-verim">
+        <div class="row g-4">
+          <div class="col-12"><div class="mis-card"><div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 1: Yararlanılabilir Yeşil Ot Verimi (kg/da)</span></div><div id="tablo1"></div></div></div>
+          <div class="col-12"><div class="mis-card"><div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 2: Üretilen Yeşil Ot Verimi (kg/da)</span></div><div id="tablo2"></div></div></div>
+          <div class="col-12"><div class="mis-card"><div class="mis-card-header"><i class="bi bi-table"></i><span class="title">Tablo 3: Üretilen Kuru Ot Verimi (kg/da)</span></div><div id="tablo3"></div></div></div>
+        </div>
+      </div>
+
+      <!-- İDARİ YÖNETİM -->
+      <div class="ayar-tab" id="tab-idari">
+        <div class="row g-4">
+          <div class="col-lg-4">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-search"></i><span class="title">İdari Kayıt Ara</span></div>
+              <div class="mb-2">
+                <select class="form-select form-select-sm mb-2" id="idari-tip-filtre">
+                  <option value="il">İl</option><option value="ilce">İlçe</option><option value="mahalle">Mahalle/Köy</option>
+                </select>
+                <div class="input-group input-group-sm">
+                  <input type="text" class="form-control" id="idari-ara-inp" placeholder="Ad ile ara..."/>
+                  <button class="btn btn-mis" onclick="idariAra()"><i class="bi bi-search"></i></button>
+                </div>
+              </div>
+              <div id="idari-ara-sonuc" style="max-height:400px;overflow-y:auto;"></div>
+            </div>
+          </div>
+          <div class="col-lg-8">
+            <div class="mis-card mb-3">
+              <div class="mis-card-header"><i class="bi bi-plus-circle"></i><span class="title">Yeni Kayıt Ekle</span></div>
+              <div class="row g-2">
+                <div class="col-md-3">
+                  <select class="form-select form-select-sm" id="yeni-tip">
+                    <option value="il">İl</option><option value="ilce">İlçe</option><option value="mahalle">Mahalle/Köy</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <select class="form-select form-select-sm" id="yeni-il" onchange="yeniIlDegisti()"><option value="">İl seçin</option></select>
+                </div>
+                <div class="col-md-3">
+                  <select class="form-select form-select-sm" id="yeni-ilce" disabled><option value="">İlçe seçin</option></select>
+                </div>
+                <div class="col-md-3">
+                  <input type="text" class="form-control form-control-sm" id="yeni-ad" placeholder="Ad"/>
+                </div>
+                <div class="col-12">
+                  <button class="btn btn-sm btn-mis" onclick="idariEkle()"><i class="bi bi-plus me-1"></i>Ekle</button>
+                </div>
+              </div>
+            </div>
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-star"></i><span class="title">İl Öncelikleri (Ana sayfada öne çıkar)</span></div>
+              <p class="small text-muted mb-2">En fazla 3 il seçin. Uyarılar bu iller için öncelikli gösterilir.</p>
+              <div id="il-oncelik-alani"></div>
+              <button class="btn btn-sm btn-mis mt-2" onclick="oncelikKaydet()"><i class="bi bi-save me-1"></i>Öncelikleri Kaydet</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EHGB PARAMETRELERİ -->
+      <div class="ayar-tab" id="tab-ehgb">
+        <div class="row g-3 mb-3 align-items-end">
+          <div class="col-auto">
+            <label class="form-label small fw-semibold">Yıl Seç</label>
+            <select class="form-select form-select-sm" id="ehgb-yil-sec" onchange="ehgbYilYukle()" style="width:120px">
+              <option value="">— Seç —</option>
+            </select>
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-sm btn-mis" onclick="ehgbYeniYilEkle()"><i class="bi bi-plus-lg me-1"></i>Yeni Yıl Ekle</button>
+          </div>
+          <div class="col-auto ms-auto">
+            <button class="btn btn-sm btn-success d-none" id="ehgb-kaydet-btn" onclick="ehgbKaydet()"><i class="bi bi-save me-1"></i>Kaydet</button>
+          </div>
+        </div>
+
+        <div id="ehgb-form" class="d-none">
+          <div class="row g-4">
+
+            <!-- İşçilik -->
+            <div class="col-md-6">
+              <div class="mis-card">
+                <div class="mis-card-header"><i class="bi bi-tools"></i><span class="title">İşçilik Birim Fiyatları (TL/da)</span></div>
+                <table class="table table-sm mb-0">
+                  <thead><tr><th>İşlem</th><th style="width:130px">TL/da</th></tr></thead>
+                  <tbody>
+                    <tr><td class="small">Derin Sürüm (Dipkazan)</td><td><input type="number" class="form-control form-control-sm" id="ep-derin_surum" step="0.01"/></td></tr>
+                    <tr><td class="small">Sürüm (Pulluk)</td><td><input type="number" class="form-control form-control-sm" id="ep-surum_pulluk" step="0.01"/></td></tr>
+                    <tr><td class="small">İkileme (Kazayağı-Diskarrow)</td><td><input type="number" class="form-control form-control-sm" id="ep-ikilem" step="0.01"/></td></tr>
+                    <tr><td class="small">Tırmık</td><td><input type="number" class="form-control form-control-sm" id="ep-tirmik" step="0.01"/></td></tr>
+                    <tr><td class="small">Gübreleme (Makineli – 2 yıl)</td><td><input type="number" class="form-control form-control-sm" id="ep-gubreleme" step="0.01"/></td></tr>
+                    <tr><td class="small">Ekim (Mibzerle – 2 yıl)</td><td><input type="number" class="form-control form-control-sm" id="ep-ekim" step="0.01"/></td></tr>
+                    <tr><td class="small">Temizlik / Tesviye</td><td><input type="number" class="form-control form-control-sm" id="ep-temizlik_tesviye" step="0.01"/></td></tr>
+                    <tr><td class="small">Toprak Serme (B+C için)</td><td><input type="number" class="form-control form-control-sm" id="ep-toprak_serme" step="0.01"/></td></tr>
+                    <tr><td class="small">Asfalt/Beton Sökümü (TL/m³)</td><td><input type="number" class="form-control form-control-sm" id="ep-asfalt_sokum" step="0.01"/></td></tr>
+                    <tr><td class="small">Tel Örgü Kaldırma (TL/m)</td><td><input type="number" class="form-control form-control-sm" id="ep-tel_orgu" step="0.01"/></td></tr>
+                    <tr><td class="small">Toprak Fiyatı (TL/m³)</td><td><input type="number" class="form-control form-control-sm" id="ep-toprak_fiyati" step="0.01"/></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Hafriyat + Gübre -->
+            <div class="col-md-6">
+              <div class="mis-card mb-3">
+                <div class="mis-card-header"><i class="bi bi-truck"></i><span class="title">Hafriyat Taşıma Parametreleri</span></div>
+                <table class="table table-sm mb-0">
+                  <thead><tr><th>Parametre</th><th style="width:130px">Değer</th></tr></thead>
+                  <tbody>
+                    <tr><td class="small">Araç Kapasitesi (m³)</td><td><input type="number" class="form-control form-control-sm" id="ep-arac_kapasite_m3" step="0.1"/></td></tr>
+                    <tr><td class="small">Özgül Ağırlık (kg/m³)</td><td><input type="number" class="form-control form-control-sm" id="ep-ozgul_agirlik"/></td></tr>
+                    <tr><td class="small">1 Torba (kg)</td><td><input type="number" class="form-control form-control-sm" id="ep-torba_kg"/></td></tr>
+                    <tr><td class="small">Yükleme Baz Ücreti (TL)</td><td><input type="number" class="form-control form-control-sm" id="ep-yukleme_baz" step="0.01"/></td></tr>
+                    <tr><td class="small">Yükleme İlave (TL/torba)</td><td><input type="number" class="form-control form-control-sm" id="ep-yukleme_ilave_torba" step="0.01"/></td></tr>
+                    <tr><td class="small">Nakliye (TL/km tek yön)</td><td><input type="number" class="form-control form-control-sm" id="ep-nakliye_km" step="0.01"/></td></tr>
+                    <tr><td class="small">Depolama Sahası Giriş (TL/araç)</td><td><input type="number" class="form-control form-control-sm" id="ep-depolama_giris" step="0.01"/></td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="mis-card">
+                <div class="mis-card-header"><i class="bi bi-moisture"></i><span class="title">Gübreleme</span></div>
+                <table class="table table-sm mb-0">
+                  <thead><tr><th>Gübre</th><th style="width:90px">TL/kg</th><th style="width:90px">kg/da</th></tr></thead>
+                  <tbody>
+                    <tr><td class="small">Amonyum Sülfat %21 N (2 yıl)</td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-amonyum_sulfat_fiyat" step="0.01"/></td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-amonyum_sulfat_miktar"/></td></tr>
+                    <tr><td class="small">Yanmış Hayvan Gübresi (1 yıl)</td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-hayvan_gubres_fiyat" step="0.01"/></td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-hayvan_gubres_miktar"/></td></tr>
+                    <tr><td class="small">Kompoze Gübre 20-20-0 (2 yıl)</td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-kompoze_fiyat" step="0.01"/></td>
+                      <td><input type="number" class="form-control form-control-sm" id="ep-kompoze_miktar"/></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tohum -->
+            <div class="col-12">
+              <div class="mis-card">
+                <div class="mis-card-header"><i class="bi bi-flower2"></i><span class="title">Tohum Karışımı</span>
+                  <span class="badge bg-secondary ms-2">Toplam 12 kg/da</span>
+                </div>
+                <table class="table table-sm mb-0">
+                  <thead><tr><th>Bitki Adı</th><th style="width:90px">Oran (%)</th><th style="width:110px">TL/kg</th></tr></thead>
+                  <tbody id="ehgb-tohumlar">
+                  </tbody>
+                </table>
+                <div class="p-2">
+                  <label class="form-label small fw-semibold">Dekara Toplam Tohum Miktarı (kg/da)</label>
+                  <input type="number" class="form-control form-control-sm" id="ep-tohum_miktar_da" style="width:120px" step="0.1"/>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- GÜVENLİK -->
+      <div class="ayar-tab" id="tab-guvenlik">
+        <div class="row justify-content-center">
+          <div class="col-lg-5">
+            <div class="mis-card">
+              <div class="mis-card-header"><i class="bi bi-shield-lock"></i><span class="title">Ayarlar Şifresi (Admin)</span></div>
+              <div class="mb-3"><label class="form-label small fw-semibold">Mevcut Şifre</label><input type="password" class="form-control form-control-sm" id="eski-sifre"/></div>
+              <div class="mb-3"><label class="form-label small fw-semibold">Yeni Şifre</label><input type="password" class="form-control form-control-sm" id="yeni-sifre"/></div>
+              <div class="mb-3"><label class="form-label small fw-semibold">Yeni Şifre (Tekrar)</label><input type="password" class="form-control form-control-sm" id="yeni-sifre2"/></div>
+              <button class="btn btn-mis w-100" id="btnSifreDegistir"><i class="bi bi-key me-2"></i>Şifreyi Değiştir</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PERSONEL -->
+      <div class="ayar-tab" id="tab-personel">
+        <div class="row g-4">
+
+          <!-- Teknik Ekipler -->
+          <div class="col-12">
+            <div class="mis-card">
+              <div class="mis-card-header">
+                <i class="bi bi-tools"></i><span class="title">Teknik Ekipler</span>
+                <button class="btn btn-sm btn-mis ms-auto" onclick="teknikEkipEkle()"><i class="bi bi-plus-lg me-1"></i>Yeni Ekip</button>
+              </div>
+              <div id="teknik-ekipler-listesi">
+                <p class="text-muted small text-center py-2">Henüz ekip yok.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- İl Mera Komisyonları -->
+          <div class="col-12">
+            <div class="mis-card">
+              <div class="mis-card-header">
+                <i class="bi bi-person-badge"></i><span class="title">İl Mera Komisyonları</span>
+                <button class="btn btn-sm btn-mis ms-auto" onclick="komisyonEkle()"><i class="bi bi-plus-lg me-1"></i>Yeni Komisyon</button>
+              </div>
+              <div id="komisyonlar-listesi">
+                <p class="text-muted small text-center py-2">Henüz komisyon yok.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kullanıcılar -->
+          <div class="col-12">
+            <div class="mis-card">
+              <div class="mis-card-header">
+                <i class="bi bi-person-lock"></i><span class="title">Kullanıcılar / Teknik Personel</span>
+                <button class="btn btn-sm btn-mis ms-auto" onclick="kullaniciEkle()"><i class="bi bi-plus-lg me-1"></i>Ekle</button>
+              </div>
+              <p class="small text-muted px-3 pt-2 mb-1">Bu listede yer alan personel, EHGB raporlarında "Hazırlayanlar" olarak imza alanında gösterilir.</p>
+              <div id="kullanicilar-listesi">
+                <p class="text-muted small text-center py-2">Henüz personel yok.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- İkon Seçici Modal -->
+<div class="modal fade" id="ikonModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">İkon Seç</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="text" class="form-control form-control-sm mb-3" id="ikon-ara" placeholder="İkon adı ara... (örn: file, map, person)" oninput="ikonAra()"/>
+      <div id="ikon-grid" class="d-flex flex-wrap gap-1"></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- Drive Modal -->
+<div class="modal fade" id="driveModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Drive Hesabı Ekle</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Hesap Tipi</label>
+          <select class="form-select form-select-sm" id="drive-tip" onchange="driveTipDegisti()">
+            <option value="oauth2">OAuth2 (Kişisel Google Hesabı)</option>
+            <option value="service_account">Service Account</option>
+          </select>
+        </div>
+        <div class="mb-2 p-2 rounded small" id="drive-oauth-aciklama" style="background:#e7f3ff;border:1px solid #b6d4fe">
+          <strong>OAuth2:</strong> Google Cloud Console → Credentials → Create OAuth client ID → Desktop app → JSON indir. Bir kez yetkilendirme yapmanız gerekecek.
+        </div>
+        <div class="mb-2 p-2 rounded small d-none" id="drive-sa-aciklama" style="background:#fff3cd;border:1px solid #ffc107">
+          <strong>Servis Hesabı:</strong> Yalnızca Shared Drive ile çalışır. Normal Drive'da kota hatası verir.
+        </div>
+        <div class="mb-3"><label class="form-label small fw-semibold">Hesap Adı *</label><input type="text" class="form-control form-control-sm" id="drive-ad"/></div>
+        <div class="mb-3"><label class="form-label small fw-semibold">Açıklama</label><input type="text" class="form-control form-control-sm" id="drive-aciklama"/></div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold" id="drive-json-label">OAuth Client JSON *</label>
+          <textarea class="form-control form-control-sm font-monospace" id="drive-json" rows="7" placeholder='{"installed":{"client_id":"..."}}'></textarea>
+          <div class="form-text">JSON dosyasını not defteri ile açıp tüm içeriği yapıştırın.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
+        <button class="btn btn-sm btn-mis" onclick="driveKaydet()">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1100">
+  <div id="mis-toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex"><div class="toast-body fw-semibold" id="toast-msg"></div>
+    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button></div>
+  </div>
+</div>
+
+<script src="/js/lang.js"></script>
+  <script src="/js/sidebar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '/api/ayarlar';
+let ayarlar = {};
+const KUSAK_SECENEKLER = ['200-350','350-500','500-650','650-800','800-950','950-1100','1100-1250'];
+
+const showToast = (msg, type='success') => {
+  const el = document.getElementById('mis-toast');
+  el.className = `toast align-items-center border-0 text-bg-${type}`;
+  document.getElementById('toast-msg').textContent = msg;
+  bootstrap.Toast.getOrCreateInstance(el).show();
+};
+
+// Şifre ekranı
+const sifreEkrani = document.getElementById('sifre-ekrani');
+const giris = async () => {
+  const sifre = document.getElementById('sifre-inp').value;
+  try {
+    const r = await fetch(`${API}/sifre/dogrula`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sifre }) });
+    const j = await r.json();
+    if (j.success) {
+      sifreEkrani.style.display = 'none';
+      loadAyarlar();
+    } else {
+      document.getElementById('sifre-hata').classList.remove('d-none');
+      document.getElementById('sifre-inp').value = '';
+      document.getElementById('sifre-inp').focus();
+    }
+  } catch { document.getElementById('sifre-hata').classList.remove('d-none'); }
+};
+document.getElementById('sifre-btn').addEventListener('click', giris);
+document.getElementById('sifre-inp').addEventListener('keydown', e => { if(e.key==='Enter') giris(); });
+
+// Sekmeler
+document.querySelectorAll('.ayar-sekme').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.ayar-sekme').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.ayar-tab').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  document.getElementById('tab-'+b.dataset.tab).classList.add('active');
+}));
+
+const loadAyarlar = async () => {
+  const r = await fetch(API);
+  const j = await r.json();
+  ayarlar = j.data;
+  renderDrive(); renderKategoriler(); renderRenkler(); renderToprak(); renderYagis();
+  renderPersonel(); ehgbYillariYukle();
+  renderVerim('tablo1','yararlanilabilir_yesil_ot');
+  renderVerim('tablo2','uretilen_yesil_ot');
+  renderVerim('tablo3','uretilen_kuru_ot');
+  loadIdariIller();
+};
+
+// Drive
+const renderDrive = () => {
+  const el = document.getElementById('drive-listesi');
+  const hedefSec = document.getElementById('drive-hedef-sec');
+  if (!ayarlar.drive_hesaplari?.length) {
+    el.innerHTML = '<p class="text-muted text-center py-3 small">Henüz Drive hesabı eklenmedi.</p>';
+    if (hedefSec) hedefSec.innerHTML = '<option value="">— Hesap yok —</option>';
+    return;
+  }
+  // Hedef seçiciyi doldur
+  if (hedefSec) {
+    hedefSec.innerHTML = '<option value="">— Seçin —</option>'
+      + ayarlar.drive_hesaplari.filter(h=>h.yetkili && h.token_durumu !== 'suresi_dolmus').map(h=>
+          `<option value="${h._id}">${h.ad}${h.email?' ('+h.email+')':''}</option>`
+        ).join('');
+  }
+
+  const tokenBadge = (h) => {
+    if (!h.yetkili) return '<span class="badge bg-warning text-dark">Yetkilendirilmemiş</span>';
+    if (h.token_durumu === 'suresi_dolmus') return '<span class="badge bg-danger">Token Süresi Dolmuş</span>';
+    if (h.token_durumu === 'yenilenebilir') return '<span class="badge bg-info">Yenilenebilir</span>';
+    if (h.token_durumu === 'gecerli') return '<span class="badge bg-success">Aktif</span>';
+    return '<span class="badge bg-success">Aktif</span>';
+  };
+
+  el.innerHTML = `<div class="table-responsive"><table class="table table-sm mis-table mb-0">
+    <thead><tr><th>Ad</th><th>Tip</th><th>E-posta</th><th>Boyut</th><th>Durum</th><th></th></tr></thead><tbody>
+    ${ayarlar.drive_hesaplari.map(h=>`<tr>
+      <td><strong>${h.ad}</strong>${h.aciklama?`<br><small class="text-muted">${h.aciklama}</small>`:''}</td>
+      <td><span class="grup-badge">${h.tip==='oauth2'?'OAuth2':'Servis'}</span></td>
+      <td class="small" style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${h.email||'-'}</td>
+      <td class="small text-muted" id="drive-boyut-${h._id}">—</td>
+      <td>${tokenBadge(h)}</td>
+      <td><div class="d-flex gap-1 flex-wrap">
+        ${(h.tip==='oauth2' && (!h.yetkili || h.token_durumu==='suresi_dolmus'))?`<button class="btn btn-xs btn-mis" onclick="driveYetkilendir('${h._id}')"><i class="bi bi-key me-1"></i>${h.token_durumu==='suresi_dolmus'?'Yeniden Yetkilendir':'Yetkilendir'}</button>`:''}
+        <button class="btn btn-xs btn-outline-success" onclick="driveTesti('${h._id}')"><i class="bi bi-wifi"></i> Test</button>
+        <button class="btn btn-xs btn-outline-danger" onclick="driveSil('${h._id}')"><i class="bi bi-trash"></i></button>
+      </div></td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+  // Boyut bilgisini asenkron çek
+  ayarlar.drive_hesaplari.filter(h=>h.yetkili && h.token_durumu !== 'suresi_dolmus').forEach(async h => {
+    try {
+      const r = await fetch(`${API}/drive/${h._id}/boyut`);
+      const j = await r.json();
+      const el2 = document.getElementById(`drive-boyut-${h._id}`);
+      if (el2 && j.success) el2.textContent = j.data?.gb != null ? j.data.gb.toFixed(2)+' GB' : '—';
+    } catch {}
+  });
+};
+window.dosyalariSunucuyaTasi = async () => {
+  const sifre = prompt('Bu işlem geri alınamaz! Tüm Drive dosyaları silinerek sunucuya taşınacak.\n\nDevam etmek için admin şifresi girin:');
+  if (!sifre) return;
+  if (!confirm('Tüm dosyalar sunucuya taşınacak, Drive\'daki kopyalar silinecek. Emin misiniz?')) return;
+  try {
+    showToast('Taşıma başlatıldı, lütfen bekleyin...','info');
+    const r = await fetch(`${API}/dosya-tasi/sunucu`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sifre})});
+    const j = await r.json();
+    if (j.success) showToast(`Taşıma tamamlandı. ${j.data?.tasinan||0} dosya taşındı.`,'success');
+    else showToast(j.message||'Hata.','danger');
+  } catch { showToast('Sunucuya ulaşılamadı.','danger'); }
+};
+
+window.dosyalariDriveTasi = async () => {
+  const hedefId = document.getElementById('drive-hedef-sec').value;
+  if (!hedefId) { showToast('Lütfen hedef Drive hesabı seçin.','warning'); return; }
+  const sifre = prompt('Bu işlem geri alınamaz! Tüm dosyalar seçili Drive\'a taşınacak, diğerleri silinecek.\n\nDevam etmek için admin şifresi girin:');
+  if (!sifre) return;
+  if (!confirm('Sunucu ve diğer Drive\'lardaki dosyalar silinerek seçili Drive\'a taşınacak. Emin misiniz?')) return;
+  try {
+    showToast('Taşıma başlatıldı, lütfen bekleyin...','info');
+    const r = await fetch(`${API}/dosya-tasi/drive`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sifre, hedef_drive_id: hedefId})});
+    const j = await r.json();
+    if (j.success) showToast(`Taşıma tamamlandı. ${j.data?.tasinan||0} dosya taşındı.`,'success');
+    else showToast(j.message||'Hata.','danger');
+  } catch { showToast('Sunucuya ulaşılamadı.','danger'); }
+};
+window.driveEkleModal = () => {
+  document.getElementById('drive-ad').value='';
+  document.getElementById('drive-aciklama').value='';
+  document.getElementById('drive-json').value='';
+  document.getElementById('drive-tip').value='oauth2';
+  driveTipDegisti();
+  new bootstrap.Modal(document.getElementById('driveModal')).show();
+};
+
+window.driveTipDegisti = () => {
+  const tip = document.getElementById('drive-tip').value;
+  document.getElementById('drive-oauth-aciklama').classList.toggle('d-none', tip!=='oauth2');
+  document.getElementById('drive-sa-aciklama').classList.toggle('d-none', tip!=='service_account');
+  document.getElementById('drive-json-label').textContent = tip==='oauth2' ? 'OAuth Client JSON *' : 'Service Account JSON *';
+};
+
+window.driveKaydet = async () => {
+  const ad = document.getElementById('drive-ad').value.trim();
+  const json = document.getElementById('drive-json').value.trim();
+  const tip = document.getElementById('drive-tip').value;
+  if (!ad||!json) { showToast('Ad ve JSON zorunlu.','warning'); return; }
+  const body = { ad, aciklama: document.getElementById('drive-aciklama').value };
+  if (tip==='oauth2') body.oauth_client_json = json;
+  else body.service_account_json = json;
+  try {
+    const r = await fetch(`${API}/drive`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j = await r.json();
+    if(j.success){
+      showToast(tip==='oauth2'?'OAuth hesabı eklendi. Şimdi yetkilendirin.':'Hesap eklendi.');
+      bootstrap.Modal.getInstance(document.getElementById('driveModal')).hide();
+      loadAyarlar();
+    } else showToast(j.message,'danger');
+  } catch { showToast('Hata.','danger'); }
+};
+
+window.driveYetkilendir = async (id) => {
+  try {
+    const r = await fetch(`${API}/drive/${id}/oauth-url`);
+    const j = await r.json();
+    if (!j.success) { showToast(j.message,'danger'); return; }
+
+    // URL'i modal içinde link olarak göster (popup blocker sorununu engeller)
+    const mevcut = document.getElementById('oauth-url-modal');
+    if (mevcut) mevcut.remove();
+
+    const modalEl = document.createElement('div');
+    modalEl.id = 'oauth-url-modal';
+    modalEl.className = 'modal fade';
+    modalEl.tabIndex = -1;
+    modalEl.innerHTML = `
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header mis-modal-header">
+            <h5 class="modal-title"><i class="bi bi-google me-2"></i>Google Drive Yetkilendirme</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <ol class="small mb-3">
+              <li class="mb-2">Aşağıdaki <strong>"Google'da Onayla"</strong> butonuna tıklayın ve Google hesabınıza giriş yapın.</li>
+              <li class="mb-2">İzin verin ve ekrandaki <strong>kodu kopyalayın.</strong></li>
+              <li>Kodu aşağıdaki alana yapıştırıp <strong>"Kodu Onayla"</strong> butonuna basın.</li>
+            </ol>
+            <div class="text-center mb-3">
+              <a href="${j.url}" target="_blank" class="btn btn-danger btn-sm">
+                <i class="bi bi-google me-2"></i>Google'da Onayla (Yeni Sekmede Açılır)
+              </a>
+            </div>
+            <div class="alert alert-warning small py-2">
+              <i class="bi bi-info-circle me-1"></i>
+              Yeni sekme açılmazsa aşağıdaki URL'i kopyalayıp tarayıcıya yapıştırın:<br>
+              <code style="font-size:10px;word-break:break-all">${j.url}</code>
+            </div>
+            <div class="mb-0">
+              <label class="form-label small fw-semibold">Google'dan Aldığınız Kod</label>
+              <div class="input-group">
+                <input type="text" class="form-control form-control-sm" id="oauth-kod-input" placeholder="4/0AX..."/>
+                <button class="btn btn-mis btn-sm" onclick="oauthKoduOnayla('${id}')">
+                  <i class="bi bi-check-lg me-1"></i>Kodu Onayla
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    document.body.appendChild(modalEl);
+    new bootstrap.Modal(modalEl).show();
+  } catch(e) { showToast('Hata: '+e.message,'danger'); }
+};
+
+window.oauthKoduOnayla = async (id) => {
+  const kod = document.getElementById('oauth-kod-input')?.value?.trim();
+  if (!kod) { showToast('Kod boş olamaz.','warning'); return; }
+  try {
+    const r = await fetch(`${API}/drive/${id}/oauth-token`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kod})
+    });
+    const j = await r.json();
+    if (j.success) {
+      bootstrap.Modal.getInstance(document.getElementById('oauth-url-modal'))?.hide();
+      showToast(`✅ Yetkilendirildi: ${j.email||''}`, 'success');
+      loadAyarlar();
+    } else showToast(j.message||'Kod hatalı.','danger');
+  } catch { showToast('Hata.','danger'); }
+};
+window.driveTesti = async (id) => {
+  showToast('Test ediliyor...','secondary');
+  const r = await fetch(`${API}/drive/${id}/test`);
+  const j = await r.json();
+  if(j.success) showToast(`✓ Bağlantı başarılı — ${j.data.kullanici||''} | ${j.data.kullanilan_mb} MB kullanıldı`,'success');
+  else showToast(j.message,'danger');
+};
+window.driveSil = async (id) => {
+  if(!confirm('Hesap silinecek?')) return;
+  await fetch(`${API}/drive/${id}`,{method:'DELETE'});
+  showToast('Silindi.'); loadAyarlar();
+};
+
+// Kategoriler
+const renderKategoriler = () => {
+  document.getElementById('kategoriler-listesi').innerHTML = (ayarlar.dosya_kategorileri||[]).map((k,i)=>`
+    <div class="d-flex align-items-center gap-2 p-2 border-bottom">
+      <button class="btn btn-sm btn-outline-secondary" onclick="ikonSeciciAc(${i})" title="İkon seç" style="width:36px;padding:4px">
+        <i class="bi ${k.ikon} text-success"></i>
+      </button>
+      <input type="text" class="form-control form-control-sm flex-grow-1" value="${k.ad}" onchange="ayarlar.dosya_kategorileri[${i}].ad=this.value"/>
+      <div class="form-check mb-0"><input class="form-check-input" type="checkbox" title="Aktif" ${k.aktif?'checked':''} onchange="ayarlar.dosya_kategorileri[${i}].aktif=this.checked"/></div>
+      <button class="btn btn-xs btn-outline-danger" onclick="kategoriSil(${i})"><i class="bi bi-trash"></i></button>
+    </div>`).join('');
+};
+window.kategoriEkle = () => { (ayarlar.dosya_kategorileri=ayarlar.dosya_kategorileri||[]).push({ad:'Yeni Kategori',ikon:'bi-paperclip',sira:99,aktif:true}); renderKategoriler(); };
+window.kategoriSil = (i) => { ayarlar.dosya_kategorileri.splice(i,1); renderKategoriler(); };
+
+// İkon seçici
+const IKONLAR = [
+  'bi-paperclip','bi-file-earmark','bi-file-earmark-pdf','bi-file-earmark-word','bi-file-earmark-excel',
+  'bi-file-earmark-image','bi-file-earmark-text','bi-file-earmark-zip','bi-folder','bi-camera',
+  'bi-map','bi-geo-alt','bi-house','bi-building','bi-tree','bi-clipboard','bi-clipboard-check',
+  'bi-journal','bi-journal-text','bi-book','bi-archive','bi-card-list','bi-layout-text-window',
+  'bi-hammer','bi-tools','bi-wrench','bi-gear','bi-shield','bi-flag','bi-bookmark',
+  'bi-star','bi-heart','bi-check-circle','bi-exclamation-triangle','bi-info-circle',
+  'bi-person','bi-people','bi-truck','bi-car-front','bi-signpost','bi-signpost-2',
+];
+let _ikonIdx = -1;
+window.ikonSeciciAc = (i) => {
+  _ikonIdx = i;
+  const mevcut = ayarlar.dosya_kategorileri[i].ikon;
+  document.getElementById('ikon-grid').innerHTML = IKONLAR.map(ikon=>`
+    <button class="btn btn-sm ${ikon===mevcut?'btn-mis':'btn-outline-secondary'}" style="width:44px;height:44px;padding:6px"
+      onclick="ikonSec('${ikon}')"><i class="bi ${ikon}"></i></button>`).join('');
+  document.getElementById('ikon-ara').value = '';
+  new bootstrap.Modal(document.getElementById('ikonModal')).show();
+};
+window.ikonSec = (ikon) => {
+  if (_ikonIdx >= 0) { ayarlar.dosya_kategorileri[_ikonIdx].ikon = ikon; renderKategoriler(); }
+  bootstrap.Modal.getInstance(document.getElementById('ikonModal')).hide();
+};
+window.ikonAra = () => {
+  const ara = document.getElementById('ikon-ara').value.toLowerCase();
+  const mevcut = _ikonIdx >= 0 ? ayarlar.dosya_kategorileri[_ikonIdx].ikon : '';
+  const filtrelenmis = ara ? IKONLAR.filter(i => i.includes(ara)) : IKONLAR;
+  document.getElementById('ikon-grid').innerHTML = filtrelenmis.map(ikon=>`
+    <button class="btn btn-sm ${ikon===mevcut?'btn-mis':'btn-outline-secondary'}" style="width:44px;height:44px;padding:6px"
+      onclick="ikonSec('${ikon}')" title="${ikon}"><i class="bi ${ikon}"></i></button>`).join('');
+};
+
+// ── EHGB Parametreleri ────────────────────────────────────
+const EHGB_VARSAYILAN = {
+  derin_surum:511.87, surum_pulluk:354.94, ikilem:266.21, tirmik:342.90,
+  gubreleme:179.90, ekim:658.24, temizlik_tesviye:342.90,
+  toprak_serme:1874.50, asfalt_sokum:288.90, tel_orgu:121.25, toprak_fiyati:800,
+  arac_kapasite_m3:14, ozgul_agirlik:1600, torba_kg:60,
+  yukleme_baz:162, yukleme_ilave_torba:11, nakliye_km:5, depolama_giris:5771,
+  amonyum_sulfat_fiyat:25, amonyum_sulfat_miktar:20,
+  hayvan_gubres_fiyat:3, hayvan_gubres_miktar:2000,
+  kompoze_fiyat:40, kompoze_miktar:20,
+  tohum_miktar_da:12,
+  tohumlar:[
+    {ad:'İtalyan çimi (Lolium multiflorum)',    oran:0.20, fiyat:220},
+    {ad:'Domuz ayrığı (Dactylis glomerata)',     oran:0.10, fiyat:600},
+    {ad:'Yüksek çayır yumağı (Festuca pratensis)',oran:0.15,fiyat:500},
+    {ad:'Çayır salkım otu (Poa pratensis)',       oran:0.15, fiyat:750},
+    {ad:'Yonca (Medicago sativa)',               oran:0.15, fiyat:800},
+    {ad:'Ak üçgül (Trifolium repens)',            oran:0.15, fiyat:900},
+    {ad:'Korunga (Onobrychis sativa)',            oran:0.10, fiyat:300},
+  ],
+};
+let ehgbYillar = [];
+let ehgbAktifYil = null;
+
+const ehgbYillariYukle = async () => {
+  const r = await fetch('/api/ehgb/parametreler');
+  const j = await r.json();
+  ehgbYillar = j.data || [];
+  const sel = document.getElementById('ehgb-yil-sec');
+  const mevcutYil = new Date().getFullYear();
+  sel.innerHTML = '<option value="">— Seç —</option>' +
+    ehgbYillar.map(p=>`<option value="${p.yil}">${p.yil}</option>`).join('');
+  // Mevcut yıl varsa otomatik seç
+  if (ehgbYillar.find(p=>p.yil===mevcutYil)) {
+    sel.value = mevcutYil;
+    ehgbYilYukle();
+  }
+};
+
+window.ehgbYilYukle = () => {
+  const yil = parseInt(document.getElementById('ehgb-yil-sec').value);
+  if (!yil) { document.getElementById('ehgb-form').classList.add('d-none'); document.getElementById('ehgb-kaydet-btn').classList.add('d-none'); return; }
+  ehgbAktifYil = yil;
+  const kayit = ehgbYillar.find(p=>p.yil===yil);
+  const p = (kayit?.parametreler && Object.keys(kayit.parametreler).length) ? {...EHGB_VARSAYILAN,...kayit.parametreler} : EHGB_VARSAYILAN;
+  ehgbFormuDoldur(p);
+  document.getElementById('ehgb-form').classList.remove('d-none');
+  document.getElementById('ehgb-kaydet-btn').classList.remove('d-none');
+};
+
+window.ehgbYeniYilEkle = async () => {
+  const yil = prompt('Hangi yılın parametrelerini eklemek istiyorsunuz?', new Date().getFullYear());
+  if (!yil || isNaN(yil)) return;
+  const r = await fetch('/api/ehgb/parametreler', {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({yil:parseInt(yil), aciklama:'', parametreler:EHGB_VARSAYILAN})});
+  const j = await r.json();
+  if (j.success) {
+    await ehgbYillariYukle();
+    document.getElementById('ehgb-yil-sec').value = yil;
+    ehgbYilYukle();
+    showToast(`${yil} yılı parametreleri eklendi.`);
+  }
+};
+
+const ehgbFormuDoldur = (p) => {
+  const alanlar = ['derin_surum','surum_pulluk','ikilem','tirmik','gubreleme','ekim','temizlik_tesviye',
+    'toprak_serme','asfalt_sokum','tel_orgu','toprak_fiyati',
+    'arac_kapasite_m3','ozgul_agirlik','torba_kg','yukleme_baz','yukleme_ilave_torba','nakliye_km','depolama_giris',
+    'amonyum_sulfat_fiyat','amonyum_sulfat_miktar','hayvan_gubres_fiyat','hayvan_gubres_miktar',
+    'kompoze_fiyat','kompoze_miktar','tohum_miktar_da'];
+  alanlar.forEach(a => { const el=document.getElementById('ep-'+a); if(el) el.value=p[a]||''; });
+  // Tohumlar
+  document.getElementById('ehgb-tohumlar').innerHTML = (p.tohumlar||EHGB_VARSAYILAN.tohumlar).map((t,i)=>`
+    <tr>
+      <td class="small">${t.ad}</td>
+      <td><input type="number" class="form-control form-control-sm" id="ep-tohum-oran-${i}" value="${(t.oran*100).toFixed(0)}" step="1" min="0" max="100"/></td>
+      <td><input type="number" class="form-control form-control-sm" id="ep-tohum-fiyat-${i}" value="${t.fiyat}" step="0.01"/></td>
+    </tr>`).join('');
+};
+
+window.ehgbKaydet = async () => {
+  if (!ehgbAktifYil) return;
+  const alanlar = ['derin_surum','surum_pulluk','ikilem','tirmik','gubreleme','ekim','temizlik_tesviye',
+    'toprak_serme','asfalt_sokum','tel_orgu','toprak_fiyati',
+    'arac_kapasite_m3','ozgul_agirlik','torba_kg','yukleme_baz','yukleme_ilave_torba','nakliye_km','depolama_giris',
+    'amonyum_sulfat_fiyat','amonyum_sulfat_miktar','hayvan_gubres_fiyat','hayvan_gubres_miktar',
+    'kompoze_fiyat','kompoze_miktar','tohum_miktar_da'];
+  const p = {};
+  alanlar.forEach(a => { const el=document.getElementById('ep-'+a); if(el) p[a]=parseFloat(el.value)||0; });
+  // Tohumlar
+  const tohumlar = EHGB_VARSAYILAN.tohumlar.map((t,i) => ({
+    ad: t.ad,
+    oran: (parseFloat(document.getElementById(`ep-tohum-oran-${i}`)?.value)||0) / 100,
+    fiyat: parseFloat(document.getElementById(`ep-tohum-fiyat-${i}`)?.value)||0,
+  }));
+  p.tohumlar = tohumlar;
+
+  const r = await fetch('/api/ehgb/parametreler', {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({yil:ehgbAktifYil, parametreler:p})});
+  const j = await r.json();
+  if (j.success) { await ehgbYillariYukle(); document.getElementById('ehgb-yil-sec').value=ehgbAktifYil; showToast(`${ehgbAktifYil} yılı parametreleri kaydedildi.`); }
+  else showToast(j.message,'danger');
+};
+// Teknik Ekip kurum seçenekleri
+const TE_KURUMLAR = [
+  { deger:'', etiket:'— Kurum seçin —', birim:false },
+  { deger:'İl Tarım ve Orman Müdürlüğü', etiket:'İl Tarım ve Orman Müdürlüğü', birim:false },
+  { deger:'İlçe Tarım ve Orman Müdürlüğü', etiket:'İlçe Tarım ve Orman Müdürlüğü', birim:false },
+  { deger:'Kadastro Müdürlüğü', etiket:'Kadastro Müdürlüğü', birim:true },
+  { deger:'Milli Emlak Dairesi Başkanlığı', etiket:'Milli Emlak Dairesi Başkanlığı', birim:true },
+  { deger:'Milli Emlak Müdürlüğü', etiket:'Milli Emlak Müdürlüğü', birim:true },
+  { deger:'Orman İşletme Müdürlüğü', etiket:'Orman İşletme Müdürlüğü', birim:true },
+  { deger:'Orman Bölge Müdürlüğü', etiket:'Orman Bölge Müdürlüğü', birim:true },
+  { deger:'Belediye', etiket:'Belediye', birim:true },
+];
+
+// İl Mera Komisyonu kurum seçenekleri
+const KOM_KURUMLAR = [
+  { deger:'', etiket:'— Kurum seçin —', birim:false },
+  { deger:'Valilik', etiket:'Valilik', birim:false },
+  { deger:'İl Tarım ve Orman Müdürlüğü', etiket:'İl Tarım ve Orman Müdürlüğü', birim:false },
+  { deger:'Devlet Su İşleri', etiket:'Devlet Su İşleri', birim:false },
+  { deger:'Orman Genel Müdürlüğü', etiket:'Orman Genel Müdürlüğü', birim:false },
+  { deger:'Orman Bölge Müdürlüğü', etiket:'Orman Bölge Müdürlüğü', birim:false },
+  { deger:'Orman İşletme Müdürlüğü', etiket:'Orman İşletme Müdürlüğü', birim:false },
+  { deger:'Mahalle Muhtarlığı', etiket:'Mahalle Muhtarlığı', birim:true },
+  { deger:'Defterdarlık', etiket:'Defterdarlık', birim:false },
+  { deger:'Muhakemat Müdürlüğü', etiket:'Muhakemat Müdürlüğü', birim:false },
+  { deger:'Kadastro Müdürlüğü', etiket:'Kadastro Müdürlüğü', birim:false },
+  { deger:'Ziraat Odası Başkanlığı', etiket:'Ziraat Odası Başkanlığı', birim:false },
+  { deger:'İl Jandarma Komutanlığı', etiket:'İl Jandarma Komutanlığı', birim:false },
+  { deger:'İl Emniyet Müdürlüğü', etiket:'İl Emniyet Müdürlüğü', birim:false },
+];
+
+// Belgede görünecek kurum adı
+const kurumTamAd = (kurum, birim) => {
+  if (!kurum) return '';
+  if (kurum === 'Belediye' && birim) {
+    // "Kağıthane" → "Kağıthane Belediye Başkanlığı"
+    return `${birim} Belediye Başkanlığı`;
+  }
+  if (kurum === 'Mahalle Muhtarlığı' && birim) return birim;
+  if (birim) return `${birim} ${kurum}`;
+  return kurum;
+};
+
+// Ünvan: serbest metin girişi
+const unvanInput = (path, uyeIdx, mevcutUnvan) =>
+  `<input type="text" class="form-control form-control-sm" style="min-width:160px;flex:2"
+    placeholder="Ünvan (serbest)" value="${mevcutUnvan||''}"
+    oninput="ayarlar.${path}[${uyeIdx}].unvan=this.value"/>`;
+
+// Kurum dropdown + birim alanı
+const kurumSelect = (path, uyeIdx, mevcutKurum, mevcutBirim, kurumListesi) => {
+  const secilenKurum = kurumListesi.find(k => k.deger === mevcutKurum);
+  const birimGerekli = secilenKurum?.birim || false;
+  return `<div style="display:flex;gap:4px;flex:3;min-width:200px">
+    <select class="form-select form-select-sm" style="flex:2"
+      onchange="kurumDegisti(this,'${path}',${uyeIdx},'${kurumListesi===KOM_KURUMLAR?'kom':'te'}')">
+      ${kurumListesi.map(k=>`<option value="${k.deger}" ${mevcutKurum===k.deger?'selected':''}>${k.etiket}</option>`).join('')}
+    </select>
+    <input type="text" class="form-control form-control-sm birim-input" style="flex:1.5;min-width:80px;${birimGerekli?'':'display:none'}"
+      placeholder="Birim..." value="${mevcutBirim||''}"
+      oninput="ayarlar.${path}[${uyeIdx}].birim=this.value"
+      title="Birim (örn: İstanbul, Kağıthane)"/>
+  </div>`;
+};
+
+window.kurumDegisti = (sel, path, uyeIdx, tip) => {
+  const liste = tip==='kom' ? KOM_KURUMLAR : TE_KURUMLAR;
+  const secilenKurum = liste.find(k => k.deger === sel.value);
+  const birimInput = sel.parentElement.querySelector('.birim-input');
+  if (birimInput) birimInput.style.display = secilenKurum?.birim ? '' : 'none';
+  // Veriyi güncelle
+  const pathParts = path.split('.');
+  let obj = ayarlar;
+  for (let i=0; i<pathParts.length-1; i++) {
+    const part = pathParts[i];
+    const m = part.match(/(\w+)\[(\d+)\]/);
+    obj = m ? obj[m[1]][parseInt(m[2])] : obj[part];
+  }
+  const lastKey = pathParts[pathParts.length-1];
+  const m = lastKey.match(/(\w+)\[(\d+)\]/);
+  const arr = m ? (m[1]==='uyeler'?obj:ayarlar[m[1]]) : obj[lastKey];
+  if (m) (m[1]==='uyeler'?obj[m[1]]:ayarlar[m[1]])[parseInt(m[2])].kurum = sel.value;
+  else obj[lastKey][uyeIdx].kurum = sel.value;
+  // Basit yol
+  try { eval(`ayarlar.${path}[${uyeIdx}].kurum = sel.value`); } catch(e){}
+};
+
+const uyeSatiriPersonel = (uyeler, listeAdi, ekipIdx, uyeIdx, kurumListesi) => {
+  const u = uyeler[uyeIdx];
+  const path = ekipIdx !== null ? `${listeAdi}[${ekipIdx}].uyeler` : listeAdi;
+  const liste = kurumListesi || TE_KURUMLAR;
+  return `<div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap">
+    <input type="text" class="form-control form-control-sm" style="min-width:130px;flex:2" placeholder="Ad Soyad *" value="${u.ad||''}" oninput="ayarlar.${path}[${uyeIdx}].ad=this.value"/>
+    ${unvanInput(path, uyeIdx, u.unvan||'')}
+    ${kurumSelect(path, uyeIdx, u.kurum||'', u.birim||'', liste)}
+    <select class="form-select form-select-sm" style="width:75px;flex:none" onchange="ayarlar.${path}[${uyeIdx}].asil_yedek=this.value">
+      <option value="asil" ${u.asil_yedek!=='yedek'?'selected':''}>Asıl</option>
+      <option value="yedek" ${u.asil_yedek==='yedek'?'selected':''}>Yedek</option>
+    </select>
+    <div class="form-check mb-0" title="Aktif"><input class="form-check-input" type="checkbox" ${u.aktif!==false?'checked':''} onchange="ayarlar.${path}[${uyeIdx}].aktif=this.checked"/></div>
+    <button class="btn btn-xs btn-outline-danger" onclick="uyeSilPersonel('${listeAdi}',${ekipIdx},${uyeIdx})"><i class="bi bi-trash"></i></button>
+  </div>`;
+};
+
+const renderPersonel = () => {
+  // Teknik Ekipler
+  const ekipler = ayarlar.teknik_ekipler || [];
+  document.getElementById('teknik-ekipler-listesi').innerHTML = ekipler.length
+    ? ekipler.map((ekip, ei) => `
+      <div class="border rounded mb-3 overflow-hidden">
+        <div class="d-flex align-items-center gap-2 p-2" style="background:#f8faf8">
+          <input type="text" class="form-control form-control-sm fw-semibold" style="max-width:220px" placeholder="Ekip Adı *" value="${ekip.ad||''}" oninput="ayarlar.teknik_ekipler[${ei}].ad=this.value"/>
+          <input type="text" class="form-control form-control-sm" style="max-width:100px" placeholder="Yıl" value="${ekip.yil||''}" oninput="ayarlar.teknik_ekipler[${ei}].yil=this.value"/>
+          <div class="ms-auto d-flex gap-1">
+            <button class="btn btn-xs btn-mis" onclick="teknikUyeEkle(${ei})"><i class="bi bi-plus me-1"></i>Üye</button>
+            <button class="btn btn-xs btn-outline-danger" onclick="teknikEkipSil(${ei})"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+        ${(ekip.uyeler||[]).length
+          ? (ekip.uyeler||[]).map((_,ui) => uyeSatiriPersonel(ekip.uyeler, 'teknik_ekipler', ei, ui, TE_KURUMLAR)).join('')
+          : '<p class="text-muted small text-center py-2 mb-0">Henüz üye yok.</p>'}
+      </div>`).join('')
+    : '<p class="text-muted small text-center py-3">Henüz ekip yok.</p>';
+
+  // Komisyonlar
+  const komisyonlar = ayarlar.komisyonlar || [];
+  document.getElementById('komisyonlar-listesi').innerHTML = komisyonlar.length
+    ? komisyonlar.map((kom, ki) => `
+      <div class="border rounded mb-3 overflow-hidden">
+        <div class="d-flex align-items-center gap-2 p-2" style="background:#f8faf8">
+          <input type="text" class="form-control form-control-sm" style="max-width:100px" placeholder="Yıl" value="${kom.yil||''}" oninput="ayarlar.komisyonlar[${ki}].yil=this.value"/>
+          <span class="fw-semibold small text-muted">İl Mera Komisyonu</span>
+          <div class="ms-auto d-flex gap-1">
+            <button class="btn btn-xs btn-mis" onclick="komisyonUyeEkle(${ki})"><i class="bi bi-plus me-1"></i>Üye</button>
+            <button class="btn btn-xs btn-outline-danger" onclick="komisyonSil(${ki})"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+        ${(kom.uyeler||[]).length
+          ? (kom.uyeler||[]).map((_,ui) => uyeSatiriPersonel(kom.uyeler, 'komisyonlar', ki, ui, KOM_KURUMLAR)).join('')
+          : '<p class="text-muted small text-center py-2 mb-0">Henüz üye yok.</p>'}
+      </div>`).join('')
+    : '<p class="text-muted small text-center py-3">Henüz komisyon yok.</p>';
+
+  // Kullanıcılar
+  const kullanicilar = ayarlar.kullanicilar || [];
+  document.getElementById('kullanicilar-listesi').innerHTML = kullanicilar.length
+    ? kullanicilar.map((k, i) => `
+      <div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap">
+        <input type="text" class="form-control form-control-sm" style="min-width:160px;flex:2" placeholder="Ad Soyad *" value="${k.ad||''}" oninput="ayarlar.kullanicilar[${i}].ad=this.value"/>
+        <select class="form-select form-select-sm" style="min-width:190px;flex:2" onchange="ayarlar.kullanicilar[${i}].unvan=this.value">
+          <option value="">— Ünvan seçin —</option>
+          <option value="Ziraat Teknikeri" ${k.unvan==='Ziraat Teknikeri'?'selected':''}>Ziraat Teknikeri</option>
+          <option value="Ziraat Mühendisi" ${k.unvan==='Ziraat Mühendisi'?'selected':''}>Ziraat Mühendisi</option>
+          <option value="Ziraat Yüksek Mühendisi" ${k.unvan==='Ziraat Yüksek Mühendisi'?'selected':''}>Ziraat Yüksek Mühendisi</option>
+          <option value="Doktor Ziraat Mühendisi" ${k.unvan==='Doktor Ziraat Mühendisi'?'selected':''}>Doktor Ziraat Mühendisi</option>
+          <option value="Doçent Doktor Ziraat Mühendisi" ${k.unvan==='Doçent Doktor Ziraat Mühendisi'?'selected':''}>Doçent Doktor Ziraat Mühendisi</option>
+          <option value="Profesör Doktor Ziraat Mühendisi" ${k.unvan==='Profesör Doktor Ziraat Mühendisi'?'selected':''}>Profesör Doktor Ziraat Mühendisi</option>
+        </select>
+        <div class="form-check mb-0" title="Aktif"><input class="form-check-input" type="checkbox" ${k.aktif!==false?'checked':''} onchange="ayarlar.kullanicilar[${i}].aktif=this.checked"/></div>
+        <button class="btn btn-xs btn-outline-danger" onclick="kullaniciSil(${i})"><i class="bi bi-trash"></i></button>
+      </div>`).join('')
+    : '<p class="text-muted small text-center py-2">Henüz personel yok.</p>';
+};
+
+window.teknikEkipEkle = () => {
+  if (!ayarlar.teknik_ekipler) ayarlar.teknik_ekipler = [];
+  ayarlar.teknik_ekipler.push({ ad: '', yil: new Date().getFullYear().toString(), uyeler: [] });
+  renderPersonel();
+};
+window.teknikEkipSil = (ei) => { ayarlar.teknik_ekipler.splice(ei,1); renderPersonel(); };
+window.teknikUyeEkle = (ei) => {
+  if (!ayarlar.teknik_ekipler[ei].uyeler) ayarlar.teknik_ekipler[ei].uyeler = [];
+  ayarlar.teknik_ekipler[ei].uyeler.push({ ad:'', kurum:'', unvan:'', asil_yedek:'asil', aktif:true });
+  renderPersonel();
+};
+window.komisyonEkle = () => {
+  if (!ayarlar.komisyonlar) ayarlar.komisyonlar = [];
+  ayarlar.komisyonlar.push({ yil: new Date().getFullYear().toString(), uyeler: [] });
+  renderPersonel();
+};
+window.komisyonSil = (ki) => { ayarlar.komisyonlar.splice(ki,1); renderPersonel(); };
+window.komisyonUyeEkle = (ki) => {
+  if (!ayarlar.komisyonlar[ki].uyeler) ayarlar.komisyonlar[ki].uyeler = [];
+  ayarlar.komisyonlar[ki].uyeler.push({ ad:'', kurum:'', unvan:'', asil_yedek:'asil', aktif:true });
+  renderPersonel();
+};
+window.kullaniciEkle = () => {
+  if (!ayarlar.kullanicilar) ayarlar.kullanicilar = [];
+  ayarlar.kullanicilar.push({ ad: '', unvan: '', aktif: true });
+  renderPersonel();
+};
+window.kullaniciSil = (i) => { ayarlar.kullanicilar.splice(i, 1); renderPersonel(); };
+
+window.uyeSilPersonel = (listeAdi, ekipIdx, uyeIdx) => {
+  if (ekipIdx !== null) ayarlar[listeAdi][ekipIdx].uyeler.splice(uyeIdx,1);
+  else ayarlar[listeAdi].splice(uyeIdx,1);
+  renderPersonel();
+};
+
+// Renkler
+const renderRenkler = () => {
+  document.getElementById('renkler-listesi').innerHTML = (ayarlar.not_renkleri||[]).map((r,i)=>`
+    <div class="d-flex align-items-center gap-3 p-2 border-bottom">
+      <span class="renk-dot" style="background:${r.renk}"></span>
+      <input type="text" class="form-control form-control-sm" style="max-width:160px" value="${r.ad}" onchange="ayarlar.not_renkleri[${i}].ad=this.value;renderRenkler()"/>
+      <span class="small text-muted">Arka:</span>
+      <input type="color" class="form-control form-control-color" style="width:40px;height:32px" value="${r.renk}" onchange="ayarlar.not_renkleri[${i}].renk=this.value;renderRenkler()"/>
+      <span class="small text-muted">Yazı:</span>
+      <input type="color" class="form-control form-control-color" style="width:40px;height:32px" value="${r.metin_rengi||'#ffffff'}" onchange="ayarlar.not_renkleri[${i}].metin_rengi=this.value;renderRenkler()"/>
+      <span class="px-3 py-1 rounded-pill small fw-semibold" style="background:${r.renk};color:${r.metin_rengi||'#fff'}">${r.ad}</span>
+    </div>`).join('');
+};
+
+// Toprak
+const renderToprak = () => {
+  document.getElementById('toprak-listesi').innerHTML = `<table class="table table-sm mis-table mb-0">
+    <thead><tr><th style="width:60px">Sınıf</th><th style="width:200px">Ad</th><th>Tanım</th></tr></thead>
+    <tbody>${(ayarlar.toprak_siniflari||[]).map((t,i)=>`<tr>
+      <td class="fw-bold text-success">${t.sinif}</td>
+      <td><input type="text" class="form-control form-control-sm" value="${t.ad}" onchange="ayarlar.toprak_siniflari[${i}].ad=this.value"/></td>
+      <td><textarea class="form-control form-control-sm" rows="2" onchange="ayarlar.toprak_siniflari[${i}].tanim=this.value">${t.tanim}</textarea></td>
+    </tr>`).join('')}</tbody></table>`;
+};
+
+// Yağış
+const renderYagis = () => {
+  document.getElementById('yagis-tbody').innerHTML = (ayarlar.yagis_kusaklari||[]).map((y,i)=>`
+    <tr><td class="small fw-medium">${y.il_ad}</td>
+    <td><select class="form-select form-select-sm" style="width:130px" onchange="ayarlar.yagis_kusaklari[${i}].kusak=this.value">
+      ${KUSAK_SECENEKLER.map(k=>`<option ${y.kusak===k?'selected':''}>${k}</option>`).join('')}
+    </select></td></tr>`).join('');
+};
+
+// Verim
+const renderVerim = (elId, alan) => {
+  const data = ayarlar[alan]||[];
+  document.getElementById(elId).innerHTML = `<table class="table table-sm mis-table mb-0">
+    <thead><tr><th>Yağış (mm)</th><th class="text-center">Çok İyi</th><th class="text-center">İyi</th><th class="text-center">Orta</th><th class="text-center">Zayıf</th></tr></thead>
+    <tbody>${data.map((r,i)=>`<tr><td class="fw-medium small">${r.kusak}</td>
+      ${['cok_iyi','iyi','orta','zayif'].map(k=>`<td class="text-center"><input type="number" class="tablo-input" value="${r[k]}" onchange="ayarlar['${alan}'][${i}]['${k}']=parseFloat(this.value)||0"/></td>`).join('')}
+    </tr>`).join('')}</tbody></table>`;
+};
+
+// Kaydet
+document.getElementById('btnKaydet').addEventListener('click', async () => {
+  try {
+    const r = await fetch(API,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      dosya_kategorileri:ayarlar.dosya_kategorileri, not_renkleri:ayarlar.not_renkleri,
+      toprak_siniflari:ayarlar.toprak_siniflari, yagis_kusaklari:ayarlar.yagis_kusaklari,
+      yararlanilabilir_yesil_ot:ayarlar.yararlanilabilir_yesil_ot,
+      uretilen_yesil_ot:ayarlar.uretilen_yesil_ot, uretilen_kuru_ot:ayarlar.uretilen_kuru_ot,
+      teknik_ekipler:ayarlar.teknik_ekipler||[],
+      komisyonlar:ayarlar.komisyonlar||[],
+      kullanicilar:ayarlar.kullanicilar||[],
+    })});
+    const j = await r.json();
+    if(j.success) showToast('Ayarlar kaydedildi.');
+    else showToast(j.message,'danger');
+  } catch { showToast('Hata.','danger'); }
+});
+
+document.getElementById('btnSifirla').addEventListener('click', async () => {
+  if(!confirm('Tüm ayarlar varsayılanlara sıfırlanacak?')) return;
+  const r = await fetch(`${API}/sifirla`,{method:'POST'});
+  const j = await r.json();
+  if(j.success){showToast('Sıfırlandı.');loadAyarlar();}
+});
+
+// Şifre değiştir
+document.getElementById('btnSifreDegistir').addEventListener('click', async () => {
+  const eski = document.getElementById('eski-sifre').value;
+  const yeni = document.getElementById('yeni-sifre').value;
+  const yeni2 = document.getElementById('yeni-sifre2').value;
+  if(!eski||!yeni||!yeni2){showToast('Tüm alanları doldurun.','warning');return;}
+  if(yeni!==yeni2){showToast('Yeni şifreler eşleşmiyor.','warning');return;}
+  try {
+    const r = await fetch(`${API}/sifre/degistir`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({eskiSifre:eski,yeniSifre:yeni})});
+    const j = await r.json();
+    if(j.success){showToast('Şifre değiştirildi.');['eski-sifre','yeni-sifre','yeni-sifre2'].forEach(id=>document.getElementById(id).value='');}
+    else showToast(j.message,'danger');
+  } catch { showToast('Hata.','danger'); }
+});
+
+// İdari yönetim
+let idariIller = [];
+const loadIdariIller = async () => {
+  const r = await fetch(`${API}/idari/iller`);
+  const j = await r.json();
+  idariIller = j.data || [];
+  const sel = document.getElementById('yeni-il');
+  if (sel) sel.innerHTML = '<option value="">İl seçin</option>' + idariIller.map(il=>`<option value="${il.xml_id}" data-ad="${il.ad}">${il.ad}</option>`).join('');
+  const onc = ayarlar?.idari_oncelikler || [];
+  const alan = document.getElementById('il-oncelik-alani');
+  if (alan) alan.innerHTML = `<div class="d-flex gap-2 flex-wrap">${[1,2,3].map(sira=>{
+    const mevcut = onc.find(o=>o.sira===sira);
+    return `<div class="d-flex align-items-center gap-1"><span class="badge bg-secondary">${sira}.</span>
+      <select class="form-select form-select-sm" style="width:160px" id="onc-${sira}">
+        <option value="">Seçin</option>
+        ${idariIller.map(il=>`<option value="${il.xml_id}" ${mevcut?.il_id===il.xml_id?'selected':''}>${il.ad}</option>`).join('')}
+      </select></div>`;
+  }).join('')}</div>`;
+};
+
+window.yeniIlDegisti = async () => {
+  const il_id = document.getElementById('yeni-il').value;
+  const sel = document.getElementById('yeni-ilce');
+  sel.disabled = !il_id; sel.innerHTML = '<option value="">İlçe seçin</option>';
+  if (!il_id) return;
+  const r = await fetch(`${API}/idari/ilceler/${il_id}`);
+  const j = await r.json();
+  sel.innerHTML = '<option value="">İlçe seçin</option>' + (j.data||[]).map(i=>`<option value="${i.ilce_id}" data-ad="${i.ad}">${i.ad}</option>`).join('');
+  sel.disabled = false;
+};
+
+window.idariAra = async () => {
+  const tip = document.getElementById('idari-tip-filtre').value;
+  const ara = document.getElementById('idari-ara-inp').value.trim();
+  if (!ara) return;
+  const r = await fetch(`${API}/idari/ara?tip=${tip}&ara=${encodeURIComponent(ara)}`);
+  const j = await r.json();
+  document.getElementById('idari-ara-sonuc').innerHTML = (j.data||[]).length
+    ? (j.data||[]).map(k=>`
+      <div class="d-flex align-items-center gap-2 p-2 border-bottom">
+        <div class="flex-grow-1">
+          <div class="small fw-semibold" id="ad-${k._id}">${k.ad}</div>
+          <div class="small text-muted">${k.il_ad||''}${k.ilce_ad?' / '+k.ilce_ad:''}</div>
+        </div>
+        <input type="text" class="form-control form-control-sm" style="width:140px" value="${k.ad}" id="inp-${k._id}" placeholder="Yeni ad"/>
+        <button class="btn btn-xs btn-mis" onclick="idariGuncelle('${k._id}')"><i class="bi bi-check"></i></button>
+        <button class="btn btn-xs btn-outline-danger" onclick="idariSil('${k._id}')"><i class="bi bi-trash"></i></button>
+      </div>`).join('')
+    : '<p class="text-muted text-center small py-2">Sonuç yok.</p>';
+};
+
+window.idariGuncelle = async (id) => {
+  const yeniAd = document.getElementById(`inp-${id}`).value.trim();
+  if (!yeniAd) { showToast('Ad boş olamaz.','warning'); return; }
+  const r = await fetch(`${API}/idari/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ad:yeniAd})});
+  const j = await r.json();
+  if (j.success) { document.getElementById(`ad-${id}`).textContent = yeniAd; showToast('Güncellendi.'); }
+  else showToast(j.message,'danger');
+};
+
+window.idariSil = async (id) => {
+  if (!confirm('Bu kayıt silinecek?')) return;
+  const r = await fetch(`${API}/idari/${id}`,{method:'DELETE'});
+  const j = await r.json();
+  if (j.success) { showToast('Silindi.'); idariAra(); }
+  else showToast(j.message,'danger');
+};
+
+window.idariEkle = async () => {
+  const tip = document.getElementById('yeni-tip').value;
+  const ad = document.getElementById('yeni-ad').value.trim();
+  if (!ad) { showToast('Ad zorunlu.','warning'); return; }
+  const il_sel = document.getElementById('yeni-il');
+  const ilce_sel = document.getElementById('yeni-ilce');
+  const il_id = il_sel.value;
+  const il_ad = il_sel.options[il_sel.selectedIndex]?.dataset?.ad || '';
+  const ilce_id = ilce_sel.value;
+  const ilce_ad = ilce_sel.options[ilce_sel.selectedIndex]?.dataset?.ad || '';
+  const r = await fetch(`${API}/idari`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tip,ad,il_id,il_ad,ilce_id,ilce_ad})});
+  const j = await r.json();
+  if (j.success) { showToast('Eklendi.'); document.getElementById('yeni-ad').value=''; }
+  else showToast(j.message,'danger');
+};
+
+window.oncelikKaydet = async () => {
+  const oncelikler = [1,2,3].map(sira=>{
+    const sel = document.getElementById(`onc-${sira}`);
+    if (!sel?.value) return null;
+    const il = idariIller.find(i=>i.xml_id===sel.value);
+    return il ? {sira, il_id: il.xml_id, il_ad: il.ad} : null;
+  }).filter(Boolean);
+  const r = await fetch(`${API}/idari/oncelik`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({oncelikler})});
+  const j = await r.json();
+  if (j.success) showToast('Öncelikler kaydedildi.');
+  else showToast(j.message,'danger');
+};
+
+document.getElementById('idari-ara-inp').addEventListener('keydown', e=>{if(e.key==='Enter') idariAra();});
+</script>
+<style>.btn-xs{padding:2px 6px;font-size:12px;}</style>
+</body>
+</html>
