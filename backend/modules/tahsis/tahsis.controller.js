@@ -82,37 +82,33 @@ const parsellerYukle = async (req, res, next) => {
     const tahsis = await Tahsis.findById(req.params.id);
     if (!tahsis) return res.status(404).json({ success: false, message: 'Tahsis bulunamadı' });
 
-    // Mahalle bazlı mera parselleri çek
-    const filtre = {};
-    if (tahsis.il_ad)      filtre.il_ad      = tahsis.il_ad;
-    if (tahsis.ilce_ad)    filtre.ilce_ad    = tahsis.ilce_ad;
-    if (tahsis.mahalle_ad) filtre.mahalle_ad = tahsis.mahalle_ad;
-
-    const meralar = await Mera.find(filtre)
-      .select('il_ad ilce_ad mahalle_ad ada parsel tapu_alani_da vasif kaynak durum')
-      .sort({ ada: 1, parsel: 1 });
-
-    // Mevcut parsel mera_id'lerini say — zaten eklenmiş olanları koru
+    const { secili_mera_idler } = req.body;
     const mevcutIdler = new Set(tahsis.parseller.map(p => String(p.mera_id)));
+
+    let meralar;
+    if (secili_mera_idler && secili_mera_idler.length > 0) {
+      meralar = await Mera.find({ _id: { $in: secili_mera_idler } })
+        .select('il_ad ilce_ad mahalle_ad ada parsel tapu_alani_da vasif kaynak durum');
+    } else {
+      const filtre = {};
+      if (tahsis.il_ad)      filtre.il_ad      = tahsis.il_ad;
+      if (tahsis.ilce_ad)    filtre.ilce_ad    = tahsis.ilce_ad;
+      if (tahsis.mahalle_ad) filtre.mahalle_ad = tahsis.mahalle_ad;
+      meralar = await Mera.find(filtre)
+        .select('il_ad ilce_ad mahalle_ad ada parsel tapu_alani_da vasif kaynak durum')
+        .sort({ ada: 1, parsel: 1 });
+    }
 
     const yeniParseller = meralar
       .filter(m => !mevcutIdler.has(String(m._id)))
       .map(m => ({
-        mera_id:       m._id,
-        il_ad:         m.il_ad,
-        ilce_ad:       m.ilce_ad,
-        mahalle_ad:    m.mahalle_ad,
-        ada:           m.ada,
-        parsel:        m.parsel,
-        tapu_alani_da: m.tapu_alani_da,
-        vasif:         m.vasif,
-        kaynak:        m.kaynak,
-        dahil:         true,
+        mera_id: m._id, il_ad: m.il_ad, ilce_ad: m.ilce_ad,
+        mahalle_ad: m.mahalle_ad, ada: m.ada, parsel: m.parsel,
+        tapu_alani_da: m.tapu_alani_da, vasif: m.vasif, kaynak: m.kaynak, dahil: true,
       }));
 
     tahsis.parseller.push(...yeniParseller);
     await tahsis.save();
-
     res.json({ success: true, eklenen: yeniParseller.length, toplam: tahsis.parseller.length, data: tahsis.parseller });
   } catch (err) { next(err); }
 };
@@ -169,7 +165,22 @@ const bbhbSil = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// ── İstatistik ────────────────────────────────────────────
+// ── Teknik bilgileri güncelle ─────────────────────────────
+const teknikGuncelle = async (req, res, next) => {
+  try {
+    const tahsis = await Tahsis.findById(req.params.id);
+    if (!tahsis) return res.status(404).json({ success: false, message: 'Bulunamadı' });
+    if (req.body.teknik) {
+      tahsis.teknik = { ...(tahsis.teknik?.toObject?.() || {}), ...req.body.teknik };
+    }
+    if (req.body.aski)      tahsis.aski      = { ...tahsis.aski?.toObject?.(),      ...req.body.aski };
+    if (req.body.komisyon)  tahsis.komisyon  = { ...tahsis.komisyon?.toObject?.(),  ...req.body.komisyon };
+    if (req.body.imzacilar) tahsis.imzacilar = { ...tahsis.imzacilar?.toObject?.(),...req.body.imzacilar };
+    if (req.body.otlatma_haklari) tahsis.otlatma_haklari = req.body.otlatma_haklari;
+    await tahsis.save();
+    res.json({ success: true, data: tahsis });
+  } catch (err) { next(err); }
+};
 const istatistik = async (req, res, next) => {
   try {
     const [toplam, durumlar] = await Promise.all([
@@ -186,4 +197,5 @@ module.exports = {
   listele, getById, olustur, guncelle, sil, istatistik,
   parsellerYukle, parselGuncelle, parselSil,
   bbhbEkle, bbhbSil,
+  teknikGuncelle,
 };

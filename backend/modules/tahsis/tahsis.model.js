@@ -82,8 +82,71 @@ const TahsisSchema = new mongoose.Schema({
   // BBHB bağlantısı
   bbhb_baglantilari: { type: [BbhbBaglantiSchema], default: [] },
 
-  // Süreç adımları
-  adimlar:        { type: [AdimSchema], default: [] },
+  // Teknik çalışma bilgileri
+  teknik: {
+    baslangic_tarihi:  { type: Date },
+    bitis_tarihi:      { type: Date },
+    mevki:             { type: String },
+    koy_belde:         { type: String, enum: ['koy', 'belde'], default: 'koy' },
+    // Ek-4/e ve Ek-7 için serbest metin alanları
+    hukuki_yapi:       { type: String },
+    ekolojik_ozellik:  { type: String },
+    ekonomik_ozellik:  { type: String },
+    muhtemel_gelismeler:{ type: String },
+    ihtiyac_fazlasi_da:{ type: Number },
+    sulama_gecit:      { type: String },
+    iklim_ozelligi:    { type: String },
+    // Her arazi cinsi için teknik veriler
+    arazi_cinsleri: [{
+      cins:             { type: String }, // Mera, Yaylak, Kışlak, Otlak, Çayır
+      alan_da:          { type: Number },
+      topografya:       { type: String }, // % eğim
+      durum_sinifi:     { type: String }, // İyi/Orta/Zayıf
+      kullanim_kabiliyet:{ type: String },
+      kullanim_sekli:   { type: String },
+      otlatma_kapasitesi:{ type: String },
+      kaynak_madde:     { type: String }, // 5/a, 5/b...
+      toprak_yapisi:    { type: String },
+      mevkii:           { type: String },
+      hudut_bilgi:      { type: String }, // Ek-4/d için
+      kullanim_nedeni:  { type: String }, // Ek-4/f için
+    }],
+  },
+
+  // Askı tarihleri
+  aski: {
+    baslangic: { type: Date },
+    bitis:     { type: Date },
+  },
+
+  // Komisyon kararı
+  komisyon: {
+    karar_no:   { type: String },
+    karar_tarihi:{ type: Date },
+    baskanligi: { type: String },
+  },
+
+  // İmzacılar
+  imzacilar: {
+    teknik_ekip_id:  { type: mongoose.Schema.Types.ObjectId }, // Ayarlar'daki ekip
+    // Seçilen üyeler (asıl/yedek)
+    secilen_uyeler:  [{ uye_id: String, ad: String, unvan: String, kurum: String, rol: String }],
+    muhtar_ad:       { type: String },
+    muhtar_unvan:    { type: String, default: 'Köy Muhtarı' },
+    bilirkisi_1:     { type: String },
+    bilirkisi_2:     { type: String },
+  },
+
+  // Otlatma hakları (Ek-7/f)
+  otlatma_haklari: [{
+    ciftci_ad:  { type: String },
+    mera_da:    { type: Number },
+    yaylak_da:  { type: Number },
+    kislak_da:  { type: Number },
+    otlak_da:   { type: Number },
+    cayir_da:   { type: Number },
+    bbhb:       { type: Number },
+  }],
   aktif_adim:     { type: String, default: 'basvuru' },
 
   // Genel
