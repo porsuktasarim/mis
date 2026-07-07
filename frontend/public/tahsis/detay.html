@@ -468,6 +468,7 @@ window.bbhbBagSil=async(bagId)=>{
 // ── ÇKS ───────────────────────────────────────────────────
 const loadCksSecici=async()=>{
   const sel=document.getElementById('cks-sec');
+  if(!sel) return;
   sel.innerHTML='<option value="">Yükleniyor...</option>';
   try{
     const r=await fetch('/api/cks');
@@ -478,19 +479,27 @@ const loadCksSecici=async()=>{
         '<div class="alert alert-warning small py-2"><i class="bi bi-exclamation-triangle me-1"></i>ÇKS kaydı bulunamadı. <a href="/cks/" target="_blank">ÇKS Yükle</a></div>';
       return;
     }
+    const mahalle=(tahsis?.mahalle_ad||'').toUpperCase().trim();
     const sirali=[...j.data].sort((a,b)=>{
-      const ea=(a.koy||'').toUpperCase().trim()===(tahsis.mahalle_ad||'').toUpperCase().trim();
-      const eb=(b.koy||'').toUpperCase().trim()===(tahsis.mahalle_ad||'').toUpperCase().trim();
+      const ea=(a.koy||'').toUpperCase().trim()===mahalle;
+      const eb=(b.koy||'').toUpperCase().trim()===mahalle;
       return ea===eb?0:ea?-1:1;
     });
     sel.innerHTML='<option value="">— ÇKS seçin —</option>'
       +sirali.map(c=>{
-        const esles=(c.koy||'').toUpperCase().trim()===(tahsis.mahalle_ad||'').toUpperCase().trim();
+        const esles=(c.koy||'').toUpperCase().trim()===mahalle;
         return `<option value="${c._id}" ${_secilenCksId===c._id?'selected':''}>${c.koy||c.ilce||c.dosya_adi} — ${c.uretim_yili||'?'} (${c.kisi_sayisi} kişi)${esles?' ✓':''}`;
       }).join('');
-    if(_secilenCksId) cksSecBilgiGoster(j.data.find(c=>c._id===_secilenCksId));
-    else document.getElementById('cks-secili-bilgi').innerHTML='';
-  }catch(e){sel.innerHTML='<option value="">— Yüklenemedi —</option>';}
+    if(_secilenCksId){
+      const bulunan=j.data.find(c=>c._id===_secilenCksId);
+      if(bulunan) cksSecBilgiGoster(bulunan);
+    }else{
+      document.getElementById('cks-secili-bilgi').innerHTML='';
+    }
+  }catch(e){
+    console.error('ÇKS yüklenemedi:',e);
+    sel.innerHTML='<option value="">— Yüklenemedi —</option>';
+  }
 };
 
 const cksSecBilgiGoster=(cks)=>{
@@ -503,14 +512,16 @@ const cksSecBilgiGoster=(cks)=>{
     </div>`;
 };
 
-window.cksSec=(val)=>{
+window.cksSec=async(val)=>{
   _secilenCksId=val||null;
-  renderAdimlar();renderRaporDurum();
+  renderAdimlar();
+  renderRaporDurum();
   if(val){
-    fetch('/api/cks').then(r=>r.json()).then(j=>{
-      const cks=j.data?.find(c=>c._id===val);
-      cksSecBilgiGoster(cks);
-    });
+    try{
+      const r=await fetch(`/api/cks/${val}`);
+      const j=await r.json();
+      if(j.success) cksSecBilgiGoster(j.data);
+    }catch(e){}
   }else{
     document.getElementById('cks-secili-bilgi').innerHTML='';
   }
