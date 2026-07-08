@@ -866,6 +866,8 @@ const TE_KURUMLAR = [
   { deger:'Orman İşletme Müdürlüğü', etiket:'Orman İşletme Müdürlüğü', birim:true },
   { deger:'Orman Bölge Müdürlüğü', etiket:'Orman Bölge Müdürlüğü', birim:true },
   { deger:'Belediye', etiket:'Belediye', birim:true },
+  { deger:'Muhtarlık', etiket:'Muhtarlık', birim:true },
+  { deger:'Mahalli Bilirkişi', etiket:'Mahalli Bilirkişi', birim:true },
 ];
 
 // İl Mera Komisyonu kurum seçenekleri
@@ -889,13 +891,12 @@ const KOM_KURUMLAR = [
 // Belgede görünecek kurum adı
 const kurumTamAd = (kurum, birim) => {
   if (!kurum) return '';
-  if (kurum === 'Belediye' && birim) {
-    // "Kağıthane" → "Kağıthane Belediye Başkanlığı"
-    return `${birim} Belediye Başkanlığı`;
-  }
-  if (kurum === 'Mahalle Muhtarlığı' && birim) return birim;
-  if (birim) return `${birim} ${kurum}`;
-  return kurum;
+  if (!birim) return kurum;
+  if (kurum === 'Belediye') return `${birim} Belediye Başkanlığı`;
+  if (kurum === 'Mahalle Muhtarlığı') return birim;
+  if (kurum === 'Muhtarlık') return `${birim} Muhtarlığı`;
+  if (kurum === 'Mahalli Bilirkişi') return `${birim} Mahallesi Bilirkişisi`;
+  return `${birim} ${kurum}`;
 };
 
 // Ünvan: serbest metin girişi
@@ -908,16 +909,31 @@ const unvanInput = (path, uyeIdx, mevcutUnvan) =>
 const kurumSelect = (path, uyeIdx, mevcutKurum, mevcutBirim, kurumListesi) => {
   const secilenKurum = kurumListesi.find(k => k.deger === mevcutKurum);
   const birimGerekli = secilenKurum?.birim || false;
+  const safeId = `birim_${path.replace(/[^a-zA-Z0-9]/g,'_')}_${uyeIdx}`;
   return `<div style="display:flex;gap:4px;flex:3;min-width:200px">
     <select class="form-select form-select-sm" style="flex:2"
       onchange="kurumDegisti(this,'${path}',${uyeIdx},'${kurumListesi===KOM_KURUMLAR?'kom':'te'}')">
       ${kurumListesi.map(k=>`<option value="${k.deger}" ${mevcutKurum===k.deger?'selected':''}>${k.etiket}</option>`).join('')}
     </select>
-    <input type="text" class="form-control form-control-sm birim-input" style="flex:1.5;min-width:80px;${birimGerekli?'':'display:none'}"
-      placeholder="Birim..." value="${mevcutBirim||''}"
-      oninput="ayarlar.${path}[${uyeIdx}].birim=this.value"
-      title="Birim (örn: İstanbul, Kağıthane)"/>
+    <input type="text" class="form-control form-control-sm birim-input" id="${safeId}"
+      style="flex:1.5;min-width:80px;${birimGerekli?'':'display:none'}"
+      placeholder="Birim..." value="${(mevcutBirim||'').replace(/"/g,'&quot;')}"
+      oninput="birimGuncelle('${path}',${uyeIdx},this.value)"
+      title="Birim (örn: İstanbul, Kağıthane, mahalle adı)"/>
   </div>`;
+};
+
+window.birimGuncelle = (path, uyeIdx, val) => {
+  try {
+    // path: "teknik_ekipler[0].uyeler" veya "komisyonlar[0].uyeler"
+    const m = path.match(/^(\w+)\[(\d+)\]\.uyeler$/);
+    if (m) {
+      ayarlar[m[1]][parseInt(m[2])].uyeler[uyeIdx].birim = val;
+    } else {
+      // Direk liste
+      ayarlar[path][uyeIdx].birim = val;
+    }
+  } catch(e) { console.error('birimGuncelle hata:', e); }
 };
 
 window.kurumDegisti = (sel, path, uyeIdx, tip) => {
@@ -960,22 +976,36 @@ const uyeSatiriPersonel = (uyeler, listeAdi, ekipIdx, uyeIdx, kurumListesi) => {
 };
 
 const renderPersonel = () => {
-  // Teknik Ekipler
+  // Teknik Ekipler — accordion
   const ekipler = ayarlar.teknik_ekipler || [];
   document.getElementById('teknik-ekipler-listesi').innerHTML = ekipler.length
     ? ekipler.map((ekip, ei) => `
-      <div class="border rounded mb-3 overflow-hidden">
-        <div class="d-flex align-items-center gap-2 p-2" style="background:#f8faf8">
-          <input type="text" class="form-control form-control-sm fw-semibold" style="max-width:220px" placeholder="Ekip Adı *" value="${ekip.ad||''}" oninput="ayarlar.teknik_ekipler[${ei}].ad=this.value"/>
-          <input type="text" class="form-control form-control-sm" style="max-width:100px" placeholder="Yıl" value="${ekip.yil||''}" oninput="ayarlar.teknik_ekipler[${ei}].yil=this.value"/>
-          <div class="ms-auto d-flex gap-1">
+      <div class="border rounded mb-2 overflow-hidden">
+        <div class="d-flex align-items-center gap-2 p-2 cursor-pointer"
+          style="background:#f0f7f4;user-select:none"
+          onclick="teknikEkipToggle(${ei})">
+          <i class="bi bi-chevron-down small text-muted" id="te-icon-${ei}"></i>
+          <span class="fw-semibold small">${ekip.ad||'(İsimsiz Ekip)'}</span>
+          <span class="badge bg-secondary ms-1">${(ekip.uyeler||[]).length} üye</span>
+          <span class="text-muted small ms-1">${ekip.yil||''}</span>
+          <div class="ms-auto d-flex gap-1" onclick="event.stopPropagation()">
             <button class="btn btn-xs btn-mis" onclick="teknikUyeEkle(${ei})"><i class="bi bi-plus me-1"></i>Üye</button>
             <button class="btn btn-xs btn-outline-danger" onclick="teknikEkipSil(${ei})"><i class="bi bi-trash"></i></button>
           </div>
         </div>
-        ${(ekip.uyeler||[]).length
-          ? (ekip.uyeler||[]).map((_,ui) => uyeSatiriPersonel(ekip.uyeler, 'teknik_ekipler', ei, ui, TE_KURUMLAR)).join('')
-          : '<p class="text-muted small text-center py-2 mb-0">Henüz üye yok.</p>'}
+        <div id="te-body-${ei}" style="display:none">
+          <div class="d-flex gap-2 p-2 border-bottom bg-white">
+            <input type="text" class="form-control form-control-sm fw-semibold" style="max-width:220px"
+              placeholder="Ekip Adı *" value="${(ekip.ad||'').replace(/"/g,'&quot;')}"
+              oninput="ayarlar.teknik_ekipler[${ei}].ad=this.value;document.querySelector('[onclick=&quot;teknikEkipToggle(${ei})&quot;] .fw-semibold').textContent=this.value||'(İsimsiz Ekip)'"/>
+            <input type="text" class="form-control form-control-sm" style="max-width:100px"
+              placeholder="Yıl" value="${ekip.yil||''}"
+              oninput="ayarlar.teknik_ekipler[${ei}].yil=this.value"/>
+          </div>
+          ${(ekip.uyeler||[]).length
+            ? (ekip.uyeler||[]).map((_,ui) => uyeSatiriPersonel(ekip.uyeler, 'teknik_ekipler', ei, ui, TE_KURUMLAR)).join('')
+            : '<p class="text-muted small text-center py-2 mb-0">Henüz üye yok.</p>'}
+        </div>
       </div>`).join('')
     : '<p class="text-muted small text-center py-3">Henüz ekip yok.</p>';
 
@@ -1017,6 +1047,15 @@ const renderPersonel = () => {
         <button class="btn btn-xs btn-outline-danger" onclick="kullaniciSil(${i})"><i class="bi bi-trash"></i></button>
       </div>`).join('')
     : '<p class="text-muted small text-center py-2">Henüz personel yok.</p>';
+};
+
+window.teknikEkipToggle = (ei) => {
+  const body = document.getElementById(`te-body-${ei}`);
+  const icon = document.getElementById(`te-icon-${ei}`);
+  if (!body) return;
+  const acik = body.style.display !== 'none';
+  body.style.display = acik ? 'none' : '';
+  if (icon) icon.className = `bi bi-chevron-${acik?'down':'up'} small text-muted`;
 };
 
 window.teknikEkipEkle = () => {

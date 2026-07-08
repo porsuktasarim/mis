@@ -51,6 +51,19 @@ const KAT = {
   'Manda (erkek)':'Manda Erkek','Manda (dişi)':'Manda Dişi','Kuzu-oğlak':'Kuzu/Oğlak',
 };
 
+// Kurum tam adı
+const kurumTamAd = (kurum, birim) => {
+  if (!kurum) return '';
+  if (!birim) return kurum;
+  if (kurum === 'Belediye') return `${birim} Belediye Başkanlığı`;
+  if (kurum === 'Mahalle Muhtarlığı' || kurum === 'Muhtarlık') return `${birim} Muhtarlığı`;
+  if (kurum === 'Mahalli Bilirkişi') return `${birim} Mahallesi Bilirkişisi`;
+  return `${birim} ${kurum}`;
+};
+
+// Notlar için font sabiti (controller scope)
+const FONT_NAME = 'Times New Roman';
+
 const KURUM_SIRA = [
   'il tarım','il müdürlüğü','tarım ve orman müdürlüğü',
   'ilçe tarım','ilçe müdürlüğü',
@@ -130,11 +143,15 @@ const ek4abExcel = async (req, res, next) => {
       {width:9},  // Y BBHB
     ];
 
+    const FONT = 'Times New Roman';
+    const GRI  = 'FF444444'; // Tek gri ton - siyah beyaz baskıda okunur
+    const KOYU = 'FF111111';
+
     const sty = (cell,bg,color,bold,align)=>{
       if(bg) cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}};
-      cell.font={bold:!!bold,color:{argb:color||'FF000000'},size:9};
+      cell.font={name:FONT, bold:!!bold, color:{argb:color||KOYU}, size:8};
       cell.alignment={horizontal:align||'center',vertical:'middle',wrapText:true};
-      const b={style:'thin',color:{argb:'FFCCCCCC'}};
+      const b={style:'thin',color:{argb:'FFAAAAAA'}};
       cell.border={top:b,bottom:b,left:b,right:b};
     };
 
@@ -150,7 +167,10 @@ const ek4abExcel = async (req, res, next) => {
     // ── SATIR 1: Ana başlık ──────────────────────────────
     const s1=mc(1,1,1,NT);
     s1.value='TESTİT VE TAHDİT ÇALIŞMALARINA ESAS OLAN ÇİFTÇİ AİLE, GEÇİM KAYNAĞI VE HAYVAN VARLIĞI BİLDİRİM CETVELİ';
-    sty(s1,G1,WH,true,'center'); ws.getRow(1).height=28;
+    s1.fill={type:'pattern',pattern:'solid',fgColor:{argb:G1}};
+    s1.font={name:FONT,bold:true,color:{argb:WH},size:10};
+    s1.alignment={horizontal:'center',vertical:'middle',wrapText:true};
+    ws.getRow(1).height=28;
 
     // ── SATIR 2: Yer ─────────────────────────────────────
     mc(2,1,2,7);    ws.getCell('A2').value=`İli: ${il}`;         sty(ws.getCell('A2'),null,null,true,'left');
@@ -265,14 +285,14 @@ const ek4abExcel = async (req, res, next) => {
     let nr=tr+1;
     mc(nr,1,nr,NT);
     ws.getCell(`A${nr}`).value=`Not: Yukarıdaki hayvan sayıları ve ekiliş alanı verileri ${yil} yılı ÇKS (Çiftçi Kayıt Sistemi) ve Türkvet kayıtlarından alınmıştır.`;
-    ws.getCell(`A${nr}`).font={italic:true,size:9,color:{argb:'FF666666'}};
+    ws.getCell(`A${nr}`).font={name:FONT,italic:true,size:8,color:{argb:GRI}};
     ws.getCell(`A${nr}`).alignment={wrapText:true}; ws.getRow(nr).height=20;
 
     if(!ormanVar&&teknikEkip.length>0){
       nr++;
       mc(nr,1,nr,NT);
       ws.getCell(`A${nr}`).value='Not: Orman içi, orman kenarı ve orman üst sınırı mera bulunmadığı, orman köyü olmadığı için Orman Mühendisi teknik çalışmalara katılmamıştır.';
-      ws.getCell(`A${nr}`).font={italic:true,size:9,color:{argb:'FF666666'}};
+      ws.getCell(`A${nr}`).font={name:FONT,italic:true,size:8,color:{argb:GRI}};
       ws.getCell(`A${nr}`).alignment={wrapText:true}; ws.getRow(nr).height=20;
     }
 
@@ -290,21 +310,39 @@ const ek4abExcel = async (req, res, next) => {
         const bw=Math.floor(NT/adet);
         sat.forEach((u,i)=>{
           const c1=1+i*bw, c2=i<adet-1?c1+bw-1:NT;
-          const adC=mc(iR,c1,iR,c2); adC.value=u.ad_soyad||'';
-          adC.font={bold:true,size:9}; adC.alignment={horizontal:'center',wrapText:true};
+
+          // Satır 1: Ad Soyad
+          const adC=mc(iR,c1,iR,c2);
+          adC.value=u.ad_soyad||u.ad||'';
+          adC.font={name:FONT,bold:true,size:8};
+          adC.alignment={horizontal:'center',wrapText:true};
+
+          // Satır 2: Ünvan
           const unC=mc(iR+1,c1,iR+1,c2);
-          unC.value=`${u.unvan||''}\n${u.kurum||''}${u.birim?' / '+u.birim:''}`;
-          unC.font={size:8,color:{argb:'FF444444'}}; unC.alignment={horizontal:'center',wrapText:true};
-          const imC=mc(iR+4,c1,iR+4,c2); imC.value='';
+          unC.value=u.unvan||'';
+          unC.font={name:FONT,size:8,color:{argb:GRI}};
+          unC.alignment={horizontal:'center',wrapText:true};
+
+          // Satır 3: Kurum (tam ad)
+          const kurC=mc(iR+2,c1,iR+2,c2);
+          kurC.value=kurumTamAd(u.kurum||'', u.birim||'');
+          kurC.font={name:FONT,size:8,color:{argb:GRI}};
+          kurC.alignment={horizontal:'center',wrapText:true};
+
+          // İmza çizgisi
+          const imC=mc(iR+5,c1,iR+5,c2); imC.value='';
           imC.border={bottom:{style:'medium',color:{argb:'FF000000'}}};
         });
-        ws.getRow(iR).height=16; ws.getRow(iR+1).height=24; ws.getRow(iR+4).height=30;
-        iR+=6;
+        ws.getRow(iR).height=14;    // Ad
+        ws.getRow(iR+1).height=13;  // Ünvan
+        ws.getRow(iR+2).height=16;  // Kurum (sarabilir)
+        ws.getRow(iR+5).height=28;  // İmza
+        iR+=7;
       });
       mc(iR,1,iR,NT);
       ws.getCell(`A${iR}`).value='........./........./20.......';
       ws.getCell(`A${iR}`).alignment={horizontal:'right'};
-      ws.getCell(`A${iR}`).font={size:9}; ws.getRow(iR).height=16;
+      ws.getCell(`A${iR}`).font={name:FONT,size:8}; ws.getRow(iR).height=16;
     }
 
     const dosyaAd=`Ek-4ab_${il}_${koy}_${yil}.xlsx`.replace(/\s+/g,'_');
