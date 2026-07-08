@@ -127,7 +127,7 @@ const ek4abExcel = async (req, res, next) => {
     const wb = new ExcelJS.Workbook(); wb.creator='MİS';
     const ws = wb.addWorksheet('Ek-4ab');
 
-    const G1='FF0F6E56', G2='FF1D9E75', WH='FFFFFFFF', LG='FFE1F5EE';
+    // Renkler FONT bloğunda tanımlı
 
     // Sütun genişlikleri: A B C D E F G H I..X Y
     ws.columns = [
@@ -144,8 +144,14 @@ const ek4abExcel = async (req, res, next) => {
     ];
 
     const FONT = 'Times New Roman';
-    const GRI  = 'FF444444'; // Tek gri ton - siyah beyaz baskıda okunur
-    const KOYU = 'FF111111';
+    // Siyah beyaz baskıda okunur tek gri ton
+    const G1  = 'FF555555'; // Koyu gri — ana başlık arka plan
+    const G2  = 'FF888888'; // Orta gri — alt başlık arka plan
+    const WH  = 'FFFFFFFF'; // Beyaz — başlık yazı
+    const LG  = 'FFE8E8E8'; // Açık gri — toplam satırı
+    const KOYU= 'FF111111'; // Neredeyse siyah — veri
+
+    const ROW_H = 14.5; // Tüm veri satırları
 
     const sty = (cell,bg,color,bold,align)=>{
       if(bg) cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}};
@@ -226,8 +232,8 @@ const ek4abExcel = async (req, res, next) => {
     const hTot={}; KOLONLAR.forEach(k=>{hTot[k.key]=0;});
 
     isletmeciler.forEach((ist,idx)=>{
-      const rn=7+idx; const row=ws.getRow(rn); row.height=17;
-      const bg=idx%2?'FFF5FAF7':null;
+      const rn=7+idx; const row=ws.getRow(rn); row.height=ROW_H;
+      const bg=idx%2?'FFF0F0F0':null; // Alternatif satır - çok hafif gri
 
       const ck=cksMap[ist.sahip?.toUpperCase().trim()]||null;
       const yem=ck?.yem_bitkisi||0, sebze=ck?.sebze_bag||0, hub=ck?.hububat||0;
@@ -266,7 +272,7 @@ const ek4abExcel = async (req, res, next) => {
     });
 
     // ── TOPLAM ────────────────────────────────────────────
-    const tr=7+isletmeciler.length; const tRow=ws.getRow(tr); tRow.height=20;
+    const tr=7+isletmeciler.length; const tRow=ws.getRow(tr); tRow.height=ROW_H;
     mc(tr,1,tr,2); ws.getCell(`A${tr}`).value='T O P L A M'; sty(ws.getCell(`A${tr}`),LG,null,true,'center');
     ws.getCell(`C${tr}`).value=tot.yem>0?+tot.yem.toFixed(3):null;  sty(ws.getCell(`C${tr}`),LG,null,true,'center');
     ws.getCell(`D${tr}`).value=tot.sebze>0?+tot.sebze.toFixed(3):null; sty(ws.getCell(`D${tr}`),LG,null,true,'center');
@@ -285,14 +291,14 @@ const ek4abExcel = async (req, res, next) => {
     let nr=tr+1;
     mc(nr,1,nr,NT);
     ws.getCell(`A${nr}`).value=`Not: Yukarıdaki hayvan sayıları ve ekiliş alanı verileri ${yil} yılı ÇKS (Çiftçi Kayıt Sistemi) ve Türkvet kayıtlarından alınmıştır.`;
-    ws.getCell(`A${nr}`).font={name:FONT,italic:true,size:8,color:{argb:GRI}};
+    ws.getCell(`A${nr}`).font={name:FONT,italic:true,size:8,color:{argb:G1}};
     ws.getCell(`A${nr}`).alignment={wrapText:true}; ws.getRow(nr).height=20;
 
     if(!ormanVar&&teknikEkip.length>0){
       nr++;
       mc(nr,1,nr,NT);
       ws.getCell(`A${nr}`).value='Not: Orman içi, orman kenarı ve orman üst sınırı mera bulunmadığı, orman köyü olmadığı için Orman Mühendisi teknik çalışmalara katılmamıştır.';
-      ws.getCell(`A${nr}`).font={name:FONT,italic:true,size:8,color:{argb:GRI}};
+      ws.getCell(`A${nr}`).font={name:FONT,italic:true,size:8,color:{argb:G1}};
       ws.getCell(`A${nr}`).alignment={wrapText:true}; ws.getRow(nr).height=20;
     }
 
@@ -320,13 +326,13 @@ const ek4abExcel = async (req, res, next) => {
           // Satır 2: Ünvan
           const unC=mc(iR+1,c1,iR+1,c2);
           unC.value=u.unvan||'';
-          unC.font={name:FONT,size:8,color:{argb:GRI}};
+          unC.font={name:FONT,size:8,color:{argb:G1}};
           unC.alignment={horizontal:'center',wrapText:true};
 
           // Satır 3: Kurum (tam ad)
           const kurC=mc(iR+2,c1,iR+2,c2);
           kurC.value=kurumTamAd(u.kurum||'', u.birim||'');
-          kurC.font={name:FONT,size:8,color:{argb:GRI}};
+          kurC.font={name:FONT,size:8,color:{argb:G1}};
           kurC.alignment={horizontal:'center',wrapText:true};
 
           // İmza çizgisi

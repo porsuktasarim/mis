@@ -960,54 +960,132 @@ window.kurumDegisti = (sel, path, uyeIdx, tip) => {
 
 const uyeSatiriPersonel = (uyeler, listeAdi, ekipIdx, uyeIdx, kurumListesi) => {
   const u = uyeler[uyeIdx];
-  const path = ekipIdx !== null ? `${listeAdi}[${ekipIdx}].uyeler` : listeAdi;
+  const adVal = (u.ad_soyad || u.ad || '').replace(/"/g,'&quot;');
+  const unvanVal = (u.unvan||'').replace(/"/g,'&quot;');
+  const birimVal = (u.birim||'').replace(/"/g,'&quot;');
   const liste = kurumListesi || TE_KURUMLAR;
-  return `<div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap">
-    <input type="text" class="form-control form-control-sm" style="min-width:130px;flex:2" placeholder="Ad Soyad *" value="${u.ad||''}" oninput="ayarlar.${path}[${uyeIdx}].ad=this.value"/>
-    ${unvanInput(path, uyeIdx, u.unvan||'')}
-    ${kurumSelect(path, uyeIdx, u.kurum||'', u.birim||'', liste)}
-    <select class="form-select form-select-sm" style="width:75px;flex:none" onchange="ayarlar.${path}[${uyeIdx}].asil_yedek=this.value">
+  const secilenKurum = liste.find(k => k.deger === u.kurum);
+  const birimGerekli = secilenKurum?.birim || false;
+  const pathBase = ekipIdx !== null ? `${listeAdi}[${ekipIdx}].uyeler` : listeAdi;
+
+  return `<div class="d-flex align-items-center gap-2 p-2 border-bottom flex-wrap" style="background:${uyeIdx%2?'#fafafa':'#fff'}">
+    <input type="text" class="form-control form-control-sm" style="min-width:130px;flex:2"
+      placeholder="Ad Soyad *" value="${adVal}"
+      oninput="ayarlar.${pathBase}[${uyeIdx}].ad_soyad=this.value;ayarlar.${pathBase}[${uyeIdx}].ad=this.value"/>
+    <input type="text" class="form-control form-control-sm" style="min-width:130px;flex:2"
+      placeholder="Ünvan" value="${unvanVal}"
+      oninput="ayarlar.${pathBase}[${uyeIdx}].unvan=this.value"/>
+    <div style="display:flex;gap:4px;flex:3;min-width:220px">
+      <select class="form-select form-select-sm" style="flex:2"
+        onchange="kurumDegisti(this,'${pathBase}',${uyeIdx},'${kurumListesi===KOM_KURUMLAR?'kom':'te'}')">
+        ${liste.map(k=>`<option value="${k.deger}" ${u.kurum===k.deger?'selected':''}>${k.etiket}</option>`).join('')}
+      </select>
+      <input type="text" class="form-control form-control-sm birim-input"
+        style="flex:1.5;min-width:80px;${birimGerekli?'':'display:none'}"
+        placeholder="Birim (mahalle, ilçe...)" value="${birimVal}"
+        oninput="birimGuncelle('${pathBase}',${uyeIdx},this.value)"
+        title="Birim (örn: Kağıthane, Yeşilköy Mahallesi)"/>
+    </div>
+    <select class="form-select form-select-sm" style="width:75px;flex:none"
+      onchange="ayarlar.${pathBase}[${uyeIdx}].asil_yedek=this.value">
       <option value="asil" ${u.asil_yedek!=='yedek'?'selected':''}>Asıl</option>
       <option value="yedek" ${u.asil_yedek==='yedek'?'selected':''}>Yedek</option>
     </select>
-    <div class="form-check mb-0" title="Aktif"><input class="form-check-input" type="checkbox" ${u.aktif!==false?'checked':''} onchange="ayarlar.${path}[${uyeIdx}].aktif=this.checked"/></div>
-    <button class="btn btn-xs btn-outline-danger" onclick="uyeSilPersonel('${listeAdi}',${ekipIdx},${uyeIdx})"><i class="bi bi-trash"></i></button>
+    <div class="form-check mb-0" title="Aktif">
+      <input class="form-check-input" type="checkbox" ${u.aktif!==false?'checked':''}
+        onchange="ayarlar.${pathBase}[${uyeIdx}].aktif=this.checked"/>
+    </div>
+    <button class="btn btn-xs btn-outline-danger" onclick="uyeSilPersonel('${listeAdi}',${ekipIdx},${uyeIdx})">
+      <i class="bi bi-trash"></i>
+    </button>
   </div>`;
 };
 
 const renderPersonel = () => {
-  // Teknik Ekipler — accordion
+  // ── Teknik Ekipler — YIL > EKİP iç içe accordion ──────
   const ekipler = ayarlar.teknik_ekipler || [];
-  document.getElementById('teknik-ekipler-listesi').innerHTML = ekipler.length
-    ? ekipler.map((ekip, ei) => `
-      <div class="border rounded mb-2 overflow-hidden">
-        <div class="d-flex align-items-center gap-2 p-2 cursor-pointer"
-          style="background:#f0f7f4;user-select:none"
-          onclick="teknikEkipToggle(${ei})">
-          <i class="bi bi-chevron-down small text-muted" id="te-icon-${ei}"></i>
-          <span class="fw-semibold small">${ekip.ad||'(İsimsiz Ekip)'}</span>
-          <span class="badge bg-secondary ms-1">${(ekip.uyeler||[]).length} üye</span>
-          <span class="text-muted small ms-1">${ekip.yil||''}</span>
-          <div class="ms-auto d-flex gap-1" onclick="event.stopPropagation()">
-            <button class="btn btn-xs btn-mis" onclick="teknikUyeEkle(${ei})"><i class="bi bi-plus me-1"></i>Üye</button>
-            <button class="btn btn-xs btn-outline-danger" onclick="teknikEkipSil(${ei})"><i class="bi bi-trash"></i></button>
+
+  // Yıl bazlı grupla
+  const yilGruplari = {};
+  ekipler.forEach((ekip, ei) => {
+    const yil = ekip.yil || 'Diğer';
+    if (!yilGruplari[yil]) yilGruplari[yil] = [];
+    yilGruplari[yil].push({ ekip, ei });
+  });
+  const yillar = Object.keys(yilGruplari).sort((a,b) => b.localeCompare(a)); // Yeni yıl üstte
+
+  document.getElementById('teknik-ekipler-listesi').innerHTML = yillar.length
+    ? yillar.map(yil => {
+        const grup = yilGruplari[yil];
+        const toplamUye = grup.reduce((s,g)=>s+(g.ekip.uyeler||[]).length,0);
+        return `
+        <div class="border rounded mb-2">
+          <!-- YIL BAŞLIĞI -->
+          <div class="d-flex align-items-center gap-2 px-3 py-2 cursor-pointer"
+            style="background:#e8f5e9;user-select:none"
+            onclick="yilToggle('${yil}')">
+            <i class="bi bi-chevron-down small" id="yil-icon-${yil}"></i>
+            <strong class="small">${yil} Yılı Teknik Ekipleri</strong>
+            <span class="badge bg-secondary ms-1">${grup.length} ekip / ${toplamUye} üye</span>
+            <div class="ms-auto d-flex gap-1" onclick="event.stopPropagation()">
+              <button class="btn btn-xs btn-mis" onclick="teknikEkipEkleYil('${yil}')">
+                <i class="bi bi-plus me-1"></i>Ekip Ekle
+              </button>
+              <button class="btn btn-xs btn-success" onclick="teknikEkiplerKaydet()">
+                <i class="bi bi-save me-1"></i>Kaydet
+              </button>
+            </div>
           </div>
-        </div>
-        <div id="te-body-${ei}" style="display:none">
-          <div class="d-flex gap-2 p-2 border-bottom bg-white">
-            <input type="text" class="form-control form-control-sm fw-semibold" style="max-width:220px"
-              placeholder="Ekip Adı *" value="${(ekip.ad||'').replace(/"/g,'&quot;')}"
-              oninput="ayarlar.teknik_ekipler[${ei}].ad=this.value;document.querySelector('[onclick=&quot;teknikEkipToggle(${ei})&quot;] .fw-semibold').textContent=this.value||'(İsimsiz Ekip)'"/>
-            <input type="text" class="form-control form-control-sm" style="max-width:100px"
-              placeholder="Yıl" value="${ekip.yil||''}"
-              oninput="ayarlar.teknik_ekipler[${ei}].yil=this.value"/>
+          <!-- YIL İÇERİĞİ -->
+          <div id="yil-body-${yil}" style="display:none;padding:8px">
+            ${grup.map(({ekip, ei}) => `
+              <div class="border rounded mb-2" id="te-kart-${ei}">
+                <!-- EKİP BAŞLIĞI -->
+                <div class="d-flex align-items-center gap-2 px-2 py-2 cursor-pointer"
+                  style="background:#f5faf7;user-select:none"
+                  onclick="teknikEkipToggle(${ei})">
+                  <i class="bi bi-chevron-down small text-muted" id="te-icon-${ei}"></i>
+                  <span class="fw-semibold small" id="te-ad-${ei}">${ekip.ad||'(İsimsiz Ekip)'}</span>
+                  <span class="badge bg-light text-dark ms-1">${(ekip.uyeler||[]).length} üye</span>
+                  <div class="ms-auto d-flex gap-1" onclick="event.stopPropagation()">
+                    <button class="btn btn-xs btn-mis" onclick="teknikUyeEkle(${ei})">
+                      <i class="bi bi-person-plus me-1"></i>Üye
+                    </button>
+                    <button class="btn btn-xs btn-success" onclick="teknikEkipKaydet(${ei})">
+                      <i class="bi bi-save"></i>
+                    </button>
+                    <button class="btn btn-xs btn-outline-danger" onclick="teknikEkipSil(${ei})">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                </div>
+                <!-- EKİP İÇERİĞİ -->
+                <div id="te-body-${ei}" style="display:none">
+                  <div class="d-flex gap-2 p-2 border-bottom bg-white">
+                    <div class="flex-grow-1">
+                      <label class="form-label small fw-semibold mb-1">Ekip Adı</label>
+                      <input type="text" class="form-control form-control-sm"
+                        placeholder="Ekip Adı *"
+                        value="${(ekip.ad||'').replace(/"/g,'&quot;')}"
+                        oninput="ayarlar.teknik_ekipler[${ei}].ad=this.value;document.getElementById('te-ad-${ei}').textContent=this.value||'(İsimsiz Ekip)'"/>
+                    </div>
+                    <div style="width:100px">
+                      <label class="form-label small fw-semibold mb-1">Yıl</label>
+                      <input type="text" class="form-control form-control-sm"
+                        placeholder="Yıl"
+                        value="${(ekip.yil||'').replace(/"/g,'&quot;')}"
+                        oninput="ayarlar.teknik_ekipler[${ei}].yil=this.value"/>
+                    </div>
+                  </div>
+                  ${(ekip.uyeler||[]).length
+                    ? (ekip.uyeler||[]).map((_,ui) => uyeSatiriPersonel(ekip.uyeler, 'teknik_ekipler', ei, ui, TE_KURUMLAR)).join('')
+                    : '<p class="text-muted small text-center py-2 mb-0">Henüz üye yok. "Üye" butonuna tıklayın.</p>'}
+                </div>
+              </div>`).join('')}
           </div>
-          ${(ekip.uyeler||[]).length
-            ? (ekip.uyeler||[]).map((_,ui) => uyeSatiriPersonel(ekip.uyeler, 'teknik_ekipler', ei, ui, TE_KURUMLAR)).join('')
-            : '<p class="text-muted small text-center py-2 mb-0">Henüz üye yok.</p>'}
-        </div>
-      </div>`).join('')
-    : '<p class="text-muted small text-center py-3">Henüz ekip yok.</p>';
+        </div>`;
+      }).join('')
+    : '<p class="text-muted small text-center py-3">Henüz ekip yok. "Yeni Ekip" ile başlayın.</p>';
 
   // Komisyonlar
   const komisyonlar = ayarlar.komisyonlar || [];
@@ -1049,6 +1127,15 @@ const renderPersonel = () => {
     : '<p class="text-muted small text-center py-2">Henüz personel yok.</p>';
 };
 
+window.yilToggle = (yil) => {
+  const body = document.getElementById(`yil-body-${yil}`);
+  const icon = document.getElementById(`yil-icon-${yil}`);
+  if (!body) return;
+  const acik = body.style.display !== 'none';
+  body.style.display = acik ? 'none' : '';
+  if (icon) icon.className = `bi bi-chevron-${acik?'down':'up'} small`;
+};
+
 window.teknikEkipToggle = (ei) => {
   const body = document.getElementById(`te-body-${ei}`);
   const icon = document.getElementById(`te-icon-${ei}`);
@@ -1056,6 +1143,43 @@ window.teknikEkipToggle = (ei) => {
   const acik = body.style.display !== 'none';
   body.style.display = acik ? 'none' : '';
   if (icon) icon.className = `bi bi-chevron-${acik?'down':'up'} small text-muted`;
+};
+
+// Tek ekip kaydet
+window.teknikEkipKaydet = async (ei) => {
+  try {
+    const r = await fetch(API,{method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({teknik_ekipler:ayarlar.teknik_ekipler||[]})});
+    const j=await r.json();
+    if(j.success) showToast(`Ekip kaydedildi.`,'success');
+    else showToast(j.message,'danger');
+  } catch { showToast('Hata.','danger'); }
+};
+
+// Tüm ekipler kaydet
+window.teknikEkiplerKaydet = async () => {
+  try {
+    const r = await fetch(API,{method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({teknik_ekipler:ayarlar.teknik_ekipler||[]})});
+    const j=await r.json();
+    if(j.success) showToast('Teknik ekipler kaydedildi.','success');
+    else showToast(j.message,'danger');
+  } catch { showToast('Hata.','danger'); }
+};
+
+// Belirli yıla ekip ekle
+window.teknikEkipEkleYil = (yil) => {
+  if (!ayarlar.teknik_ekipler) ayarlar.teknik_ekipler = [];
+  ayarlar.teknik_ekipler.push({ ad:'', yil, uyeler:[] });
+  renderPersonel();
+  // Yeni eklenen yıl accordion'u aç
+  setTimeout(()=>{
+    const yilBody = document.getElementById(`yil-body-${yil}`);
+    if (yilBody && yilBody.style.display==='none') yilToggle(yil);
+    const newEi = ayarlar.teknik_ekipler.length-1;
+    const teBody = document.getElementById(`te-body-${newEi}`);
+    if (teBody) teBody.style.display='';
+  },50);
 };
 
 window.teknikEkipEkle = () => {
