@@ -142,6 +142,13 @@
                   <div class="mis-card-header"><i class="bi bi-file-earmark-excel text-success"></i><span class="title">Ek-4/ab — Çiftçi Aile + Hayvan Varlığı</span></div>
                   <div class="p-3">
                     <div id="ek4ab-durum" class="mb-3"></div>
+
+                    <!-- İmzacı Seçimi -->
+                    <div class="border rounded p-2 mb-3 bg-light">
+                      <div class="small fw-semibold mb-2"><i class="bi bi-pen me-1"></i>İmzacılar (teknik ekip + köy görevlileri)</div>
+                      <div id="imzaci-listesi" class="small text-muted">Teknik ekip yükleniyor...</div>
+                    </div>
+
                     <button class="btn btn-success btn-sm" onclick="ek4abIndir()">
                       <i class="bi bi-download me-1"></i>Excel İndir
                     </button>
@@ -556,13 +563,95 @@ const renderRaporDurum=()=>{
   const hasBbhb=bag.length>0;
   const hasCks=!!_secilenCksId;
   const el=document.getElementById('ek4ab-durum');
-  if(!el)return;
+  if(!el) return;
   const satirlar=[];
   if(hasBbhb) satirlar.push(`<span class="badge bg-success me-1">✓ BBHB</span>${bag[0]?.toplam_bbhb?.toFixed(2)||''} BBHB, ${bag[0]?.toplam_adet||''} hayvan`);
   else satirlar.push('<span class="badge bg-danger me-1">✗ BBHB</span> <a href="#" onclick="document.querySelector(\'[data-tab=baglantilar]\').click();return false;">Bağlantılar sekmesinden bağlayın</a>');
   if(hasCks) satirlar.push('<span class="badge bg-success me-1">✓ ÇKS</span> Seçildi');
   else satirlar.push('<span class="badge bg-warning text-dark me-1">– ÇKS</span> <a href="#" onclick="document.querySelector(\'[data-tab=baglantilar]\').click();return false;">Bağlantılar sekmesinden seçin</a>');
   el.innerHTML=satirlar.map(s=>`<div class="small mb-1">${s}</div>`).join('');
+  renderImzacilar();
+};
+
+// İmzacı listesi — checkbox ile seçim
+let _imzacilar = []; // tüm üyeler
+let _seciliImzacilar = new Set(); // seçili _id'ler
+
+const renderImzacilar = async () => {
+  const el = document.getElementById('imzaci-listesi');
+  if (!el) return;
+
+  // Daha önce yüklenmediyse fetch et
+  if (!_imzacilar.length) {
+    try {
+      const r = await fetch('/api/ayarlar');
+      const j = await r.json();
+      const ekipler = j.data?.teknik_ekipler || [];
+      // İlçeye uygun ekip veya son ekip
+      const ilce = tahsis?.ilce_ad || '';
+      const ekip = ekipler.find(e => e.uyeler?.some(u => (u.kurum||'').includes(ilce)))
+                || ekipler[ekipler.length-1];
+      _imzacilar = ekip?.uyeler || [];
+
+      // Muhtar ve bilirkişi dışındakileri başlangıçta seçili yap
+      _imzacilar.forEach(u => {
+        const k = (u.kurum||'').toLowerCase();
+        if (!k.includes('muhtar') && !k.includes('bilirkişi') && !k.includes('aza')) {
+          _seciliImzacilar.add(String(u._id));
+        }
+      });
+    } catch(e) {
+      el.innerHTML = '<span class="text-danger small">Teknik ekip yüklenemedi.</span>';
+      return;
+    }
+  }
+
+  if (!_imzacilar.length) {
+    el.innerHTML = '<span class="text-muted small">Ayarlarda teknik ekip tanımlanmamış.</span>';
+    return;
+  }
+
+  // Kuruma göre grupla
+  const GRUP = [
+    { baslik: 'Teknik Ekip', filtre: u => { const k=(u.kurum||'').toLowerCase(); return !k.includes('muhtar')&&!k.includes('bilirkişi')&&!k.includes('aza')&&!k.includes('muhtarlık'); } },
+    { baslik: 'Muhtar / Bilirkişi / Aza', filtre: u => { const k=(u.kurum||'').toLowerCase(); return k.includes('muhtar')||k.includes('bilirkişi')||k.includes('aza')||k.includes('muhtarlık'); } },
+  ];
+
+  el.innerHTML = GRUP.map(g => {
+    const uyeler = _imzacilar.filter(g.filtre);
+    if (!uyeler.length) return '';
+    return `<div class="mb-2">
+      <div class="text-muted fw-semibold mb-1" style="font-size:11px">${g.baslik}</div>
+      <div class="d-flex flex-wrap gap-2">
+        ${uyeler.map(u => {
+          const uid = String(u._id||'');
+          const secili = _seciliImzacilar.has(uid);
+          const kurum = u.kurum||'';
+          const birim = u.birim ? ` / ${u.birim}` : '';
+          return `<label class="d-flex align-items-center gap-1 border rounded px-2 py-1 cursor-pointer ${secili?'bg-success text-white':'bg-white'}" style="font-size:11px">
+            <input type="checkbox" class="form-check-input m-0" ${secili?'checked':''}
+              onchange="imzaciToggle('${uid}',this.checked)" style="width:12px;height:12px"/>
+            <span>${u.ad_soyad||u.ad||'?'}<br><small class="opacity-75">${kurum}${birim}</small></span>
+          </label>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+};
+
+window.imzaciToggle = (uid, secili) => {
+  if (secili) _seciliImzacilar.add(uid);
+  else _seciliImzacilar.delete(uid);
+  // Seçili badge'leri güncelle
+  document.querySelectorAll('#imzaci-listesi label').forEach(lbl => {
+    const cb = lbl.querySelector('input[type=checkbox]');
+    if (!cb) return;
+    const id = cb.getAttribute('onchange')?.match(/'([^']+)'/)?.[1];
+    if (id) {
+      lbl.classList.toggle('bg-success', _seciliImzacilar.has(id));
+      lbl.classList.toggle('text-white', _seciliImzacilar.has(id));
+    }
+  });
 };
 
 window.ek4abIndir=async()=>{
@@ -575,7 +664,11 @@ window.ek4abIndir=async()=>{
   try{
     const r=await fetch(`${API}/${id}/rapor/ek4ab`,{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({bbhb_id:String(bbhb_id||''),cks_id:String(cks_id||'')})});
+      body:JSON.stringify({
+        bbhb_id:String(bbhb_id||''),
+        cks_id:String(cks_id||''),
+        secili_uye_idler: [..._seciliImzacilar],
+      })});
     if(!r.ok){const j=await r.json();showToast(j.message||'Hata.','danger');return;}
     const blob=await r.blob();
     const fname=r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1]||'Ek-4ab.xlsx';
