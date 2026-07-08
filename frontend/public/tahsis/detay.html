@@ -252,10 +252,11 @@ const API = '/api/tahsis';
 const id  = new URLSearchParams(location.search).get('id');
 let tahsis = null;
 let _tumBbhb = [];
-let _parselGruplari = []; // [{ad, parsel_idler:[]}]
+let _parselGruplari = [];
 let _secilenCksId = null;
 let _grupDegisti = false;
-let _aktifParselId = null; // Grup modalında hangi parsel seçili
+let _aktifParselId = null;
+let _cksListesi = null; // ÇKS listesi cache // Grup modalında hangi parsel seçili
 
 const showToast = (msg, tip='success') => {
   const t = document.createElement('div');
@@ -274,7 +275,10 @@ document.querySelectorAll('.detay-sekme').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab==='baglantilar') { if(tahsis) loadCksSecici(); else setTimeout(loadCksSecici,500); }
-    if (btn.dataset.tab==='raporlar') { renderRaporDurum(); renderEk4cGruplari(); }
+    if (btn.dataset.tab==='raporlar') {
+      renderRaporDurum();
+      renderEk4cGruplari();
+    }
   });
 });
 
@@ -330,18 +334,22 @@ const loadTahsis = async () => {
   document.getElementById('e-durum').value   = tahsis.durum||'taslak';
   document.getElementById('e-aciklama').value= tahsis.aciklama||'';
 
-  // Grupları yükle
+  // Grupları yükle — parseller yüklendikten SONRA render
   _parselGruplari = (tahsis.parsel_gruplari||[]).map(g=>({
-    ad: g.ad, parsel_idler: g.parsel_idler||[]
+    ad: g.ad, parsel_idler: (g.parsel_idler||[]).map(String)
   }));
   _grupDegisti = false;
 
   renderParseller();
   renderBbhb();
   renderAdimlar();
-
-  // Bağlantılar sekmesi açıksa ÇKS seçiciyi yükle, değilse hazırda beklet
   loadCksSecici();
+
+  // Raporlar sekmesi açıksa güncelle
+  if (document.querySelector('[data-tab="raporlar"]')?.classList.contains('active')) {
+    renderRaporDurum();
+    renderEk4cGruplari();
+  }
 };
 
 // ── Parseller ─────────────────────────────────────────────
@@ -476,14 +484,15 @@ const loadCksSecici=async()=>{
   try{
     const r=await fetch('/api/cks');
     const j=await r.json();
-    if(!j.data?.length){
+    _cksListesi = j.data || [];
+    if(!_cksListesi.length){
       sel.innerHTML='<option value="">— ÇKS kaydı yok —</option>';
       document.getElementById('cks-secili-bilgi').innerHTML=
         '<div class="alert alert-warning small py-2"><i class="bi bi-exclamation-triangle me-1"></i>ÇKS kaydı bulunamadı. <a href="/cks/" target="_blank">ÇKS Yükle</a></div>';
       return;
     }
     const mahalle=(tahsis?.mahalle_ad||'').toUpperCase().trim();
-    const sirali=[...j.data].sort((a,b)=>{
+    const sirali=[..._cksListesi].sort((a,b)=>{
       const ea=(a.koy||'').toUpperCase().trim()===mahalle;
       const eb=(b.koy||'').toUpperCase().trim()===mahalle;
       return ea===eb?0:ea?-1:1;
@@ -494,7 +503,7 @@ const loadCksSecici=async()=>{
         return `<option value="${c._id}" ${_secilenCksId===c._id?'selected':''}>${c.koy||c.ilce||c.dosya_adi} — ${c.uretim_yili||'?'} (${c.kisi_sayisi} kişi)${esles?' ✓':''}`;
       }).join('');
     if(_secilenCksId){
-      const bulunan=j.data.find(c=>c._id===_secilenCksId);
+      const bulunan=_cksListesi.find(c=>c._id===_secilenCksId);
       if(bulunan) cksSecBilgiGoster(bulunan);
     }else{
       document.getElementById('cks-secili-bilgi').innerHTML='';
@@ -516,16 +525,14 @@ const cksSecBilgiGoster=(cks)=>{
 };
 
 window.cksSec=async(val)=>{
-  _secilenCksId=val||null;
+  _secilenCksId = val||null;
   renderAdimlar();
   renderRaporDurum();
-  if(val){
-    try{
-      const r=await fetch(`/api/cks/${val}`);
-      const j=await r.json();
-      if(j.success) cksSecBilgiGoster(j.data);
-    }catch(e){}
-  }else{
+  // Seçilen kaydın bilgisini göster
+  if (val && _cksListesi) {
+    const cks = _cksListesi.find(c=>c._id===val);
+    cksSecBilgiGoster(cks||null);
+  } else {
     document.getElementById('cks-secili-bilgi').innerHTML='';
   }
 };
