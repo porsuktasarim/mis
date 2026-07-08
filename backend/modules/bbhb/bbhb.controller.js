@@ -275,9 +275,10 @@ const excelRapor = async (req, res, next) => {
 
     const lastCol = String.fromCharCode(66 + N + 1); // B+N+1 = son sütun
 
-    // Satır 1: Yer
+    // Satır 1: Yer başlığı — il/ilçe/mahalle
+    const yerBaslik = yerOlustur(kayit.il, kayit.ilce, kayit.mahalle) || 'BBHB RAPORU';
     ws.mergeCells(`A1:${lastCol}1`);
-    ws.getCell('A1').value = yerOlustur(kayit.il,kayit.ilce,kayit.mahalle) || 'BBHB RAPORU';
+    ws.getCell('A1').value = yerBaslik;
     s(ws.getCell('A1'),G1,WH,true,'center'); ws.getRow(1).height=22;
 
     // Satır 2: Başlık
@@ -290,14 +291,26 @@ const excelRapor = async (req, res, next) => {
     ws.getCell('A3').value = 'Tarih: '+new Date(kayit.createdAt).toLocaleDateString('tr-TR');
     s(ws.getCell('A3'),null,null,false,'left'); ws.getRow(3).height=15;
 
-    // Satır 4: Üst başlık
-    ws.mergeCells(`A4:A7`); ws.getCell('A4').value='Sıra\nNo'; s(ws.getCell('A4'),G1,WH,true);
-    ws.mergeCells(`B4:B7`); ws.getCell('B4').value='İkamet Eden Aile Temsilcisinin\nAdı Soyadı (Aile)'; s(ws.getCell('B4'),G1,WH,true);
-    ws.mergeCells(`${lastCol}4:${lastCol}7`); ws.getCell(`${lastCol}4`).value='Toplam\nBBHB'; s(ws.getCell(`${lastCol}4`),G2,WH,true);
-    ws.mergeCells(`C4:${lastCol}4`.replace(lastCol, String.fromCharCode(lastCol.charCodeAt(0)-1))+'`');
+    // ── BAŞLIK SATIRLARI 4-6 ─────────────────────────────
+    // A=Sıra(4-6), B=İsim(4-6), Son=BBHB(4-6) — rowspan 3
+    // C..Son-1 = Satır 4: Grup adları, Satır 5: Hayvan kısa ad, Satır 6: Katsayı
 
-    // Satır 4 orta başlık - grup birleştirmeleri
-    let colIdx = 3; // C=3
+    // A ve B hücresi — 3 satır birleşik (4-6)
+    ws.mergeCells(`A4:A6`);
+    ws.getCell('A4').value = 'Sıra\nNo';
+    s(ws.getCell('A4'),G1,WH,true);
+
+    ws.mergeCells(`B4:B6`);
+    ws.getCell('B4').value = 'İkamet Eden Aile Temsilcisinin\nAdı Soyadı (Aile)';
+    s(ws.getCell('B4'),G1,WH,true);
+
+    // BBHB — 3 satır birleşik (4-6)
+    ws.mergeCells(`${lastCol}4:${lastCol}6`);
+    ws.getCell(`${lastCol}4`).value = 'Toplam\nBBHB';
+    s(ws.getCell(`${lastCol}4`),G2,WH,true);
+
+    // Satır 4: Hayvan grup başlıkları (C..Son-1)
+    let colIdx = 3;
     TABLO_GRUPLARI.forEach(g => {
       const c1 = colIdx, c2 = colIdx + g.span - 1;
       const l1 = String.fromCharCode(64+c1), l2 = String.fromCharCode(64+c2);
@@ -308,13 +321,20 @@ const excelRapor = async (req, res, next) => {
         ws.getCell(`${l1}4`).value = g.ad; s(ws.getCell(`${l1}4`),G2,WH,true);
       }
       colIdx += g.span;
-    }); ws.getRow(4).height=22;
+    });
+    ws.getRow(4).height = 22;
 
     // Satır 5: Kısa hayvan adları
-    KOLONLAR_KISA.forEach((v,i)=>{ const c=ws.getRow(5).getCell(i+3); c.value=v; s(c,G2,WH,true); }); ws.getRow(5).height=18;
+    KOLONLAR_KISA.forEach((v,i) => {
+      const c = ws.getRow(5).getCell(i+3); c.value=v; s(c,G2,WH,true);
+    });
+    ws.getRow(5).height = 18;
 
     // Satır 6: BBHB Katsayıları
-    KOLONLAR.forEach((k,i)=>{ const c=ws.getRow(6).getCell(i+3); c.value=KOLON_KATSAYI[k]; c.numFmt='0.00'; s(c,YL,'FF6D4C00',true); }); ws.getRow(6).height=15;
+    KOLONLAR.forEach((k,i) => {
+      const c = ws.getRow(6).getCell(i+3); c.value=KOLON_KATSAYI[k]; c.numFmt='0.00'; s(c,YL,'FF6D4C00',true);
+    });
+    ws.getRow(6).height = 15;
 
     // Satır 7'den: Veriler
     const toplamKol = {};
@@ -510,22 +530,33 @@ const wordRapor = async (req, res, next) => {
         columnSpan:cs, shading:{type:'solid',color:bg,fill:bg}, margins:{top:40,bottom:40,left:60,right:60},
       });
 
-    // Başlık satırları - TABLO_GRUPLARI'ndan dinamik
+    // Başlık satırları — No, İsim, BBHB 3 satır birleşik
     const b1 = new TableRow({children:[
-      hc('No',true,G1,'FFFFFF'),
-      hc('İkamet Eden Aile Temsilcisinin Adı Soyadı (Aile)',true,G1,'FFFFFF'),
+      new TableCell({
+        rowSpan:3,
+        children:[new Paragraph({children:[new TextRun({text:'No',bold:true,size:18,color:'FFFFFF'})],alignment:AlignmentType.CENTER})],
+        shading:{type:'solid',color:G1,fill:G1}, margins:{top:40,bottom:40,left:60,right:60},
+        verticalAlign:'center',
+      }),
+      new TableCell({
+        rowSpan:3,
+        children:[new Paragraph({children:[new TextRun({text:'İkamet Eden Aile Temsilcisinin Adı Soyadı (Aile)',bold:true,size:18,color:'FFFFFF'})],alignment:AlignmentType.CENTER})],
+        shading:{type:'solid',color:G1,fill:G1}, margins:{top:40,bottom:40,left:60,right:60},
+        verticalAlign:'center',
+      }),
       span('Büyükbaş, Küçükbaş ve Diğer Hayvan Varlıkları',N,G1),
-      hc('Top.\nBBHB',true,G2,'FFFFFF'),
+      new TableCell({
+        rowSpan:3,
+        children:[new Paragraph({children:[new TextRun({text:'Top.\nBBHB',bold:true,size:18,color:'FFFFFF'})],alignment:AlignmentType.CENTER})],
+        shading:{type:'solid',color:G2,fill:G2}, margins:{top:40,bottom:40,left:60,right:60},
+        verticalAlign:'center',
+      }),
     ]});
     const b2 = new TableRow({children:[
-      hc('',true,G2,'FFFFFF'), hc('',true,G2,'FFFFFF'),
       ...TABLO_GRUPLARI.map(g => span(g.ad, g.span, G2)),
-      hc('',true,G2,'FFFFFF'),
     ]});
     const b3 = new TableRow({children:[
-      hc('',true,G2,'FFFFFF'), hc('',true,G2,'FFFFFF'),
       ...KOLONLAR_KISA.map(v=>hc(v,true,G2,'FFFFFF',16)),
-      hc('',true,G2,'FFFFFF'),
     ]});
     // Katsayı satırı
     const bKat = new TableRow({children:[
