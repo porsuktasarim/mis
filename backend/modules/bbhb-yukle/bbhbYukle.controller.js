@@ -37,9 +37,17 @@ const parseSatir = (satir, kolonlar, dosyaAdi) => {
   const sahip        = get(['işletme sahibi', 'sahibi', 'kişi', 'firma', 'işletmeci']);
   const isletme      = get(['bulunduğu işletme', 'isletme', 'işletme adı']);
   const suru_no      = get(['sürü no', 'suru']);
-  const il           = get(['il adı', 'il adi', 'il', 'province']);
-  const ilce         = get(['ilçe adı', 'ilce adi', 'ilçe', 'ilce', 'district']);
-  const mahalle      = get(['mahalle', 'köy', 'mahalle/köy']);
+  // Kesin eşleştirme: sütun adı tam olarak eşleşmeli
+  const getKesin = (isimler) => {
+    for (const isim of isimler) {
+      const idx = kolonlar.findIndex(k => k && k.toString().trim().toLowerCase() === isim.toLowerCase());
+      if (idx >= 0 && satir[idx] !== undefined) return (satir[idx] || '').toString().trim();
+    }
+    return '';
+  };
+  const il      = getKesin(['il', 'İl', 'IL', 'İL', 'il adı', 'İl Adı']);
+  const ilce    = getKesin(['ilçe', 'İlçe', 'ILCE', 'İLÇE', 'ilce', 'ilçe adı', 'İlçe Adı']);
+  const mahalle = getKesin(['mahalle', 'Mahalle', 'köy', 'Köy', 'mahalle/köy']);
 
   if (!kupe_no || !tur) return null;
   if (durum && durum.toUpperCase() !== 'CANLI') return null;
@@ -150,14 +158,57 @@ const dosyalariisle = async (req, res, next) => {
     const isletmecilerArr = Object.values(isletmeciler).sort((a,b) => b.toplam_bbhb - a.toplam_bbhb);
 
     const BBHBHesaplama = require('../bbhb/bbhb.model');
-    const { HAYVAN_TURLERI } = require('../bbhb/bbhb.controller');
+
+    // HAYVAN_TURLERI — bbhb.controller'a bağımlılık kaldırıldı
+    const HAYVAN_TURLERI = [
+      { tur_id:'kult_sut',   tur_adi:'Kültür İnek',             katsayi:1.00 },
+      { tur_id:'dana_kult',  tur_adi:'Kültür Dana-Düve',        katsayi:0.60 },
+      { tur_id:'kult_mez',   tur_adi:'Kültür Melezi İnek',      katsayi:0.75 },
+      { tur_id:'dana_mez',   tur_adi:'Kültür Melezi Dana-Düve', katsayi:0.45 },
+      { tur_id:'yerli_inek', tur_adi:'Yerli İnek',              katsayi:0.50 },
+      { tur_id:'dana_yerli', tur_adi:'Yerli Dana-Düve',         katsayi:0.30 },
+      { tur_id:'boga',       tur_adi:'Boğa',                    katsayi:1.50 },
+      { tur_id:'okuz',       tur_adi:'Öküz',                    katsayi:0.60 },
+      { tur_id:'manda_e',    tur_adi:'Manda Erkek',             katsayi:0.90 },
+      { tur_id:'manda_d',    tur_adi:'Manda Dişi',              katsayi:0.75 },
+      { tur_id:'koyun',      tur_adi:'Koyun',                   katsayi:0.10 },
+      { tur_id:'keci',       tur_adi:'Keçi',                    katsayi:0.08 },
+      { tur_id:'kuzu',       tur_adi:'Kuzu/Oğlak',             katsayi:0.04 },
+      { tur_id:'at',         tur_adi:'At',                      katsayi:0.50 },
+      { tur_id:'katir',      tur_adi:'Katır',                   katsayi:0.40 },
+      { tur_id:'esek',       tur_adi:'Eşek',                    katsayi:0.30 },
+    ];
 
     // Özet kategorilerden manuel hesaplama formatına çevir
     const katMap = {
-      'Kültür ırkı süt ineği':'kult_sut','Kültür melezi':'kult_mez','Yerli inek':'yerli_inek',
-      'Dana-düve (kültür ırkı)':'dana_kult','Dana-düve (kültür melezi)':'dana_mez','Dana-düve (yerli)':'dana_yerli',
-      'Boğa':'boga','Öküz':'okuz','Manda (erkek)':'manda_e','Manda (dişi)':'manda_d',
-      'Koyun':'koyun','Keçi':'keci','Kuzu-Oğlak':'kuzu','At':'at','Katır':'katir','Eşek':'esek'
+      // Yeni adlar (siniflandirici güncel çıktısı)
+      'Kültür İnek':              'kult_sut',
+      'Kültür Dana-Düve':         'dana_kult',
+      'Kültür Melezi İnek':       'kult_mez',
+      'Kültür Melezi Dana-Düve':  'dana_mez',
+      'Yerli İnek':               'yerli_inek',
+      'Yerli Dana-Düve':          'dana_yerli',
+      'Boğa':                     'boga',
+      'Öküz':                     'okuz',
+      'Manda Erkek':              'manda_e',
+      'Manda Dişi':               'manda_d',
+      'Koyun':                    'koyun',
+      'Keçi':                     'keci',
+      'Kuzu/Oğlak':              'kuzu',
+      'At':                       'at',
+      'Katır':                    'katir',
+      'Eşek':                     'esek',
+      // Eski adlar (geriye dönük uyumluluk)
+      'Kültür ırkı süt ineği':    'kult_sut',
+      'Kültür melezi':            'kult_mez',
+      'Yerli inek':               'yerli_inek',
+      'Dana-düve (kültür ırkı)':  'dana_kult',
+      'Dana-düve (kültür melezi)':'dana_mez',
+      'Dana-düve (yerli)':        'dana_yerli',
+      'Manda (erkek)':            'manda_e',
+      'Manda (dişi)':             'manda_d',
+      'Kuzu-oğlak':              'kuzu',
+      'Kuzu-Oğlak':              'kuzu',
     };
     const hesaplamaHayvanlari = Object.entries(kategoriler).map(([kategoriAdi, v]) => {
       const tur_id = katMap[kategoriAdi];

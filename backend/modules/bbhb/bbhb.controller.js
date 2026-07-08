@@ -84,6 +84,7 @@ const KAT_KOLON = {
   'Manda (erkek)':             'Manda Erkek',
   'Manda (dişi)':              'Manda Dişi',
   'Kuzu-oğlak':                'Kuzu/Oğlak',
+  'Kuzu-Oğlak':                'Kuzu/Oğlak',
 };
 
 // Tür adı → sütun numarası (Excel için, sütun 3'ten başlar)

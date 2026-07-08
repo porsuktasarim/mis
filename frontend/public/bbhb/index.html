@@ -294,6 +294,10 @@ const sekmeyiAc = (id) => {
 };
 document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => sekmeyiAc(b.dataset.tab)));
 
+document.getElementById('btnYukledenAktar').addEventListener('click', () => {
+  document.getElementById('aktar-panel').classList.toggle('d-none');
+});
+
 const recalc = () => {
   let totalBbhb = 0, totalAdet = 0, aktifSayi = 0;
   turler.forEach(t => {
@@ -385,9 +389,6 @@ const loadYuklemelerSelect = async () => {
       (j.data||[]).map(k=>`<option value="${k._id}">${k.baslik} (${k.hesaplama_tarihi||''})</option>`).join('');
     if((j.data||[]).length>0){
       document.getElementById('btnYukledenAktar').style.removeProperty('display');
-      document.getElementById('btnYukledenAktar').addEventListener('click', () => {
-        document.getElementById('aktar-panel').classList.toggle('d-none');
-      });
     }
   } catch {}
 };
@@ -418,10 +419,19 @@ document.getElementById('btnAktarUygula').addEventListener('click', () => {
 
   // BBHB kategori → tur_id eşleşmesi
   const katMap = {
+    // Yeni adlar (güncel sınıflandırıcı çıktısı)
+    'Kültür İnek':'kult_sut','Kültür Dana-Düve':'dana_kult',
+    'Kültür Melezi İnek':'kult_mez','Kültür Melezi Dana-Düve':'dana_mez',
+    'Yerli İnek':'yerli_inek','Yerli Dana-Düve':'dana_yerli',
+    'Boğa':'boga','Öküz':'okuz',
+    'Manda Erkek':'manda_e','Manda Dişi':'manda_d',
+    'Koyun':'koyun','Keçi':'keci','Kuzu/Oğlak':'kuzu',
+    'At':'at','Katır':'katir','Eşek':'esek',
+    // Eski adlar (geriye dönük uyumluluk)
     'Kültür ırkı süt ineği':'kult_sut','Kültür melezi':'kult_mez','Yerli inek':'yerli_inek',
     'Dana-düve (kültür ırkı)':'dana_kult','Dana-düve (kültür melezi)':'dana_mez','Dana-düve (yerli)':'dana_yerli',
-    'Boğa':'boga','Öküz':'okuz','Manda (erkek)':'manda_e','Manda (dişi)':'manda_d',
-    'Koyun':'koyun','Keçi':'keci','Kuzu-Oğlak':'kuzu','At':'at','Katır':'katir','Eşek':'esek'
+    'Manda (erkek)':'manda_e','Manda (dişi)':'manda_d',
+    'Kuzu-Oğlak':'kuzu','Kuzu-oğlak':'kuzu',
   };
   hayvanlar.forEach(h => {
     const tid = katMap[h.kategori];
